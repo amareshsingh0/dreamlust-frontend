@@ -7,10 +7,23 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Build outputs
 dist
 dist-ssr
+build
 *.local
+
+# Environment variables - NEVER COMMIT THESE!
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +35,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Frontend and Backend
+frontend/.env
+frontend/.env.local
+backend/.env
+backend/.env.local

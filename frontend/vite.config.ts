@@ -18,4 +18,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Expose environment variables to client
+  // Only VITE_* variables are exposed to frontend
+  // DATABASE_URL and SUPABASE_SERVICE_ROLE_KEY are NOT exposed (backend only)
+  envPrefix: 'VITE_',
 }));
