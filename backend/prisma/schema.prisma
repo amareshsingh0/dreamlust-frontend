@@ -1,0 +1,650 @@
+// Prisma Schema for DreamLust Platform
+// Complete database schema with relationships, indexes, soft deletes, and optimistic locking
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Can be changed to mysql, sqlite, etc.
+  url      = env("DATABASE_URL") // Reads from backend/.env
+}
+
+// ============================================================================
+// USER & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String   // Hashed password
+  emailVerified Boolean @default(false)
+  
+  // Profile Information
+  displayName String?
+  avatar      String?
+  bio         String?  @db.Text
+  location    String?
+  website     String?
+  birthDate   DateTime?
+  
+  // Preferences
+  theme       String   @default("dark") // light, dark, system
+  language    String   @default("en")
+  notificationsEnabled Boolean @default(true)
+  emailNotifications  Boolean @default(true)
+  
+  // Status & Metadata
+  role        UserRole @default(USER)
+  status      UserStatus @default(ACTIVE)
+  isCreator   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // Soft delete
+  
+  // Version for optimistic locking
+  version     Int      @default(0)
+  
+  // Relationships
+  creator     Creator?
+  views       View[]
+  likes       Like[]
+  comments    Comment[]
+  playlists   Playlist[]
+  subscriptions Subscription[] @relation("Subscriber")
+  transactions Transaction[]
+  notifications Notification[]
+  reports     Report[] @relation("Reporter")
+  reportedBy  Report[] @relation("ReportedUser")
+  
+  @@index([email])
+  @@index([username])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([id, createdAt]) // Composite index for user activity queries
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  CREATOR
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  INACTIVE
+}
+
+// ============================================================================
+// CREATOR PROFILE
+// ============================================================================
+
+model Creator {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Creator Profile
+  displayName     String
+  handle          String   @unique // @username style handle
+  avatar          String?
+  banner          String?
+  bio             String?  @db.Text
+  location        String?
+  website         String?
+  
+  // Verification
+  isVerified      Boolean  @default(false)
+  verifiedAt      DateTime?
+  verificationBadge String?
+  
+  // Stats (denormalized for performance)
+  followerCount   Int      @default(0)
+  followingCount  Int      @default(0)
+  contentCount    Int      @default(0)
+  totalViews      BigInt   @default(0)
+  totalLikes      Int      @default(0)
+  totalComments   Int      @default(0)
+  
+  // Monetization
+  isMonetized     Boolean  @default(false)
+  monetizationEnabledAt DateTime?
+  payoutEmail     String?
+  payoutMethod    String? // stripe, paypal, etc.
+  
+  // Status
+  status          CreatorStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime? // Soft delete
+  version         Int      @default(0)
+  
+  // Relationships
+  content         Content[]
+  subscriptions  Subscription[] @relation("Creator")
+  categories     CreatorCategory[]
+  
+  @@index([userId])
+  @@index([handle])
+  @@index([isVerified])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("creators")
+}
+
+enum CreatorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+// ============================================================================
+// CONTENT MANAGEMENT
+// ============================================================================
+
+model Content {
+  id              String   @id @default(cuid())
+  creatorId       String
+  creator         Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  // Content Details
+  title           String
+  description     String?  @db.Text
+  type            ContentType
+  status          ContentStatus @default(DRAFT)
+  
+  // Media Files
+  thumbnail       String?
+  mediaUrl        String
+  mediaType       String? // video/mp4, image/jpeg, etc.
+  duration        Int? // in seconds
+  fileSize        BigInt? // in bytes
+  resolution      String? // 1920x1080, etc.
+  isVR            Boolean  @default(false)
+  
+  // Metadata
+  tags            ContentTag[]
+  categories      ContentCategory[]
+  
+  // Engagement Stats (denormalized)
+  viewCount       Int      @default(0)
+  likeCount       Int      @default(0)
+  commentCount    Int      @default(0)
+  shareCount      Int      @default(0)
+  
+  // Visibility & Moderation
+  isPublic        Boolean  @default(true)
+  isNSFW          Boolean  @default(false)
+  ageRestricted   Boolean  @default(false)
+  allowComments   Boolean  @default(true)
+  allowDownloads  Boolean  @default(false)
+  
+  // Pricing (for premium content)
+  isPremium       Boolean  @default(false)
+  price           Decimal? @db.Decimal(10, 2)
+  currency        String?  @default("USD")
+  
+  // Timestamps
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime? // Soft delete
+  version         Int      @default(0)
+  
+  // Relationships
+  views           View[]
+  likes           Like[]
+  comments        Comment[]
+  playlistItems   PlaylistItem[]
+  reports         Report[] @relation("Content")
+  
+  @@index([creatorId])
+  @@index([creatorId, createdAt]) // Composite index for creator content queries
+  @@index([type])
+  @@index([status])
+  @@index([isPublic])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([viewCount]) // For trending queries
+  @@index([deletedAt])
+  @@index([id, viewCount]) // Composite index for content views
+  @@map("content")
+}
+
+enum ContentType {
+  VIDEO
+  PHOTO
+  VR
+  LIVE_STREAM
+  AUDIO
+}
+
+enum ContentStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  ARCHIVED
+  REJECTED
+  DELETED
+}
+
+// ============================================================================
+// CATEGORIES & TAGS
+// ============================================================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  icon        String?
+  color       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  // Relationships
+  content     ContentCategory[]
+  creators    CreatorCategory[]
+  
+  @@index([slug])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  content     ContentTag[]
+  
+  @@index([slug])
+  @@index([usageCount])
+  @@map("tags")
+}
+
+model ContentCategory {
+  id         String   @id @default(cuid())
+  contentId  String
+  categoryId String
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  
+  @@unique([contentId, categoryId])
+  @@index([contentId])
+  @@index([categoryId])
+  @@map("content_categories")
+}
+
+model ContentTag {
+  id        String   @id @default(cuid())
+  contentId String
+  tagId     String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([contentId, tagId])
+  @@index([contentId])
+  @@index([tagId])
+  @@map("content_tags")
+}
+
+model CreatorCategory {
+  id         String   @id @default(cuid())
+  creatorId  String
+  categoryId String
+  creator    Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  
+  @@unique([creatorId, categoryId])
+  @@index([creatorId])
+  @@index([categoryId])
+  @@map("creator_categories")
+}
+
+// ============================================================================
+// ENGAGEMENT (Views, Likes, Comments)
+// ============================================================================
+
+model View {
+  id        String   @id @default(cuid())
+  contentId String
+  userId    String?
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // View Details
+  ipAddress String?
+  userAgent String?
+  duration  Int? // View duration in seconds
+  watchedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  
+  @@index([contentId])
+  @@index([userId])
+  @@index([contentId, createdAt]) // Composite index for content views over time
+  @@index([watchedAt])
+  @@map("views")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  contentId String
+  userId    String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([contentId, userId])
+  @@index([contentId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("likes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  contentId String
+  userId    String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Comment Details
+  text      String   @db.Text
+  parentId  String? // For nested comments/replies
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  
+  // Engagement
+  likeCount Int      @default(0)
+  
+  // Moderation
+  isEdited  Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  deletedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  version   Int      @default(0)
+  
+  @@index([contentId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([contentId, createdAt]) // Composite index for content comments
+  @@index([createdAt])
+  @@map("comments")
+}
+
+// ============================================================================
+// PLAYLISTS
+// ============================================================================
+
+model Playlist {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Playlist Details
+  name        String
+  description String?  @db.Text
+  thumbnail   String?
+  isPublic    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  
+  // Stats
+  itemCount   Int      @default(0)
+  viewCount   Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  version     Int      @default(0)
+  
+  // Relationships
+  items       PlaylistItem[]
+  
+  @@index([userId])
+  @@index([userId, createdAt]) // Composite index for user playlists
+  @@index([isPublic])
+  @@map("playlists")
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  contentId  String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  sortOrder  Int      @default(0)
+  addedAt    DateTime @default(now())
+  
+  @@unique([playlistId, contentId])
+  @@index([playlistId])
+  @@index([contentId])
+  @@index([playlistId, sortOrder]) // Composite index for playlist ordering
+  @@map("playlist_items")
+}
+
+// ============================================================================
+// SUBSCRIPTIONS & MONETIZATION
+// ============================================================================
+
+model Subscription {
+  id          String   @id @default(cuid())
+  subscriberId String
+  creatorId   String
+  subscriber  User     @relation("Subscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  creator     Creator  @relation("Creator", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  // Subscription Details
+  tier        SubscriptionTier @default(BASIC)
+  status      SubscriptionStatus @default(ACTIVE)
+  isRecurring Boolean  @default(true)
+  
+  // Pricing
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  interval    String   @default("monthly") // monthly, yearly
+  
+  // Dates
+  startedAt   DateTime @default(now())
+  expiresAt   DateTime?
+  canceledAt  DateTime?
+  renewedAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     Int      @default(0)
+  
+  // Relationships
+  transactions Transaction[]
+  
+  @@unique([subscriberId, creatorId])
+  @@index([subscriberId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([subscriberId, createdAt]) // Composite index for user subscriptions
+  @@map("subscriptions")
+}
+
+enum SubscriptionTier {
+  BASIC
+  PREMIUM
+  VIP
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PENDING
+  FAILED
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  subscriptionId String?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription  Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  
+  // Transaction Details
+  type          TransactionType
+  status        TransactionStatus @default(PENDING)
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+  
+  // Payment Processing
+  paymentMethod String? // stripe, paypal, etc.
+  paymentId     String? // External payment processor ID
+  receiptUrl    String?
+  
+  // Metadata
+  description   String?
+  metadata      Json? // Additional transaction data
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  version       Int      @default(0)
+  
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([type])
+  @@index([userId, createdAt]) // Composite index for user transactions
+  @@map("transactions")
+}
+
+enum TransactionType {
+  SUBSCRIPTION
+  TIP
+  PREMIUM_CONTENT
+  REFUND
+  WITHDRAWAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification Details
+  type      NotificationType
+  title     String
+  message   String   @db.Text
+  link      String? // URL to related content
+  
+  // Status
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  
+  // Metadata
+  metadata  Json? // Additional notification data
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([userId, isRead]) // Composite index for unread notifications
+  @@index([userId, createdAt]) // Composite index for user notifications
+  @@index([isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  NEW_FOLLOWER
+  NEW_COMMENT
+  NEW_LIKE
+  NEW_SUBSCRIBER
+  CONTENT_APPROVED
+  CONTENT_REJECTED
+  PAYMENT_RECEIVED
+  SYSTEM_ANNOUNCEMENT
+  MENTION
+  MESSAGE
+}
+
+// ============================================================================
+// MODERATION & REPORTS
+// ============================================================================
+
+model Report {
+  id            String   @id @default(cuid())
+  reporterId    String
+  reportedUserId String?
+  contentId     String?
+  reporter      User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser  User?    @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  content       Content? @relation("Content", fields: [contentId], references: [id], onDelete: Cascade)
+  
+  // Report Details
+  type          ReportType
+  reason        String   @db.Text
+  status        ReportStatus @default(PENDING)
+  
+  // Moderation
+  moderatorId   String?
+  moderatorNotes String? @db.Text
+  resolvedAt    DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  version       Int      @default(0)
+  
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([contentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+enum ReportType {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  COPYRIGHT_VIOLATION
+  FAKE_ACCOUNT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+  ACTION_TAKEN
+}
+
