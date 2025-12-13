@@ -12,8 +12,7 @@ import {
   Bell,
   Heart,
   FileText,
-  MessageCircle,
-  Camera
+  MessageCircle
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { ContentGrid } from '@/components/content/ContentGrid';
@@ -27,8 +26,14 @@ import { cn } from '@/lib/utils';
 export default function CreatorProfile() {
   const { username } = useParams<{ username: string }>();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [selectedContentType, setSelectedContentType] = useState<string>('all');
   const creator = mockCreators.find(c => c.username === username);
   const creatorContent = mockContent.filter(c => c.creator.username === username);
+  
+  // Filter content by type
+  const filteredContent = selectedContentType === 'all' 
+    ? creatorContent 
+    : creatorContent.filter(c => c.type.toLowerCase() === selectedContentType);
 
   if (!creator) {
     return (
@@ -84,8 +89,8 @@ export default function CreatorProfile() {
                     <AvatarFallback className="text-2xl md:text-4xl">{creator.name[0]}</AvatarFallback>
                   </Avatar>
                   {creator.isVerified && (
-                    <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center border-4 border-background">
-                      <Zap className="h-4 w-4 text-primary-foreground" />
+                    <div className="absolute bottom-[8px] right-[8px] w-6 h-6 md:w-7 md:h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background shadow-md">
+                      <Zap className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary-foreground fill-primary-foreground" />
                     </div>
                   )}
                 </div>
@@ -107,70 +112,74 @@ export default function CreatorProfile() {
                     <p className="text-sm text-foreground/80 mb-3">{creator.bio}</p>
                   )}
 
-                  {/* Social Media Handles */}
-                  <div className="flex flex-wrap gap-3 text-sm mb-4">
-                    {creator.socialLinks?.instagram ? (
-                      <a 
-                        href={`https://instagram.com/${creator.socialLinks.instagram}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                      >
-                        <Instagram className="h-4 w-4" />
-                        <span>@{creator.socialLinks.instagram}</span>
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Instagram className="h-4 w-4" />
-                        <span>Instagram</span>
-                      </span>
-                    )}
+                  {/* Social Media Handles - Icons Only */}
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {/* Instagram */}
+                    <a 
+                      href={creator.socialLinks?.instagram 
+                        ? `https://instagram.com/${creator.socialLinks.instagram}` 
+                        : 'https://instagram.com'}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-primary transition-all shadow-sm hover:shadow-md"
+                      aria-label="Instagram"
+                    >
+                      <Instagram className="h-5 w-5" />
+                    </a>
                     
-                    {creator.socialLinks?.twitter ? (
-                      <a 
-                        href={`https://twitter.com/${creator.socialLinks.twitter}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                      >
-                        <Twitter className="h-4 w-4" />
-                        <span>@{creator.socialLinks.twitter}</span>
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Twitter className="h-4 w-4" />
-                        <span>Twitter</span>
-                      </span>
-                    )}
+                    {/* Twitter */}
+                    <a 
+                      href={creator.socialLinks?.twitter 
+                        ? `https://twitter.com/${creator.socialLinks.twitter}` 
+                        : 'https://twitter.com'}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-primary transition-all shadow-sm hover:shadow-md"
+                      aria-label="Twitter"
+                    >
+                      <Twitter className="h-5 w-5" />
+                    </a>
                     
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    {/* Facebook */}
+                    <a 
+                      href={creator.socialLinks?.facebook 
+                        ? `https://facebook.com/${creator.socialLinks.facebook}` 
+                        : 'https://facebook.com'}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-primary transition-all shadow-sm hover:shadow-md"
+                      aria-label="Facebook"
+                    >
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
                       </svg>
-                      <span>Facebook</span>
-                    </span>
+                    </a>
                     
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Camera className="h-4 w-4" />
-                      <span>Snapchat</span>
-                    </span>
+                    {/* Pinterest */}
+                    <a 
+                      href={creator.socialLinks?.pinterest 
+                        ? `https://pinterest.com/${creator.socialLinks.pinterest}` 
+                        : 'https://pinterest.com'}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-primary transition-all shadow-sm hover:shadow-md"
+                      aria-label="Pinterest"
+                    >
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.174-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.402.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.357-.629-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24.009 12.017 24.009c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641.001 12.017.001z"/>
+                      </svg>
+                    </a>
                     
-                    {creator.socialLinks?.website ? (
-                      <a 
-                        href={creator.socialLinks.website} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                      >
-                        <Globe className="h-4 w-4" />
-                        <span>{creator.socialLinks.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Globe className="h-4 w-4" />
-                        <span>Website</span>
-                      </span>
-                    )}
+                    {/* Website */}
+                    <a 
+                      href={creator.socialLinks?.website || '#'}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-primary transition-all shadow-sm hover:shadow-md"
+                      aria-label="Website"
+                    >
+                      <Globe className="h-5 w-5" />
+                    </a>
                   </div>
                 </div>
               </div>
@@ -247,37 +256,57 @@ export default function CreatorProfile() {
               </div>
 
               {/* Tabs */}
-              <Tabs defaultValue="videos" className="mb-6">
+              <Tabs defaultValue="content" className="mb-6">
                 <TabsList>
-                  <TabsTrigger value="videos" className="gap-2">
+                  <TabsTrigger value="content" className="gap-2">
                     <Video className="h-4 w-4" />
-                    Videos
-                  </TabsTrigger>
-                  <TabsTrigger value="about" className="gap-2">
-                    <FileText className="h-4 w-4" />
-                    About
+                    All Content
                   </TabsTrigger>
                   <TabsTrigger value="community" className="gap-2">
                     <MessageCircle className="h-4 w-4" />
                     Community
                   </TabsTrigger>
-                  <TabsTrigger value="followers" className="gap-2">
-                    <Users className="h-4 w-4" />
-                    Followers ({creator.followers})
+                  <TabsTrigger value="about" className="gap-2">
+                    <FileText className="h-4 w-4" />
+                    About
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="videos" className="mt-6">
-                  {/* Content Grid */}
-                  <ContentGrid content={creatorContent} columns={4} />
-                </TabsContent>
-
-                <TabsContent value="about" className="mt-6">
-                  <div className="max-w-3xl">
-                    <p className="text-foreground/80 leading-relaxed">
-                      {creator.bio || 'No about information available.'}
-                    </p>
+                <TabsContent value="content" className="mt-6">
+                  {/* Content Type Filters */}
+                  <div className="flex gap-2 mb-6 flex-wrap">
+                    <Button
+                      variant={selectedContentType === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedContentType('all')}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={selectedContentType === 'video' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedContentType('video')}
+                    >
+                      Videos
+                    </Button>
+                    <Button
+                      variant={selectedContentType === 'vr' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedContentType('vr')}
+                    >
+                      VR
+                    </Button>
+                    <Button
+                      variant={selectedContentType === 'photo' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedContentType('photo')}
+                    >
+                      Photos
+                    </Button>
                   </div>
+                  
+                  {/* Content Grid */}
+                  <ContentGrid content={filteredContent} columns={4} />
                 </TabsContent>
 
                 <TabsContent value="community" className="mt-6">
@@ -287,10 +316,11 @@ export default function CreatorProfile() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="followers" className="mt-6">
-                  <div className="text-center py-12">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Followers list coming soon</p>
+                <TabsContent value="about" className="mt-6">
+                  <div className="max-w-3xl">
+                    <p className="text-foreground/80 leading-relaxed">
+                      {creator.bio || 'No about information available.'}
+                    </p>
                   </div>
                 </TabsContent>
               </Tabs>

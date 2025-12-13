@@ -4,7 +4,6 @@ import { Layout } from '@/components/layout/Layout';
 import { ContentGrid } from '@/components/content/ContentGrid';
 import { ContentCard } from '@/components/content/ContentCard';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
