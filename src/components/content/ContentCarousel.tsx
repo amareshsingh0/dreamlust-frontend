@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 interface ContentCarouselProps {
   title: string;
+  description?: string;
   content: Content[];
   showViewAll?: boolean;
   viewAllPath?: string;
@@ -14,7 +15,8 @@ interface ContentCarouselProps {
 }
 
 export function ContentCarousel({ 
-  title, 
+  title,
+  description,
   content, 
   showViewAll = true,
   viewAllPath = '/explore',
@@ -33,7 +35,12 @@ export function ContentCarousel({
     <section className="relative">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-xl font-bold">{title}</h2>
+        <div>
+          <h2 className="font-display text-xl font-bold">{title}</h2>
+          {description && (
+            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {showViewAll && (
             <Button variant="ghost" size="sm" asChild>
