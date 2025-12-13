@@ -51,15 +51,15 @@ const Settings = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="displayName">Display Name</Label>
-                    <Input id="displayName" placeholder="Your display name" />
+                    <Input id="displayName" name="displayName" placeholder="Your display name" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
-                    <Input id="username" placeholder="username" />
+                    <Input id="username" name="username" placeholder="username" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
-                    <Input id="bio" placeholder="Tell us about yourself" />
+                    <Input id="bio" name="bio" placeholder="Tell us about yourself" />
                   </div>
                   <Button>Save Changes</Button>
                 </CardContent>

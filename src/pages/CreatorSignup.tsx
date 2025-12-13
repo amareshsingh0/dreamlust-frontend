@@ -56,29 +56,29 @@ const CreatorSignup = () => {
               <form className="space-y-6">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">First Name</label>
-                    <Input placeholder="John" />
+                    <label htmlFor="creator-first-name" className="text-sm font-medium mb-2 block">First Name</label>
+                    <Input id="creator-first-name" name="creator-first-name" placeholder="John" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Last Name</label>
-                    <Input placeholder="Doe" />
+                    <label htmlFor="creator-last-name" className="text-sm font-medium mb-2 block">Last Name</label>
+                    <Input id="creator-last-name" name="creator-last-name" placeholder="Doe" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Email</label>
-                  <Input type="email" placeholder="your@email.com" />
+                  <label htmlFor="creator-email" className="text-sm font-medium mb-2 block">Email</label>
+                  <Input id="creator-email" name="creator-email" type="email" placeholder="your@email.com" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Username</label>
-                  <Input placeholder="Your creator username" />
+                  <label htmlFor="creator-username" className="text-sm font-medium mb-2 block">Username</label>
+                  <Input id="creator-username" name="creator-username" placeholder="Your creator username" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Social Media Links</label>
-                  <Input placeholder="Instagram, Twitter, TikTok, etc." />
+                  <label htmlFor="creator-social" className="text-sm font-medium mb-2 block">Social Media Links</label>
+                  <Input id="creator-social" name="creator-social" placeholder="Instagram, Twitter, TikTok, etc." />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Tell us about yourself</label>
-                  <Textarea placeholder="What type of content do you create? What makes you unique?" rows={4} />
+                  <label htmlFor="creator-bio" className="text-sm font-medium mb-2 block">Tell us about yourself</label>
+                  <Textarea id="creator-bio" name="creator-bio" placeholder="What type of content do you create? What makes you unique?" rows={4} />
                 </div>
                 <div className="flex items-start gap-2">
                   <input type="checkbox" id="terms" className="mt-1" />

@@ -25,7 +25,7 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       <Header 
         onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
         isMenuOpen={isSidebarOpen}
@@ -35,7 +35,7 @@ export function Layout({ children }: LayoutProps) {
         onClose={() => setIsSidebarOpen(false)} 
       />
       <main className={cn(
-        "pt-16 flex-1 transition-all duration-300",
+        "pt-16 flex-1 transition-all duration-300 overflow-x-hidden",
         "lg:pl-64"
       )}>
         {children}

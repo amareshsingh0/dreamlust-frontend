@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Play, Eye, Heart, Clock, Zap, Crown } from 'lucide-react';
 import { Content } from '@/types';
 import { cn } from '@/lib/utils';
@@ -30,12 +30,13 @@ function formatDate(dateString: string): string {
 
 export function ContentCard({ content, variant = 'default' }: ContentCardProps) {
   const isLive = content.type === 'live' || content.isLive;
+  const navigate = useNavigate();
   
   if (variant === 'horizontal') {
     return (
-      <Link 
-        to={`/watch/${content.id}`}
-        className="flex gap-4 p-3 rounded-xl hover:bg-muted/30 transition-all duration-300 group"
+      <div 
+        onClick={() => navigate(`/watch/${content.id}`)}
+        className="flex gap-4 p-3 rounded-xl hover:bg-muted/30 transition-all duration-300 group cursor-pointer"
       >
         <div className="relative w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0">
           <img 
@@ -55,22 +56,31 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
           <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
             {content.title}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">{content.creator.name}</p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/creator/${content.creator.username}`);
+            }}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 text-left"
+          >
+            {content.creator.name}
+          </button>
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{formatViews(content.views)} views</span>
             <span>•</span>
             <span>{formatDate(content.createdAt)}</span>
           </div>
         </div>
-      </Link>
+      </div>
     );
   }
 
   return (
-    <Link 
-      to={`/watch/${content.id}`}
+    <div 
+      onClick={() => navigate(`/watch/${content.id}`)}
       className={cn(
-        "group block rounded-xl overflow-hidden hover-lift",
+        "group block rounded-xl overflow-hidden transition-all duration-300 cursor-pointer",
+        "hover:scale-[1.02] hover:shadow-lg",
         variant === 'compact' ? 'space-y-2' : 'space-y-3'
       )}
     >
@@ -79,25 +89,28 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
         <img 
           src={content.thumbnail} 
           alt={content.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           loading="lazy"
         />
         
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Play button on hover */}
+        {/* Play button on hover with ripple effect */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm shadow-lg">
-            <Play className="h-6 w-6 text-primary-foreground ml-1" fill="currentColor" />
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+            <div className="relative w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Play className="h-6 w-6 text-primary-foreground ml-1" fill="currentColor" />
+            </div>
           </div>
         </div>
 
         {/* Duration/Live badge */}
         <span className={cn(
-          "absolute bottom-2 right-2 px-2 py-1 rounded-md text-xs font-medium",
+          "absolute bottom-2 right-2 px-2.5 py-1 rounded-md text-xs font-medium",
           isLive 
-            ? "bg-destructive text-destructive-foreground animate-pulse flex items-center gap-1" 
+            ? "bg-destructive text-destructive-foreground animate-pulse flex items-center gap-1.5 border-0" 
             : "bg-background/80 backdrop-blur-sm text-foreground"
         )}>
           {isLive ? (
@@ -146,16 +159,18 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
             {content.title}
           </h3>
           
-          <Link 
-            to={`/creator/${content.creator.username}`}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-1 block"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/creator/${content.creator.username}`);
+            }}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-1 block text-left"
           >
             {content.creator.name}
             {content.creator.isVerified && (
               <Zap className="inline h-3 w-3 ml-1 text-primary" />
             )}
-          </Link>
+          </button>
           
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
@@ -173,6 +188,6 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

@@ -281,6 +281,8 @@ export default function Watch() {
                         <AvatarFallback>U</AvatarFallback>
                       </Avatar>
                       <Textarea 
+                        id="comment-input"
+                        name="comment-input"
                         placeholder="Add a comment..."
                         className="flex-1 min-h-[80px]"
                       />

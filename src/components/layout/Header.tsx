@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut } from 'lucide-react';
+import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut, Upload, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,6 +12,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { TrendingUp, Compass, Radio } from 'lucide-react';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -21,13 +30,33 @@ interface HeaderProps {
 export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [showCommandDialog, setShowCommandDialog] = useState(false);
+  const [isCreator, setIsCreator] = useState(false); // TODO: Get from auth context
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+
+  // Panic exit: Shift + X
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.key === 'X' || e.key === 'x')) {
+        window.location.href = 'https://google.com';
+      }
+      // Cmd/Ctrl + K for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandDialog(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setShowSearch(false);
     }
   };
 
@@ -67,6 +96,8 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              id="header-search-input"
+              name="header-search-input"
               type="search"
               placeholder="Search content, creators, tags..."
               value={searchQuery}
@@ -94,18 +125,40 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
             size="icon"
             className="md:hidden"
             onClick={() => setShowSearch(!showSearch)}
+            aria-label="Search"
           >
             <Search className="h-5 w-5" />
           </Button>
 
-          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+          {/* Upload button (creators only) */}
+          {isCreator && (
+            <Button variant="default" size="sm" asChild>
+              <Link to="/upload">
+                <Upload className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Upload</span>
+              </Link>
+            </Button>
+          )}
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          <Button variant="ghost" size="icon" className="relative" asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="relative" 
+            asChild
+            aria-label="Notifications"
+          >
             <Link to="/notifications">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
             </Link>
           </Button>
 
@@ -126,6 +179,12 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
+                <Link to="/history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  <span>Watch History</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link to="/settings" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
@@ -140,6 +199,28 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Command Dialog for Search (Cmd/Ctrl + K) */}
+      <CommandDialog open={showCommandDialog} onOpenChange={setShowCommandDialog}>
+        <CommandInput placeholder="Search content, creators, tags..." />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Suggestions">
+            <CommandItem onSelect={() => { navigate('/trending'); setShowCommandDialog(false); }}>
+              <TrendingUp className="mr-2 h-4 w-4" />
+              <span>Trending</span>
+            </CommandItem>
+            <CommandItem onSelect={() => { navigate('/explore'); setShowCommandDialog(false); }}>
+              <Compass className="mr-2 h-4 w-4" />
+              <span>Explore</span>
+            </CommandItem>
+            <CommandItem onSelect={() => { navigate('/live'); setShowCommandDialog(false); }}>
+              <Radio className="mr-2 h-4 w-4" />
+              <span>Live Streams</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
     </header>
   );
 }
