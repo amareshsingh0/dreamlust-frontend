@@ -138,5 +138,24 @@ export const api = {
         body: JSON.stringify(body),
       }),
   },
+  analytics: {
+    trackViewEvent: <T>(body: unknown) =>
+      apiRequest<T>('/api/analytics/view-event', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+    trackInteraction: <T>(body: unknown) =>
+      apiRequest<T>('/api/analytics/interaction', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+    getStats: <T>() =>
+      apiRequest<T>('/api/analytics/stats', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
 };
 

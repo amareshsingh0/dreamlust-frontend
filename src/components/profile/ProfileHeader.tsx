@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Camera, Edit2, Twitter, Instagram, Globe, UserPlus, Check } from 'lucide-react';
+import { Camera, Edit2, Twitter, Instagram, Globe, UserPlus, Check, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 interface ProfileHeaderProps {
   isOwnProfile?: boolean;
@@ -202,10 +203,18 @@ export function ProfileHeader({
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
             {isOwnProfile ? (
-              <Button onClick={onEdit} className="gap-2">
-                <Edit2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Edit Profile</span>
-              </Button>
+              <>
+                <Button asChild variant="default" className="gap-2">
+                  <Link to="/upload">
+                    <Upload className="h-4 w-4" />
+                    <span className="hidden sm:inline">Upload</span>
+                  </Link>
+                </Button>
+                <Button onClick={onEdit} variant="secondary" className="gap-2">
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Edit Profile</span>
+                </Button>
+              </>
             ) : (
               <Button
                 variant={isFollowing ? 'secondary' : 'default'}

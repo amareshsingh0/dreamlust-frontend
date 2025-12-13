@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRef } from "react";
 
 const Upload = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <Helmet>
@@ -39,12 +41,39 @@ const Upload = () => {
               {/* File Upload */}
               <div className="space-y-2">
                 <Label htmlFor="file">Content File</Label>
-                <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary transition-colors">
+                <input
+                  type="file"
+                  id="file"
+                  name="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="video/*,image/*"
+                />
+                <div 
+                  className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && fileInputRef.current) {
+                      fileInputRef.current.files = files;
+                    }
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                >
                   <FileVideo className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground mb-2">
                     Drag and drop your file here, or click to browse
                   </p>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                  >
                     Select File
                   </Button>
                 </div>
