@@ -58,24 +58,24 @@ const DMCA = () => {
                 <h2 className="font-display text-xl font-bold mb-4">Submit a DMCA Notice</h2>
                 <form className="space-y-4 p-6 rounded-xl bg-card border border-border">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Your Name</label>
-                    <Input placeholder="Full legal name" />
+                    <label htmlFor="dmca-name" className="text-sm font-medium mb-2 block">Your Name</label>
+                    <Input id="dmca-name" name="dmca-name" placeholder="Full legal name" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Email Address</label>
-                    <Input type="email" placeholder="your@email.com" />
+                    <label htmlFor="dmca-email" className="text-sm font-medium mb-2 block">Email Address</label>
+                    <Input id="dmca-email" name="dmca-email" type="email" placeholder="your@email.com" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Content URL(s)</label>
-                    <Textarea placeholder="URLs of the infringing content (one per line)" rows={3} />
+                    <label htmlFor="dmca-content-urls" className="text-sm font-medium mb-2 block">Content URL(s)</label>
+                    <Textarea id="dmca-content-urls" name="dmca-content-urls" placeholder="URLs of the infringing content (one per line)" rows={3} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Original Work</label>
-                    <Textarea placeholder="Description or URL of your original copyrighted work" rows={3} />
+                    <label htmlFor="dmca-original-work" className="text-sm font-medium mb-2 block">Original Work</label>
+                    <Textarea id="dmca-original-work" name="dmca-original-work" placeholder="Description or URL of your original copyrighted work" rows={3} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Additional Information</label>
-                    <Textarea placeholder="Any additional details" rows={3} />
+                    <label htmlFor="dmca-additional-info" className="text-sm font-medium mb-2 block">Additional Information</label>
+                    <Textarea id="dmca-additional-info" name="dmca-additional-info" placeholder="Any additional details" rows={3} />
                   </div>
                   <div className="flex items-start gap-2">
                     <input type="checkbox" id="declaration" className="mt-1" />

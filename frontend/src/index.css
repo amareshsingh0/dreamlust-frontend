@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* Smooth focus ring for accessibility */
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+  
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
 /* Dreamlust Design System - Bold dark streaming aesthetic */
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -110,6 +127,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    overflow-x: hidden; /* Prevent horizontal scrolling on body */
+  }
+
+  html {
+    overflow-x: hidden; /* Prevent horizontal scrolling on html */
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -168,5 +190,15 @@
     50% {
       transform: translateY(-10px);
     }
+  }
+
+  /* Hide scrollbars */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
   }
 }

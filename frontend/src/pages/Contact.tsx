@@ -55,21 +55,21 @@ const Contact = () => {
                 <form className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Name</label>
-                      <Input placeholder="Your name" />
+                      <label htmlFor="contact-name" className="text-sm font-medium mb-2 block">Name</label>
+                      <Input id="contact-name" name="contact-name" placeholder="Your name" />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Email</label>
-                      <Input type="email" placeholder="your@email.com" />
+                      <label htmlFor="contact-email" className="text-sm font-medium mb-2 block">Email</label>
+                      <Input id="contact-email" name="contact-email" type="email" placeholder="your@email.com" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Subject</label>
-                    <Input placeholder="How can we help?" />
+                    <label htmlFor="contact-subject" className="text-sm font-medium mb-2 block">Subject</label>
+                    <Input id="contact-subject" name="contact-subject" placeholder="How can we help?" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Message</label>
-                    <Textarea placeholder="Tell us more..." rows={6} />
+                    <label htmlFor="contact-message" className="text-sm font-medium mb-2 block">Message</label>
+                    <Textarea id="contact-message" name="contact-message" placeholder="Tell us more..." rows={6} />
                   </div>
                   <Button type="submit" className="w-full">Send Message</Button>
                 </form>

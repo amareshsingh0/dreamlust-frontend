@@ -6,6 +6,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { ipRateLimiter } from './middleware/rateLimit';
 import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
+import searchRoutes from './routes/search';
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
+app.use('/api/search', searchRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

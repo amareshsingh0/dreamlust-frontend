@@ -60,10 +60,11 @@ export function ContentCarousel({
       </div>
 
       {/* Carousel */}
-      <div className="relative -mx-4 px-4">
+      <div className="relative -mx-4 px-4 overflow-hidden">
         <div
           ref={scrollRef}
           className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {content.map((item) => (
             <div 
