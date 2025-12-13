@@ -53,10 +53,18 @@ bun run db:generate  # Generate Prisma Client
 cd frontend
 bun run dev
 ```
+Frontend runs on **`http://localhost:4000`**
 
-The frontend will run on **`http://localhost:4000`**
+**Backend (API Server):**
+```powershell
+cd backend
+bun run dev
+```
+Backend runs on **`http://localhost:3001`**
 
 **Note:** Make sure `.env` files are set up in both `frontend/` and `backend/` directories.
+
+> 📖 **See [BUN_COMMANDS_GUIDE.md](./BUN_COMMANDS_GUIDE.md) for detailed command reference**
 
 ## Environment Variables
 
