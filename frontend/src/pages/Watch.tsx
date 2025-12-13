@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Play, 
@@ -87,9 +87,24 @@ export default function Watch() {
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [newPlaylistPublic, setNewPlaylistPublic] = useState(false);
+  const watchStartTimeRef = useRef<number | null>(null);
+  const [watchDuration, setWatchDuration] = useState<number>(0);
 
   const content = mockContent.find(c => c.id === id);
   const relatedContent = mockContent.filter(c => c.id !== id).slice(0, 8);
+
+  // Detect device type
+  const detectDevice = (): 'mobile' | 'tablet' | 'desktop' => {
+    if (typeof window === 'undefined') return 'desktop';
+    const ua = navigator.userAgent.toLowerCase();
+    if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
+      return 'mobile';
+    }
+    if (/tablet|ipad|playbook|silk/i.test(ua)) {
+      return 'tablet';
+    }
+    return 'desktop';
+  };
 
   // Fetch preferences on mount
   useEffect(() => {
@@ -122,6 +137,18 @@ export default function Watch() {
     fetchPlaylists();
   }, []);
 
+  // Helper to parse duration string to seconds
+  const parseDurationToSeconds = (duration: string): number => {
+    // Parse formats like "5:30", "1:23:45", etc.
+    const parts = duration.split(':').map(Number);
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    } else if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    return 0;
+  };
+
   // Track view on mount
   useEffect(() => {
     if (id) {
@@ -133,8 +160,44 @@ export default function Watch() {
         }
       };
       trackView();
+      
+      // Set watch start time
+      watchStartTimeRef.current = Date.now();
     }
-  }, [id]);
+    
+    // Cleanup: Track view event when component unmounts or content changes
+    return () => {
+      if (id && watchStartTimeRef.current && content) {
+        const duration = Math.floor((Date.now() - watchStartTimeRef.current) / 1000);
+        const contentDuration = parseDurationToSeconds(content.duration);
+        const completionRate = contentDuration > 0 ? Math.min(duration / contentDuration, 1) : 0;
+        
+        // Track detailed view event
+        api.analytics.trackViewEvent({
+          contentId: id,
+          watchDuration: duration,
+          completionRate,
+          device: detectDevice(),
+          region: preferences?.region || undefined,
+        }).catch(error => {
+          console.error('Failed to track view event:', error);
+        });
+      }
+    };
+  }, [id, content, preferences]);
+
+  // Update watch duration periodically when playing
+  useEffect(() => {
+    if (!watchStartTimeRef.current || !isPlaying) return;
+    
+    const interval = setInterval(() => {
+      if (watchStartTimeRef.current) {
+        setWatchDuration(Math.floor((Date.now() - watchStartTimeRef.current) / 1000));
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   const handleAddToPlaylist = async (playlistId: string) => {
     if (!id) return;
@@ -203,14 +266,66 @@ export default function Watch() {
     );
   }
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
+  const handleLike = async () => {
+    const newLikedState = !isLiked;
+    setIsLiked(newLikedState);
     if (isDisliked) setIsDisliked(false);
+    
+    // Track interaction
+    if (id) {
+      try {
+        await api.analytics.trackInteraction({
+          contentId: id,
+          type: newLikedState ? 'like' : 'skip', // Skip when unliking
+        });
+      } catch (error) {
+        console.error('Failed to track like interaction:', error);
+      }
+    }
   };
 
-  const handleDislike = () => {
-    setIsDisliked(!isDisliked);
+  const handleDislike = async () => {
+    const newDislikedState = !isDisliked;
+    setIsDisliked(newDislikedState);
     if (isLiked) setIsLiked(false);
+    
+    // Track interaction
+    if (id) {
+      try {
+        await api.analytics.trackInteraction({
+          contentId: id,
+          type: 'skip',
+        });
+      } catch (error) {
+        console.error('Failed to track dislike interaction:', error);
+      }
+    }
+  };
+
+  const handleShare = async () => {
+    if (id) {
+      try {
+        await api.analytics.trackInteraction({
+          contentId: id,
+          type: 'share',
+        });
+      } catch (error) {
+        console.error('Failed to track share interaction:', error);
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    if (id) {
+      try {
+        await api.analytics.trackInteraction({
+          contentId: id,
+          type: 'save',
+        });
+      } catch (error) {
+        console.error('Failed to track save interaction:', error);
+      }
+    }
   };
 
   return (
@@ -236,7 +351,13 @@ export default function Watch() {
                 {/* Play overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
                   <button
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={() => {
+                      setIsPlaying(!isPlaying);
+                      if (!isPlaying && !watchStartTimeRef.current) {
+                        // Start tracking when play begins
+                        watchStartTimeRef.current = Date.now();
+                      }
+                    }}
                     className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center hover:bg-primary transition-colors neon-glow"
                   >
                     {isPlaying ? (
@@ -367,13 +488,23 @@ export default function Watch() {
                     >
                       <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
                     </Button>
-                    <Button variant="secondary" size="sm" className="gap-2">
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={handleShare}
+                    >
                       <Share2 className="h-4 w-4" />
                       Share
                     </Button>
                     <Dialog open={showAddToPlaylist} onOpenChange={setShowAddToPlaylist}>
                       <DialogTrigger asChild>
-                        <Button variant="secondary" size="sm" className="gap-2">
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="gap-2"
+                          onClick={handleSave}
+                        >
                           <Plus className="h-4 w-4" />
                           Save
                         </Button>

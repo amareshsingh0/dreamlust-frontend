@@ -58,6 +58,8 @@ model User {
   reports     Report[] @relation("Reporter")
   reportedBy  Report[] @relation("ReportedUser")
   preferences UserPreferences?
+  viewEvents  ViewEvent[]
+  interactions Interaction[]
   
   @@index([email])
   @@index([username])
@@ -206,6 +208,8 @@ model Content {
   comments        Comment[]
   playlistItems   PlaylistItem[]
   reports         Report[] @relation("Content")
+  viewEvents      ViewEvent[]
+  interactions    Interaction[]
   
   @@index([creatorId])
   @@index([creatorId, createdAt]) // Composite index for creator content queries
@@ -627,6 +631,52 @@ enum NotificationType {
   SYSTEM_ANNOUNCEMENT
   MENTION
   MESSAGE
+}
+
+// ============================================================================
+// RECOMMENDATION ENGINE - DATA COLLECTION
+// ============================================================================
+
+model ViewEvent {
+  id            String   @id @default(cuid())
+  userId        String?
+  contentId     String
+  sessionId     String   // For anonymous users
+  content       Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // View Metrics
+  watchDuration Int      // seconds
+  completionRate Float   // 0-1
+  device        String   // mobile, tablet, desktop
+  region        String?
+  
+  timestamp     DateTime @default(now())
+  
+  @@index([userId, timestamp])
+  @@index([contentId, timestamp])
+  @@index([sessionId, timestamp])
+  @@index([timestamp])
+  @@map("view_events")
+}
+
+model Interaction {
+  id        String   @id @default(cuid())
+  userId    String
+  contentId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  // Interaction Details
+  type      String   // like, save, share, skip, comment, follow_creator
+  timestamp DateTime @default(now())
+  
+  @@unique([userId, contentId, type])
+  @@index([userId, timestamp])
+  @@index([contentId, timestamp])
+  @@index([type, timestamp])
+  @@index([timestamp])
+  @@map("interactions")
 }
 
 // ============================================================================

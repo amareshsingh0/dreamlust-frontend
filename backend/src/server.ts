@@ -10,6 +10,7 @@ import searchRoutes from './routes/search';
 import preferencesRoutes from './routes/preferences';
 import playlistRoutes from './routes/playlists';
 import contentRoutes from './routes/content';
+import analyticsRoutes from './routes/analytics';
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/preferences', preferencesRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
