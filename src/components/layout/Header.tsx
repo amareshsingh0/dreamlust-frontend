@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,9 +20,9 @@ interface HeaderProps {
 
 export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +32,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   };
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('light');
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (
@@ -99,7 +99,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
           </Button>
 
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
           <Button variant="ghost" size="icon" className="relative">
