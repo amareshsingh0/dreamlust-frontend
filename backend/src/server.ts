@@ -11,6 +11,7 @@ import preferencesRoutes from './routes/preferences';
 import playlistRoutes from './routes/playlists';
 import contentRoutes from './routes/content';
 import analyticsRoutes from './routes/analytics';
+import recommendationsRoutes from './routes/recommendations';
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/preferences', preferencesRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

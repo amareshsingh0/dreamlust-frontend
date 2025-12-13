@@ -6,6 +6,39 @@ import { Prisma } from '@prisma/client';
 
 const router = Router();
 
+/**
+ * Calculate trending score using time-decay weighted views
+ * Formula: viewVelocity * (1 + engagementScore) * exp(-hoursSincePublish / 168)
+ * - viewVelocity: views per hour since publish
+ * - engagementScore: (likes - dislikes) / views (using likeCount/viewCount ratio since no dislikes)
+ * - Time decay: exponential decay over 7 days (168 hours)
+ */
+function calculateTrendingScore(content: {
+  viewCount: number;
+  likeCount: number;
+  publishedAt: Date | null;
+}): number {
+  const now = Date.now();
+  const publishedAt = content.publishedAt ? new Date(content.publishedAt).getTime() : now;
+  const hoursSincePublish = (now - publishedAt) / (1000 * 60 * 60);
+  
+  // View velocity: views per hour
+  const viewVelocity = content.viewCount / Math.max(hoursSincePublish, 1);
+  
+  // Engagement score: like ratio (since we don't have dislikes)
+  // Using likeCount/viewCount ratio as engagement indicator
+  const engagementScore = content.viewCount > 0 
+    ? content.likeCount / content.viewCount 
+    : 0;
+  
+  // Time decay: exponential decay over 7 days (168 hours)
+  // Older content gets lower scores
+  const timeDecay = Math.exp(-hoursSincePublish / 168);
+  
+  // Final score
+  return viewVelocity * (1 + engagementScore) * timeDecay;
+}
+
 // POST /api/search
 router.post(
   '/',
@@ -139,14 +172,15 @@ router.post(
 
       // Build orderBy clause for sorting
       let orderBy: Prisma.ContentOrderByWithRelationInput = {};
+      let needsTrendingCalculation = false;
+      
       switch (sort) {
         case 'trending':
-          // Trending: combination of views, likes, and recency
-          orderBy = [
-            { viewCount: 'desc' },
-            { likeCount: 'desc' },
-            { publishedAt: 'desc' },
-          ];
+          // For trending, we need to calculate scores after fetching
+          // So we'll fetch more results, calculate scores, then sort
+          needsTrendingCalculation = true;
+          // Initial order by views to get candidates
+          orderBy = { viewCount: 'desc' };
           break;
         case 'recent':
           orderBy = { publishedAt: 'desc' };
@@ -164,6 +198,9 @@ router.post(
       }
 
       // Execute search query
+      // For trending, fetch more results to calculate scores
+      const fetchLimit = needsTrendingCalculation ? limit * 3 : limit;
+      
       const [results, total] = await Promise.all([
         prisma.content.findMany({
           where,
@@ -201,11 +238,30 @@ router.post(
             },
           },
           orderBy: Array.isArray(orderBy) ? orderBy : [orderBy],
-          skip,
-          take: limit,
+          skip: needsTrendingCalculation ? 0 : skip, // Fetch from start for trending
+          take: fetchLimit,
         }),
         prisma.content.count({ where }),
       ]);
+
+      // Calculate trending scores and sort if needed
+      let sortedResults = results;
+      if (needsTrendingCalculation) {
+        const scoredResults = results.map(content => ({
+          ...content,
+          _trendingScore: calculateTrendingScore({
+            viewCount: content.viewCount,
+            likeCount: content.likeCount,
+            publishedAt: content.publishedAt,
+          }),
+        }));
+
+        // Sort by trending score (descending)
+        scoredResults.sort((a, b) => b._trendingScore - a._trendingScore);
+
+        // Take top results and remove score
+        sortedResults = scoredResults.slice(skip, skip + limit).map(({ _trendingScore, ...content }) => content);
+      }
 
       // Get facets for filter counts
       // First, get all matching content IDs
@@ -289,7 +345,7 @@ router.post(
       ]);
 
       // Transform results to match frontend Content type
-      const transformedResults = results.map((content) => ({
+      const transformedResults = sortedResults.map((content) => ({
         id: content.id,
         title: content.title,
         thumbnail: content.thumbnail || '',

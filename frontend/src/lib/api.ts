@@ -157,5 +157,25 @@ export const api = {
         headers: getHeaders(),
       }),
   },
+  recommendations: {
+    getSimilar: <T>(contentId: string, limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/similar/${contentId}?limit=${limit}`
+        : `/api/recommendations/similar/${contentId}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getUserRecommendations: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/user?limit=${limit}`
+        : '/api/recommendations/user';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+  },
 };
 

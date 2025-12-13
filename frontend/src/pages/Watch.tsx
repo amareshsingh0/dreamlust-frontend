@@ -91,7 +91,9 @@ export default function Watch() {
   const [watchDuration, setWatchDuration] = useState<number>(0);
 
   const content = mockContent.find(c => c.id === id);
-  const relatedContent = mockContent.filter(c => c.id !== id).slice(0, 8);
+  const [relatedContent, setRelatedContent] = useState<typeof mockContent>([]);
+  const [similarContent, setSimilarContent] = useState<typeof mockContent>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
 
   // Detect device type
   const detectDevice = (): 'mobile' | 'tablet' | 'desktop' => {
@@ -136,6 +138,41 @@ export default function Watch() {
     };
     fetchPlaylists();
   }, []);
+
+  // Fetch similar content
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchSimilarContent = async () => {
+      setLoadingSimilar(true);
+      try {
+        const response = await api.recommendations.getSimilar<typeof mockContent>(id, 8);
+        if (response.success && response.data) {
+          setSimilarContent(response.data);
+        } else {
+          // Fallback to mock data if API fails
+          setSimilarContent(mockContent.filter(c => c.id !== id).slice(0, 8));
+        }
+      } catch (error) {
+        console.error('Failed to fetch similar content:', error);
+        // Fallback to mock data
+        setSimilarContent(mockContent.filter(c => c.id !== id).slice(0, 8));
+      } finally {
+        setLoadingSimilar(false);
+      }
+    };
+
+    fetchSimilarContent();
+  }, [id]);
+
+  // Set related content (fallback)
+  useEffect(() => {
+    if (similarContent.length === 0 && !loadingSimilar) {
+      setRelatedContent(mockContent.filter(c => c.id !== id).slice(0, 8));
+    } else {
+      setRelatedContent(similarContent);
+    }
+  }, [similarContent, loadingSimilar, id]);
 
   // Helper to parse duration string to seconds
   const parseDurationToSeconds = (duration: string): number => {
@@ -690,12 +727,30 @@ export default function Watch() {
 
             {/* Sidebar - Related */}
             <div className="space-y-4">
-              <h2 className="font-display text-lg font-bold">Up Next</h2>
-              <div className="space-y-2">
-                {relatedContent.map(item => (
-                  <ContentCard key={item.id} content={item} variant="horizontal" />
-                ))}
-              </div>
+              <h2 className="font-display text-lg font-bold">More like this</h2>
+              {loadingSimilar ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="animate-pulse">
+                      <div className="flex gap-3 p-3 rounded-xl bg-muted/30">
+                        <div className="w-40 h-24 rounded-lg bg-muted" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted rounded w-3/4" />
+                          <div className="h-3 bg-muted rounded w-1/2" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : relatedContent.length > 0 ? (
+                <div className="space-y-2">
+                  {relatedContent.map(item => (
+                    <ContentCard key={item.id} content={item} variant="horizontal" />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No similar content found.</p>
+              )}
             </div>
           </div>
         </div>
