@@ -31,23 +31,32 @@ dreamlust/
 
 ## Quick Start
 
-### Frontend Setup
+### 1. Install Dependencies
 
-```bash
+**Frontend:**
+```powershell
 cd frontend
 bun install
-bun run dev
 ```
 
-The frontend will run on `http://localhost:4000`
-
-### Backend Setup
-
-```bash
+**Backend:**
+```powershell
 cd backend
 bun install
 bun run db:generate  # Generate Prisma Client
 ```
+
+### 2. Start Development Server
+
+**Frontend (Main Application):**
+```powershell
+cd frontend
+bun run dev
+```
+
+The frontend will run on **`http://localhost:4000`**
+
+**Note:** Make sure `.env` files are set up in both `frontend/` and `backend/` directories.
 
 ## Environment Variables
 

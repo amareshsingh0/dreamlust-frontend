@@ -102,9 +102,11 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
+          <Button variant="ghost" size="icon" className="relative" asChild>
+            <Link to="/notifications">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
+            </Link>
           </Button>
 
           <DropdownMenu>

@@ -2,10 +2,30 @@
 // Run this to test your Supabase connection and database setup
 // 
 // ⚠️ IMPORTANT: Make sure you've run the SQL migrations first!
-// 1. Run supabase/migrations/001_initial_schema.sql
-// 2. Run supabase/migrations/002_rls_policies.sql
+// 1. Run backend/supabase/migrations/001_initial_schema.sql
+// 2. Run backend/supabase/migrations/002_rls_policies.sql
 
 import { supabase } from "./supabaseClient";
+
+// 🧪 Quick Test Function
+export const testConnection = async () => {
+  console.log("🧪 Testing Supabase connection...");
+  
+  // Test query (adjust table name as needed)
+  const { data, error } = await supabase
+    .from("content")
+    .select("*")
+    .limit(5);
+  
+  if (error) {
+    console.error("❌ Error:", error);
+    return { success: false, error };
+  }
+  
+  console.log("✅ Connection successful!");
+  console.log("📊 Data:", data);
+  return { success: true, data };
+};
 
 // Test: Add a user
 export const addUser = async () => {
@@ -78,16 +98,32 @@ export const updateUser = async (userId: string, updates: any) => {
   return { data, error: null };
 };
 
+// 🧪 Quick Test Function (as per requirements)
+export const quickTest = async () => {
+  console.log("🧪 Quick Supabase Test...");
+  const { data, error } = await supabase
+    .from("content")
+    .select("*")
+    .limit(5);
+  
+  console.log("Data:", data);
+  console.log("Error:", error);
+  return { data, error };
+};
+
 // Example usage in a component:
 /*
-import { addUser, getUsers } from '@/lib/testSupabase';
+import { addUser, getUsers, quickTest } from '@/lib/testSupabase';
 
 const TestComponent = () => {
   const handleTest = async () => {
-    // Test adding a user
+    // Quick test (as per requirements)
+    await quickTest();
+    
+    // Or test adding a user
     await addUser();
     
-    // Test getting users
+    // Or test getting users
     await getUsers();
   };
 

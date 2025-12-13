@@ -26,6 +26,16 @@ import Guidelines from "./pages/Guidelines";
 import Monetization from "./pages/Monetization";
 import Analytics from "./pages/Analytics";
 import Creators from "./pages/Creators";
+import Live from "./pages/Live";
+import History from "./pages/History";
+import Liked from "./pages/Liked";
+import Playlists from "./pages/Playlists";
+import Following from "./pages/Following";
+import Categories from "./pages/Categories";
+import Category from "./pages/Category";
+import Premium from "./pages/Premium";
+import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +56,19 @@ const App = () => (
             <Route path="/creator/:username" element={<CreatorProfile />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/creators" element={<Creators />} />
+            {/* Library Pages */}
+            <Route path="/live" element={<Live />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/liked" element={<Liked />} />
+            <Route path="/playlists" element={<Playlists />} />
+            <Route path="/following" element={<Following />} />
+            {/* Category Pages */}
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/category/:slug" element={<Category />} />
+            {/* Premium & Settings */}
+            <Route path="/premium" element={<Premium />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/notifications" element={<Notifications />} />
             {/* Support Pages */}
             <Route path="/help" element={<Help />} />
             <Route path="/contact" element={<Contact />} />
