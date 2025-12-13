@@ -176,6 +176,60 @@ export const api = {
         headers: getHeaders(),
       });
     },
+    getForYou: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/for-you?limit=${limit}`
+        : '/api/recommendations/for-you';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getTrendingNow: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/trending-now?limit=${limit}`
+        : '/api/recommendations/trending-now';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getFollowedCreators: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/followed-creators?limit=${limit}`
+        : '/api/recommendations/followed-creators';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getContinueWatching: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/continue-watching?limit=${limit}`
+        : '/api/recommendations/continue-watching';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getRegional: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/regional?limit=${limit}`
+        : '/api/recommendations/regional';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getLastWatchedSimilar: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/last-watched-similar?limit=${limit}`
+        : '/api/recommendations/last-watched-similar';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
   },
 };
 
