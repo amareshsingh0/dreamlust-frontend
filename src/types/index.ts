@@ -1,0 +1,94 @@
+export interface Creator {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  banner?: string;
+  bio: string;
+  followers: number;
+  views: number;
+  contentCount: number;
+  isVerified: boolean;
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    website?: string;
+  };
+}
+
+export interface Content {
+  id: string;
+  title: string;
+  thumbnail: string;
+  duration: string;
+  views: number;
+  likes: number;
+  createdAt: string;
+  creator: Creator;
+  type: 'video' | 'photo' | 'gallery' | 'vr' | 'live';
+  quality: string[];
+  tags: string[];
+  category: string;
+  description?: string;
+  isLive?: boolean;
+  isPremium?: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  count: number;
+  thumbnail?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  playlists: Playlist[];
+  watchHistory: Content[];
+  likedContent: Content[];
+  following: Creator[];
+  preferences: UserPreferences;
+}
+
+export interface UserPreferences {
+  darkMode: boolean;
+  hideHistory: boolean;
+  notifications: {
+    newUploads: boolean;
+    creatorUpdates: boolean;
+    recommendations: boolean;
+  };
+  contentQuality: 'auto' | '720p' | '1080p' | '4k';
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  thumbnail?: string;
+  isPublic: boolean;
+  items: Content[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SearchFilters {
+  categories: string[];
+  contentType: string[];
+  duration: string;
+  releaseDate: string;
+  creators: string[];
+  language: string;
+  tags: string[];
+  quality: string[];
+}
+
+export interface SortOption {
+  label: string;
+  value: 'trending' | 'recent' | 'views' | 'rating';
+}
