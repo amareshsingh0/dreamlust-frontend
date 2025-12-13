@@ -12,6 +12,8 @@ export interface Creator {
   socialLinks?: {
     twitter?: string;
     instagram?: string;
+    facebook?: string;
+    pinterest?: string;
     website?: string;
   };
 }
