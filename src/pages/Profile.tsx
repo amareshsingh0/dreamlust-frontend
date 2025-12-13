@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   User, 
   Settings, 
@@ -76,6 +76,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { api } from '@/lib/api';
 
 export default function Profile() {
   const [hideHistory, setHideHistory] = useState(false);
@@ -112,18 +113,112 @@ export default function Profile() {
     return acc;
   }, {} as Record<string, typeof watchHistory>);
 
-  const playlists = [
-    { id: '1', name: 'Favorites', itemCount: 12, isPublic: false, thumbnail: mockContent[0]?.thumbnail },
-    { id: '2', name: 'Watch Later', itemCount: 8, isPublic: true, thumbnail: mockContent[1]?.thumbnail },
-    { id: '3', name: 'Best of 2024', itemCount: 15, isPublic: false, thumbnail: mockContent[2]?.thumbnail },
-  ];
+  const [playlists, setPlaylists] = useState<Array<{
+    id: string;
+    name: string;
+    itemCount: number;
+    isPublic: boolean;
+    thumbnail?: string;
+  }>>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<string | null>(null);
+  const [editPlaylistName, setEditPlaylistName] = useState('');
+  const [editPlaylistIsPublic, setEditPlaylistIsPublic] = useState(false);
 
-  const handleCreatePlaylist = () => {
-    // TODO: Implement playlist creation
-    console.log('Creating playlist:', { name: newPlaylistName, isPublic: newPlaylistIsPublic });
-    setCreatePlaylistOpen(false);
-    setNewPlaylistName('');
-    setNewPlaylistIsPublic(false);
+  // Fetch playlists
+  useEffect(() => {
+    const fetchPlaylists = async () => {
+      setLoadingPlaylists(true);
+      try {
+        const response = await api.playlists.get<Array<{
+          id: string;
+          name: string;
+          itemCount: number;
+          isPublic: boolean;
+          thumbnail?: string;
+        }>>();
+        if (response.success && response.data) {
+          setPlaylists(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch playlists:', error);
+        // Fallback to mock data on error
+        setPlaylists([
+          { id: '1', name: 'Favorites', itemCount: 12, isPublic: false, thumbnail: mockContent[0]?.thumbnail },
+          { id: '2', name: 'Watch Later', itemCount: 8, isPublic: true, thumbnail: mockContent[1]?.thumbnail },
+          { id: '3', name: 'Best of 2024', itemCount: 15, isPublic: false, thumbnail: mockContent[2]?.thumbnail },
+        ]);
+      } finally {
+        setLoadingPlaylists(false);
+      }
+    };
+    fetchPlaylists();
+  }, []);
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) return;
+    try {
+      const response = await api.playlists.post<{
+        id: string;
+        name: string;
+        itemCount: number;
+        isPublic: boolean;
+        thumbnail?: string;
+      }>({
+        name: newPlaylistName,
+        isPublic: newPlaylistIsPublic,
+      });
+      if (response.success && response.data) {
+        setPlaylists([...playlists, response.data]);
+        setCreatePlaylistOpen(false);
+        setNewPlaylistName('');
+        setNewPlaylistIsPublic(false);
+      }
+    } catch (error: any) {
+      console.error('Failed to create playlist:', error);
+    }
+  };
+
+  const handleEditPlaylist = (playlist: typeof playlists[0]) => {
+    setEditingPlaylist(playlist.id);
+    setEditPlaylistName(playlist.name);
+    setEditPlaylistIsPublic(playlist.isPublic);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPlaylist || !editPlaylistName.trim()) return;
+    try {
+      const response = await api.playlists.put<{
+        id: string;
+        name: string;
+        itemCount: number;
+        isPublic: boolean;
+        thumbnail?: string;
+      }>(editingPlaylist, {
+        name: editPlaylistName,
+        isPublic: editPlaylistIsPublic,
+      });
+      if (response.success && response.data) {
+        setPlaylists(playlists.map(p => p.id === editingPlaylist ? response.data! : p));
+        setEditingPlaylist(null);
+        setEditPlaylistName('');
+        setEditPlaylistIsPublic(false);
+      }
+    } catch (error: any) {
+      console.error('Failed to update playlist:', error);
+    }
+  };
+
+  const handleDeletePlaylist = async (playlistId: string) => {
+    if (!confirm('Are you sure you want to delete this playlist?')) return;
+    try {
+      const response = await api.playlists.delete(playlistId);
+      if (response.success) {
+        setPlaylists(playlists.filter(p => p.id !== playlistId));
+      }
+    } catch (error: any) {
+      console.error('Failed to delete playlist:', error);
+    }
   };
 
   // Mock activity feed
@@ -367,9 +462,73 @@ export default function Profile() {
                   </DialogContent>
                 </Dialog>
               </div>
+
+              {/* Edit Playlist Dialog */}
+              <Dialog open={editingPlaylist !== null} onOpenChange={(open) => !open && setEditingPlaylist(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Playlist</DialogTitle>
+                    <DialogDescription>
+                      Update your playlist details.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-playlist-name">Playlist Name</Label>
+                      <Input
+                        id="edit-playlist-name"
+                        name="edit-playlist-name"
+                        placeholder="My Awesome Playlist"
+                        value={editPlaylistName}
+                        onChange={(e) => setEditPlaylistName(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="edit-playlist-public">Public Playlist</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Others can view and follow this playlist
+                        </p>
+                      </div>
+                      <Switch
+                        id="edit-playlist-public"
+                        checked={editPlaylistIsPublic}
+                        onCheckedChange={setEditPlaylistIsPublic}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingPlaylist(null)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveEdit} disabled={!editPlaylistName.trim()}>
+                      Save
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {playlists.map((playlist) => (
+              {loadingPlaylists ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading playlists...</p>
+                </div>
+              ) : playlists.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <PlaySquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">No Playlists</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Create your first playlist to organize content
+                    </p>
+                    <Button onClick={() => setCreatePlaylistOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Playlist
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {playlists.map((playlist) => (
                   <Card key={playlist.id} className="hover:border-primary/50 transition-colors cursor-pointer group">
                     <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
                       {playlist.thumbnail ? (
@@ -395,11 +554,14 @@ export default function Profile() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditPlaylist(playlist)}>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDeletePlaylist(playlist.id)}
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -413,8 +575,9 @@ export default function Profile() {
                       </CardDescription>
                     </CardHeader>
                   </Card>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             {/* History Tab */}
