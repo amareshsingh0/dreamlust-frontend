@@ -30,6 +30,7 @@ import Live from "./pages/Live";
 import History from "./pages/History";
 import Liked from "./pages/Liked";
 import Playlists from "./pages/Playlists";
+import PlaylistDetail from "./pages/PlaylistDetail";
 import Following from "./pages/Following";
 import Categories from "./pages/Categories";
 import Category from "./pages/Category";
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/history" element={<History />} />
             <Route path="/liked" element={<Liked />} />
             <Route path="/playlists" element={<Playlists />} />
+            <Route path="/playlist/:id" element={<PlaylistDetail />} />
             <Route path="/following" element={<Following />} />
             {/* Category Pages */}
             <Route path="/categories" element={<Categories />} />

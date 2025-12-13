@@ -44,11 +44,97 @@ export async function apiRequest<T>(
   };
 }
 
+// Helper to get auth token from localStorage or cookie
+function getAuthToken(): string | null {
+  // In a real app, you'd get this from your auth context/store
+  return localStorage.getItem('accessToken');
+}
+
+// Helper to add auth headers
+function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+  const token = getAuthToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...customHeaders,
+  };
+}
+
 export const api = {
   search: {
     post: <T>(body: unknown) =>
       apiRequest<T>('/api/search', {
         method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+  },
+  preferences: {
+    get: <T>() =>
+      apiRequest<T>('/api/preferences', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    put: <T>(body: unknown) =>
+      apiRequest<T>('/api/preferences', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+  },
+  playlists: {
+    get: <T>(params?: { id?: string }) => {
+      const url = params?.id ? `/api/playlists/${params.id}` : '/api/playlists';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    post: <T>(body: unknown) =>
+      apiRequest<T>('/api/playlists', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+    put: <T>(id: string, body: unknown) =>
+      apiRequest<T>(`/api/playlists/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/playlists/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    addItem: <T>(id: string, body: unknown) =>
+      apiRequest<T>(`/api/playlists/${id}/items`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+    removeItem: <T>(id: string, itemId: string) =>
+      apiRequest<T>(`/api/playlists/${id}/items/${itemId}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    reorder: <T>(id: string, body: unknown) =>
+      apiRequest<T>(`/api/playlists/${id}/reorder`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      }),
+  },
+  content: {
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/content/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    trackView: <T>(id: string, body: unknown) =>
+      apiRequest<T>(`/api/content/${id}/view`, {
+        method: 'POST',
+        headers: getHeaders(),
         body: JSON.stringify(body),
       }),
   },

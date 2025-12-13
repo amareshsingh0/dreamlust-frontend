@@ -7,6 +7,9 @@ import { ipRateLimiter } from './middleware/rateLimit';
 import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
 import searchRoutes from './routes/search';
+import preferencesRoutes from './routes/preferences';
+import playlistRoutes from './routes/playlists';
+import contentRoutes from './routes/content';
 
 const app = express();
 
@@ -62,6 +65,9 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/preferences', preferencesRoutes);
+app.use('/api/playlists', playlistRoutes);
+app.use('/api/content', contentRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

@@ -57,6 +57,7 @@ model User {
   notifications Notification[]
   reports     Report[] @relation("Reporter")
   reportedBy  Report[] @relation("ReportedUser")
+  preferences UserPreferences?
   
   @@index([email])
   @@index([username])
@@ -395,6 +396,38 @@ model Comment {
 }
 
 // ============================================================================
+// USER PREFERENCES
+// ============================================================================
+
+model UserPreferences {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Theme & Display
+  theme         String   @default("auto") // dark, light, auto
+  language      String   @default("en")
+  region        String?
+  
+  // Privacy
+  hideHistory   Boolean  @default(false)
+  anonymousMode Boolean  @default(false)
+  
+  // Playback
+  defaultQuality String  @default("auto") // 720p, 1080p, 4K, auto
+  autoplay      Boolean  @default(true)
+  
+  // Notifications (stored as JSON)
+  notifications Json     @default("{\"email\":{},\"push\":{},\"inApp\":{}}")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([userId])
+  @@map("user_preferences")
+}
+
+// ============================================================================
 // PLAYLISTS
 // ============================================================================
 
@@ -435,13 +468,13 @@ model PlaylistItem {
   playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
   content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
   
-  sortOrder  Int      @default(0)
+  position   Int      @default(0) // For ordering
   addedAt    DateTime @default(now())
   
   @@unique([playlistId, contentId])
   @@index([playlistId])
   @@index([contentId])
-  @@index([playlistId, sortOrder]) // Composite index for playlist ordering
+  @@index([playlistId, position]) // Composite index for playlist ordering
   @@map("playlist_items")
 }
 
