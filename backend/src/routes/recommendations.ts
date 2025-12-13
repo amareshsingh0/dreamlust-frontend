@@ -571,5 +571,858 @@ router.get(
   }
 );
 
+/**
+ * GET /api/recommendations/continue-watching
+ * Get content from watch history with completion rate < 0.9
+ */
+router.get(
+  '/continue-watching',
+  authenticate,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // Get view events with completion rate < 0.9
+    const incompleteViews = await prisma.viewEvent.findMany({
+      where: {
+        userId,
+        completionRate: { lt: 0.9 },
+      },
+      include: {
+        content: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                handle: true,
+                displayName: true,
+                avatar: true,
+                isVerified: true,
+              },
+            },
+            categories: {
+              include: {
+                category: true,
+              },
+            },
+            tags: {
+              include: {
+                tag: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+      take: limit,
+      distinct: ['contentId'],
+    });
+
+    // Transform to Content type
+    const transformedResults = incompleteViews.map(item => ({
+      id: item.content.id,
+      title: item.content.title,
+      description: item.content.description || undefined,
+      thumbnail: item.content.thumbnail || '',
+      duration: item.content.duration ? formatDuration(item.content.duration) : '0:00',
+      views: item.content.viewCount,
+      likes: item.content.likeCount,
+      createdAt: item.content.createdAt.toISOString(),
+      creator: {
+        id: item.content.creator.id,
+        name: item.content.creator.displayName,
+        username: item.content.creator.handle,
+        avatar: item.content.creator.avatar || '',
+        isVerified: item.content.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: mapContentType(item.content.type),
+      quality: item.content.resolution ? [item.content.resolution] : [],
+      tags: item.content.tags.map(t => t.tag.name),
+      category: item.content.categories[0]?.category.name || 'Uncategorized',
+      isPremium: item.content.isPremium,
+      completionRate: item.completionRate, // Include completion rate
+    }));
+
+    res.json({
+      success: true,
+      data: transformedResults,
+    });
+  }
+);
+
+/**
+ * GET /api/recommendations/followed-creators
+ * Get new releases from creators the user follows
+ */
+router.get(
+  '/followed-creators',
+  authenticate,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const limit = parseInt(req.query.limit as string) || 20;
+    const daysSince = parseInt(req.query.days as string) || 7; // Last 7 days
+
+    // Get creators user follows
+    const followedCreators = await prisma.subscription.findMany({
+      where: {
+        subscriberId: userId,
+        status: 'ACTIVE',
+      },
+      select: {
+        creatorId: true,
+      },
+    });
+
+    if (followedCreators.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const creatorIds = followedCreators.map(s => s.creatorId);
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - daysSince);
+
+    // Get new content from followed creators
+    const newContent = await prisma.content.findMany({
+      where: {
+        creatorId: { in: creatorIds },
+        status: 'PUBLISHED',
+        isPublic: true,
+        deletedAt: null,
+        publishedAt: {
+          gte: sinceDate,
+        },
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            handle: true,
+            displayName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+      orderBy: {
+        publishedAt: 'desc',
+      },
+      take: limit,
+    });
+
+    // Transform to Content type
+    const transformedResults = newContent.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description || undefined,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration ? formatDuration(item.duration) : '0:00',
+      views: item.viewCount,
+      likes: item.likeCount,
+      createdAt: item.createdAt.toISOString(),
+      creator: {
+        id: item.creator.id,
+        name: item.creator.displayName,
+        username: item.creator.handle,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: mapContentType(item.type),
+      quality: item.resolution ? [item.resolution] : [],
+      tags: item.tags.map(t => t.tag.name),
+      category: item.categories[0]?.category.name || 'Uncategorized',
+      isPremium: item.isPremium,
+    }));
+
+    res.json({
+      success: true,
+      data: transformedResults,
+    });
+  }
+);
+
+/**
+ * GET /api/recommendations/trending-now
+ * Get trending content for today (calculated hourly)
+ */
+router.get(
+  '/trending-now',
+  optionalAuth,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const hours = parseInt(req.query.hours as string) || 24; // Last 24 hours
+
+    const sinceDate = new Date();
+    sinceDate.setHours(sinceDate.getHours() - hours);
+
+    // Get content published in the last 24 hours with high view velocity
+    const trendingContent = await prisma.content.findMany({
+      where: {
+        status: 'PUBLISHED',
+        isPublic: true,
+        deletedAt: null,
+        publishedAt: {
+          gte: sinceDate,
+        },
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            handle: true,
+            displayName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+      take: limit * 3, // Get more to calculate trending scores
+    });
+
+    // Calculate trending scores and sort
+    const scoredContent = trendingContent.map(content => ({
+      ...content,
+      _trendingScore: calculateTrendingScore({
+        viewCount: content.viewCount,
+        likeCount: content.likeCount,
+        publishedAt: content.publishedAt,
+      }),
+    }));
+
+    scoredContent.sort((a, b) => b._trendingScore - a._trendingScore);
+    const topResults = scoredContent.slice(0, limit).map(({ _trendingScore, ...item }) => item);
+
+    // Transform to Content type
+    const transformedResults = topResults.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description || undefined,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration ? formatDuration(item.duration) : '0:00',
+      views: item.viewCount,
+      likes: item.likeCount,
+      createdAt: item.createdAt.toISOString(),
+      creator: {
+        id: item.creator.id,
+        name: item.creator.displayName,
+        username: item.creator.handle,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: mapContentType(item.type),
+      quality: item.resolution ? [item.resolution] : [],
+      tags: item.tags.map(t => t.tag.name),
+      category: item.categories[0]?.category.name || 'Uncategorized',
+      isPremium: item.isPremium,
+    }));
+
+    res.json({
+      success: true,
+      data: transformedResults,
+    });
+  }
+);
+
+/**
+ * GET /api/recommendations/regional
+ * Get trending content in user's region
+ */
+router.get(
+  '/regional',
+  optionalAuth,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    let region: string | undefined;
+
+    // Get user's region from preferences
+    if (userId) {
+      const preferences = await prisma.userPreferences.findUnique({
+        where: { userId },
+        select: { region: true },
+      });
+      region = preferences?.region || undefined;
+    }
+
+    // If no region, return trending content
+    if (!region) {
+      const trendingContent = await prisma.content.findMany({
+        where: {
+          status: 'PUBLISHED',
+          isPublic: true,
+          deletedAt: null,
+        },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              handle: true,
+              displayName: true,
+              avatar: true,
+              isVerified: true,
+            },
+          },
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+        },
+        orderBy: {
+          viewCount: 'desc',
+        },
+        take: limit,
+      });
+
+      const transformedResults = trendingContent.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || undefined,
+        thumbnail: item.thumbnail || '',
+        duration: item.duration ? formatDuration(item.duration) : '0:00',
+        views: item.viewCount,
+        likes: item.likeCount,
+        createdAt: item.createdAt.toISOString(),
+        creator: {
+          id: item.creator.id,
+          name: item.creator.displayName,
+          username: item.creator.handle,
+          avatar: item.creator.avatar || '',
+          isVerified: item.creator.isVerified,
+          followers: 0,
+          views: 0,
+          contentCount: 0,
+          bio: '',
+        },
+        type: mapContentType(item.type),
+        quality: item.resolution ? [item.resolution] : [],
+        tags: item.tags.map(t => t.tag.name),
+        category: item.categories[0]?.category.name || 'Uncategorized',
+        isPremium: item.isPremium,
+      }));
+
+      return res.json({
+        success: true,
+        data: transformedResults,
+      });
+    }
+
+    // Get content with view events from users in the same region
+    const regionalViewEvents = await prisma.viewEvent.findMany({
+      where: {
+        region,
+      },
+      select: {
+        contentId: true,
+      },
+      distinct: ['contentId'],
+      take: limit * 2,
+    });
+
+    const contentIds = regionalViewEvents.map(v => v.contentId);
+
+    if (contentIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // Get content and count views by region
+    const content = await prisma.content.findMany({
+      where: {
+        id: { in: contentIds },
+        status: 'PUBLISHED',
+        isPublic: true,
+        deletedAt: null,
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            handle: true,
+            displayName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        viewEvents: {
+          where: {
+            region,
+          },
+          select: {
+            id: true,
+          },
+        },
+      },
+      take: limit * 2,
+    });
+
+    // Score by regional views
+    const scoredContent = content.map(item => ({
+      ...item,
+      _regionalScore: item.viewEvents.length,
+    }));
+
+    scoredContent.sort((a, b) => b._regionalScore - a._regionalScore);
+    const topResults = scoredContent.slice(0, limit).map(({ _regionalScore, viewEvents, ...item }) => item);
+
+    // Transform to Content type
+    const transformedResults = topResults.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description || undefined,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration ? formatDuration(item.duration) : '0:00',
+      views: item.viewCount,
+      likes: item.likeCount,
+      createdAt: item.createdAt.toISOString(),
+      creator: {
+        id: item.creator.id,
+        name: item.creator.displayName,
+        username: item.creator.handle,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: mapContentType(item.type),
+      quality: item.resolution ? [item.resolution] : [],
+      tags: item.tags.map(t => t.tag.name),
+      category: item.categories[0]?.category.name || 'Uncategorized',
+      isPremium: item.isPremium,
+    }));
+
+    res.json({
+      success: true,
+      data: transformedResults,
+    });
+  }
+);
+
+/**
+ * GET /api/recommendations/for-you
+ * Mix of collaborative filtering and content-based recommendations
+ */
+router.get(
+  '/for-you',
+  authenticate,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    try {
+      // Get collaborative filtering recommendations (50%)
+      const collaborativeLimit = Math.floor(limit / 2);
+      const userHistory = await getWatchHistory(userId, 100);
+      const similarUsers = userHistory.length > 0 
+        ? await findSimilarUsers(userHistory, userId, 0.1, 50)
+        : [];
+      
+      let collaborativeContent: any[] = [];
+      if (similarUsers.length > 0) {
+        const recommendations = await prisma.content.findMany({
+          where: {
+            status: 'PUBLISHED',
+            isPublic: true,
+            deletedAt: null,
+            id: { notIn: userHistory },
+            views: {
+              some: {
+                userId: { in: similarUsers },
+              },
+            },
+          },
+          include: {
+            creator: {
+              select: {
+                id: true,
+                handle: true,
+                displayName: true,
+                avatar: true,
+                isVerified: true,
+              },
+            },
+            categories: {
+              include: {
+                category: true,
+              },
+            },
+            tags: {
+              include: {
+                tag: true,
+              },
+            },
+          },
+          take: collaborativeLimit,
+          orderBy: {
+            viewCount: 'desc',
+          },
+        });
+
+        collaborativeContent = recommendations.map(item => ({
+          id: item.id,
+          title: item.title,
+          description: item.description || undefined,
+          thumbnail: item.thumbnail || '',
+          duration: item.duration ? formatDuration(item.duration) : '0:00',
+          views: item.viewCount,
+          likes: item.likeCount,
+          createdAt: item.createdAt.toISOString(),
+          creator: {
+            id: item.creator.id,
+            name: item.creator.displayName,
+            username: item.creator.handle,
+            avatar: item.creator.avatar || '',
+            isVerified: item.creator.isVerified,
+            followers: 0,
+            views: 0,
+            contentCount: 0,
+            bio: '',
+          },
+          type: mapContentType(item.type),
+          quality: item.resolution ? [item.resolution] : [],
+          tags: item.tags.map(t => t.tag.name),
+          category: item.categories[0]?.category.name || 'Uncategorized',
+          isPremium: item.isPremium,
+        }));
+      }
+
+      // Get user's last watched content for content-based recommendations (50%)
+      const lastWatched = await prisma.viewEvent.findFirst({
+        where: { userId },
+        orderBy: { timestamp: 'desc' },
+        select: { contentId: true },
+      });
+
+      let contentBasedContent: any[] = [];
+      if (lastWatched) {
+        const content = await prisma.content.findUnique({
+          where: { id: lastWatched.contentId },
+          include: {
+            categories: { include: { category: true } },
+            tags: { include: { tag: true } },
+          },
+        });
+
+        if (content) {
+          const categoryIds = content.categories.map(c => c.categoryId);
+          const tagIds = content.tags.map(t => t.tagId);
+
+          const similarContent = await prisma.content.findMany({
+            where: {
+              id: { not: lastWatched.contentId },
+              status: 'PUBLISHED',
+              isPublic: true,
+              deletedAt: null,
+              OR: [
+                { categories: { some: { categoryId: { in: categoryIds } } } },
+                { tags: { some: { tagId: { in: tagIds } } } },
+                { creatorId: content.creatorId },
+              ],
+            },
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  handle: true,
+                  displayName: true,
+                  avatar: true,
+                  isVerified: true,
+                },
+              },
+              categories: {
+                include: {
+                  category: true,
+                },
+              },
+              tags: {
+                include: {
+                  tag: true,
+                },
+              },
+            },
+            take: Math.ceil(limit / 2),
+            orderBy: {
+              viewCount: 'desc',
+            },
+          });
+
+          contentBasedContent = similarContent.map(item => ({
+            id: item.id,
+            title: item.title,
+            description: item.description || undefined,
+            thumbnail: item.thumbnail || '',
+            duration: item.duration ? formatDuration(item.duration) : '0:00',
+            views: item.viewCount,
+            likes: item.likeCount,
+            createdAt: item.createdAt.toISOString(),
+            creator: {
+              id: item.creator.id,
+              name: item.creator.displayName,
+              username: item.creator.handle,
+              avatar: item.creator.avatar || '',
+              isVerified: item.creator.isVerified,
+              followers: 0,
+              views: 0,
+              contentCount: 0,
+              bio: '',
+            },
+            type: mapContentType(item.type),
+            quality: item.resolution ? [item.resolution] : [],
+            tags: item.tags.map(t => t.tag.name),
+            category: item.categories[0]?.category.name || 'Uncategorized',
+            isPremium: item.isPremium,
+          }));
+        }
+      }
+
+      // Mix and deduplicate
+      const allContent = [...collaborativeContent, ...contentBasedContent];
+      const seen = new Set<string>();
+      const mixedContent = allContent.filter(item => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      }).slice(0, limit);
+
+      res.json({
+        success: true,
+        data: mixedContent,
+      });
+    } catch (error) {
+      console.error('Error generating for-you recommendations:', error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * GET /api/recommendations/last-watched-similar
+ * Get similar content to the last watched item
+ */
+router.get(
+  '/last-watched-similar',
+  authenticate,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // Get last watched content
+    const lastWatched = await prisma.viewEvent.findFirst({
+      where: { userId },
+      orderBy: { timestamp: 'desc' },
+      include: {
+        content: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    if (!lastWatched) {
+      return res.json({
+        success: true,
+        data: {
+          data: [],
+          lastWatchedTitle: null,
+        },
+      });
+    }
+
+    // Use the similar content logic from the /similar/:id endpoint
+    const content = await prisma.content.findUnique({
+      where: { id: lastWatched.contentId },
+      include: {
+        categories: { include: { category: true } },
+        tags: { include: { tag: true } },
+        creator: true,
+      },
+    });
+
+    if (!content) {
+      return res.json({
+        success: true,
+        data: [],
+        lastWatchedTitle: lastWatched.content.title,
+      });
+    }
+
+    const categoryIds = content.categories.map(c => c.categoryId);
+    const tagIds = content.tags.map(t => t.tagId);
+
+    const similarContent = await prisma.content.findMany({
+      where: {
+        id: { not: lastWatched.contentId },
+        status: 'PUBLISHED',
+        isPublic: true,
+        deletedAt: null,
+        OR: [
+          { categories: { some: { categoryId: { in: categoryIds } } } },
+          { tags: { some: { tagId: { in: tagIds } } } },
+          { creatorId: content.creatorId },
+        ],
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            handle: true,
+            displayName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+      take: limit,
+      orderBy: {
+        viewCount: 'desc',
+      },
+    });
+
+    const transformedResults = similarContent.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description || undefined,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration ? formatDuration(item.duration) : '0:00',
+      views: item.viewCount,
+      likes: item.likeCount,
+      createdAt: item.createdAt.toISOString(),
+      creator: {
+        id: item.creator.id,
+        name: item.creator.displayName,
+        username: item.creator.handle,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: mapContentType(item.type),
+      quality: item.resolution ? [item.resolution] : [],
+      tags: item.tags.map(t => t.tag.name),
+      category: item.categories[0]?.category.name || 'Uncategorized',
+      isPremium: item.isPremium,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        data: transformedResults,
+        lastWatchedTitle: lastWatched.content.title,
+      },
+    });
+  }
+);
+
+// Helper function for trending score (import from search route or define here)
+function calculateTrendingScore(content: {
+  viewCount: number;
+  likeCount: number;
+  publishedAt: Date | null;
+}): number {
+  const now = Date.now();
+  const publishedAt = content.publishedAt ? new Date(content.publishedAt).getTime() : now;
+  const hoursSincePublish = (now - publishedAt) / (1000 * 60 * 60);
+  
+  const viewVelocity = content.viewCount / Math.max(hoursSincePublish, 1);
+  const engagementScore = content.viewCount > 0 
+    ? content.likeCount / content.viewCount 
+    : 0;
+  const timeDecay = Math.exp(-hoursSincePublish / 168);
+  
+  return viewVelocity * (1 + engagementScore) * timeDecay;
+}
+
 export default router;
 
