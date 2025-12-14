@@ -7,10 +7,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Eagerly loaded pages (above the fold, critical)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
 
 // Lazy loaded pages (code splitting for better performance)
 const Explore = lazy(() => import("./pages/Explore"));
@@ -66,6 +68,7 @@ const App = () => (
   <HelmetProvider>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <QueryClientProvider client={queryClient}>
+        <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -77,6 +80,9 @@ const App = () => (
           >
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Auth />} />
+            <Route path="/signup" element={<Auth />} />
             <Route 
               path="/explore" 
               element={
@@ -361,6 +367,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+        </AuthProvider>
     </QueryClientProvider>
     </ThemeProvider>
   </HelmetProvider>

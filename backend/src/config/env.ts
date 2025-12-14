@@ -43,6 +43,39 @@ const envSchema = z.object({
   // Google Cloud Vision API (optional, for image classification)
   GOOGLE_CLOUD_PROJECT_ID: z.string().optional(),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(), // Path to service account JSON file
+  
+  // Storage (S3/R2)
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_BUCKET_NAME: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_CDN_URL: z.string().url().optional(), // CDN URL for serving assets
+  
+  // Cloudflare R2 (alternative to S3)
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET_NAME: z.string().optional(),
+  R2_PUBLIC_URL: z.string().url().optional(),
+  
+  // Cloudflare Stream (for video hosting)
+  CLOUDFLARE_STREAM_API_TOKEN: z.string().optional(),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  
+  // Mux (alternative video hosting)
+  MUX_TOKEN_ID: z.string().optional(),
+  MUX_TOKEN_SECRET: z.string().optional(),
+  MUX_SIGNING_KEY: z.string().optional(),
+  MUX_SIGNING_KEY_ID: z.string().optional(),
+  
+  // SMTP (for email notifications)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_PASS: z.string().optional(), // Alternative to SMTP_PASSWORD
+  SMTP_FROM: z.string().email().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

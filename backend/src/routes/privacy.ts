@@ -192,11 +192,11 @@ router.post(
         id: true,
         email: true,
         username: true,
-        displayName: true,
+        display_name: true,
         avatar: true,
         bio: true,
-        createdAt: true,
-        preferences: true,
+        created_at: true,
+        user_preferences: true,
       },
     });
 
@@ -209,12 +209,12 @@ router.post(
         id: user.id,
         email: user.email,
         username: user.username,
-        displayName: user.displayName,
+        displayName: user.display_name,
         avatar: user.avatar,
         bio: user.bio,
-        createdAt: user.createdAt,
+        createdAt: user.created_at,
       },
-      preferences: user.preferences,
+      preferences: user.user_preferences,
       exportedAt: new Date().toISOString(),
     };
 

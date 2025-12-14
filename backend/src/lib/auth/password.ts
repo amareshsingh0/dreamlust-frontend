@@ -18,29 +18,40 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 /**
  * Validate password strength
+ * Updated to allow 6 characters minimum (matching UI), but encourage stronger passwords
  */
-export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
+export function validatePasswordStrength(password: string): { valid: boolean; errors: string[]; warnings?: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
+  // Minimum requirement: 6 characters
+  if (password.length < 6) {
+    errors.push('Password must be at least 6 characters long');
+    return { valid: false, errors };
+  }
+
+  // Warnings for weak passwords (but still allow them)
   if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
+    warnings.push('Consider using at least 8 characters for better security');
   }
   if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
+    warnings.push('Consider adding uppercase letters for better security');
   }
   if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
+    warnings.push('Consider adding lowercase letters for better security');
   }
   if (!/[0-9]/.test(password)) {
-    errors.push('Password must contain at least one number');
+    warnings.push('Consider adding numbers for better security');
   }
   if (!/[^A-Za-z0-9]/.test(password)) {
-    errors.push('Password must contain at least one special character');
+    warnings.push('Consider adding special characters for better security');
   }
 
+  // Password is valid if it meets minimum length
   return {
-    valid: errors.length === 0,
-    errors,
+    valid: true,
+    errors: [],
+    warnings: warnings.length > 0 ? warnings : undefined,
   };
 }
 

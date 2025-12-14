@@ -125,7 +125,7 @@ async function handlePaymentSuccess(event: any) {
         title: 'Tip Received!',
         message: tip.isAnonymous
           ? `You received a $${tip.amount} ${tip.currency} tip!`
-          : `You received a $${tip.amount} ${tip.currency} tip from ${tip.fromUser.displayName || tip.fromUser.username}!`,
+          : `You received a $${tip.amount} ${tip.currency} tip from ${tip.fromUser.display_name || tip.fromUser.username}!`,
         link: `/creator/${tip.toCreator.handle}`,
         metadata: {
           tipId: tip.id,

@@ -112,9 +112,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         tags: {

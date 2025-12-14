@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { optionalAuth, authenticate } from '../middleware/auth';
 import { userRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError } from '../lib/errors';
+import { getCachedTrendingContent, invalidateHomepageCache } from '../lib/cache/contentCache';
 
 const router = Router();
 
@@ -62,7 +63,7 @@ router.get(
         id: { not: id },
         status: 'PUBLISHED',
         isPublic: true,
-        deletedAt: null,
+        deleted_at: null,
         OR: [
           // Same category
           {
@@ -91,9 +92,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -168,10 +169,10 @@ router.get(
       createdAt: item.createdAt.toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.displayName,
+        name: item.creator.display_name,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.isVerified,
+        isVerified: item.creator.is_verified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -332,16 +333,16 @@ router.get(
           where: {
             status: 'PUBLISHED',
             isPublic: true,
-            deletedAt: null,
+            deleted_at: null,
           },
           include: {
             creator: {
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -372,10 +373,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.displayName,
+            name: item.creator.display_name,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.isVerified,
+            isVerified: item.creator.is_verified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -404,7 +405,7 @@ router.get(
           where: {
             status: 'PUBLISHED',
             isPublic: true,
-            deletedAt: null,
+            deleted_at: null,
             id: { notIn: userHistory },
           },
           include: {
@@ -412,9 +413,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -445,10 +446,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.displayName,
+            name: item.creator.display_name,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.isVerified,
+            isVerified: item.creator.is_verified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -473,7 +474,7 @@ router.get(
         where: {
           status: 'PUBLISHED',
           isPublic: true,
-          deletedAt: null,
+          deleted_at: null,
           id: { notIn: userHistory },
           views: {
             some: {
@@ -486,9 +487,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              displayName: true,
+              display_name: true,
               avatar: true,
-              isVerified: true,
+              is_verified: true,
             },
           },
           categories: {
@@ -543,10 +544,10 @@ router.get(
         createdAt: item.createdAt.toISOString(),
         creator: {
           id: item.creator.id,
-          name: item.creator.displayName,
+          name: item.creator.display_name,
           username: item.creator.handle,
           avatar: item.creator.avatar || '',
-          isVerified: item.creator.isVerified,
+          isVerified: item.creator.is_verified,
           followers: 0,
           views: 0,
           contentCount: 0,
@@ -600,9 +601,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -637,10 +638,10 @@ router.get(
       createdAt: item.content.createdAt.toISOString(),
       creator: {
         id: item.content.creator.id,
-        name: item.content.creator.displayName,
+        name: item.content.creator.display_name,
         username: item.content.creator.handle,
         avatar: item.content.creator.avatar || '',
-        isVerified: item.content.creator.isVerified,
+        isVerified: item.content.creator.is_verified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -706,7 +707,7 @@ router.get(
         creatorId: { in: creatorIds },
         status: 'PUBLISHED',
         isPublic: true,
-        deletedAt: null,
+        deleted_at: null,
         publishedAt: {
           gte: sinceDate,
         },
@@ -716,9 +717,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -750,10 +751,10 @@ router.get(
       createdAt: item.createdAt.toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.displayName,
+        name: item.creator.display_name,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.isVerified,
+        isVerified: item.creator.is_verified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -784,6 +785,45 @@ router.get(
   async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const hours = parseInt(req.query.hours as string) || 24; // Last 24 hours
+    const period = hours <= 24 ? 'today' : hours <= 168 ? 'week' : 'today';
+
+    // Try cache first
+    const cachedTrending = await getCachedTrendingContent(period);
+    if (cachedTrending && cachedTrending.length > 0) {
+      // Transform cached results
+      const transformedResults = cachedTrending.slice(0, limit).map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || undefined,
+        thumbnail: item.thumbnail || '',
+        duration: item.duration ? formatDuration(item.duration) : '0:00',
+        views: item.viewCount,
+        likes: item.likeCount,
+        createdAt: item.createdAt.toISOString(),
+        creator: {
+          id: item.creator.id,
+          name: item.creator.display_name,
+          username: item.creator.handle,
+          avatar: item.creator.avatar || '',
+          isVerified: item.creator.is_verified,
+          followers: 0,
+          views: 0,
+          contentCount: 0,
+          bio: '',
+        },
+        type: mapContentType(item.type),
+        quality: item.resolution ? [item.resolution] : [],
+        tags: item.tags.map((t: any) => t.tag.name),
+        category: item.categories[0]?.category.name || 'Uncategorized',
+        isPremium: item.isPremium,
+      }));
+
+      return res.json({
+        success: true,
+        data: transformedResults,
+        cached: true,
+      });
+    }
 
     const sinceDate = new Date();
     sinceDate.setHours(sinceDate.getHours() - hours);
@@ -793,7 +833,7 @@ router.get(
       where: {
         status: 'PUBLISHED',
         isPublic: true,
-        deletedAt: null,
+        deleted_at: null,
         publishedAt: {
           gte: sinceDate,
         },
@@ -803,9 +843,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -847,10 +887,10 @@ router.get(
       createdAt: item.createdAt.toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.displayName,
+        name: item.creator.display_name,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.isVerified,
+        isVerified: item.creator.is_verified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -899,16 +939,16 @@ router.get(
         where: {
           status: 'PUBLISHED',
           isPublic: true,
-          deletedAt: null,
+          deleted_at: null,
         },
         include: {
           creator: {
             select: {
               id: true,
               handle: true,
-              displayName: true,
+              display_name: true,
               avatar: true,
-              isVerified: true,
+              is_verified: true,
             },
           },
           categories: {
@@ -939,10 +979,10 @@ router.get(
         createdAt: item.createdAt.toISOString(),
         creator: {
           id: item.creator.id,
-          name: item.creator.displayName,
+          name: item.creator.display_name,
           username: item.creator.handle,
           avatar: item.creator.avatar || '',
-          isVerified: item.creator.isVerified,
+          isVerified: item.creator.is_verified,
           followers: 0,
           views: 0,
           contentCount: 0,
@@ -988,16 +1028,16 @@ router.get(
         id: { in: contentIds },
         status: 'PUBLISHED',
         isPublic: true,
-        deletedAt: null,
+        deleted_at: null,
       },
       include: {
         creator: {
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -1043,10 +1083,10 @@ router.get(
       createdAt: item.createdAt.toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.displayName,
+        name: item.creator.display_name,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.isVerified,
+        isVerified: item.creator.is_verified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -1096,7 +1136,7 @@ router.get(
           where: {
             status: 'PUBLISHED',
             isPublic: true,
-            deletedAt: null,
+            deleted_at: null,
             id: { notIn: userHistory },
             views: {
               some: {
@@ -1109,9 +1149,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -1142,10 +1182,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.displayName,
+            name: item.creator.display_name,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.isVerified,
+            isVerified: item.creator.is_verified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -1185,7 +1225,7 @@ router.get(
               id: { not: lastWatched.contentId },
               status: 'PUBLISHED',
               isPublic: true,
-              deletedAt: null,
+              deleted_at: null,
               OR: [
                 { categories: { some: { categoryId: { in: categoryIds } } } },
                 { tags: { some: { tagId: { in: tagIds } } } },
@@ -1197,9 +1237,9 @@ router.get(
                 select: {
                   id: true,
                   handle: true,
-                  displayName: true,
+                  display_name: true,
                   avatar: true,
-                  isVerified: true,
+                  is_verified: true,
                 },
               },
               categories: {
@@ -1230,10 +1270,10 @@ router.get(
             createdAt: item.createdAt.toISOString(),
             creator: {
               id: item.creator.id,
-              name: item.creator.displayName,
+              name: item.creator.display_name,
               username: item.creator.handle,
               avatar: item.creator.avatar || '',
-              isVerified: item.creator.isVerified,
+              isVerified: item.creator.is_verified,
               followers: 0,
               views: 0,
               contentCount: 0,
@@ -1334,7 +1374,7 @@ router.get(
         id: { not: lastWatched.contentId },
         status: 'PUBLISHED',
         isPublic: true,
-        deletedAt: null,
+        deleted_at: null,
         OR: [
           { categories: { some: { categoryId: { in: categoryIds } } } },
           { tags: { some: { tagId: { in: tagIds } } } },
@@ -1346,9 +1386,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -1379,10 +1419,10 @@ router.get(
       createdAt: item.createdAt.toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.displayName,
+        name: item.creator.display_name,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.isVerified,
+        isVerified: item.creator.is_verified,
         followers: 0,
         views: 0,
         contentCount: 0,

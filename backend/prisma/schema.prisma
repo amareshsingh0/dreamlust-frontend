@@ -69,6 +69,7 @@ model Creator {
   updated_at              DateTime?       @default(now()) @db.Timestamp(6)
   deleted_at              DateTime?       @db.Timestamp(6)
   version                 Int?            @default(0)
+  content                 Content[]
 
   @@index([created_at], map: "idx_creators_created_at")
   @@index([deleted_at], map: "idx_creators_deleted_at")
@@ -76,6 +77,7 @@ model Creator {
   @@index([is_verified], map: "idx_creators_is_verified")
   @@index([status], map: "idx_creators_status")
   @@index([user_id], map: "idx_creators_user_id")
+  @@index([user_id, created_at], map: "idx_creators_user_created")
   @@map("creators")
 }
 
@@ -113,9 +115,17 @@ model Content {
   deletedAt      DateTime?       @map("deleted_at") @db.Timestamp(6)
   version        Int?            @default(0)
   content_flags  ContentFlag[]
+  creator        Creator         @relation(fields: [creatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([status], map: "idx_content_status")
   @@index([type], map: "idx_content_type")
+  @@index([creatorId], map: "idx_content_creator")
+  @@index([creatorId, viewCount], map: "idx_content_creator_views")
+  @@index([creatorId, publishedAt], map: "idx_content_creator_published")
+  @@index([publishedAt], map: "idx_content_published_at")
+  @@index([publishedAt, status], map: "idx_content_published_status")
+  @@index([viewCount], map: "idx_content_view_count")
+  @@index([likeCount], map: "idx_content_like_count")
   @@map("content")
 }
 
@@ -158,6 +168,7 @@ model ContentCategory {
   @@unique([contentId, categoryId], map: "content_categories_unique")
   @@index([categoryId], map: "idx_content_categories_category")
   @@index([contentId], map: "idx_content_categories_content")
+  @@index([categoryId, createdAt], map: "idx_content_categories_category_created")
   @@map("content_categories")
 }
 
@@ -198,6 +209,7 @@ model View {
   @@index([contentId], map: "idx_views_content")
   @@index([contentId, createdAt], map: "idx_views_content_created")
   @@index([userId], map: "idx_views_user")
+  @@index([userId, createdAt], map: "idx_views_user_created")
   @@index([watchedAt], map: "idx_views_watched_at")
   @@map("views")
 }
@@ -212,6 +224,7 @@ model Like {
   @@index([contentId], map: "idx_likes_content")
   @@index([createdAt], map: "idx_likes_created_at")
   @@index([userId], map: "idx_likes_user")
+  @@index([userId, createdAt], map: "idx_likes_user_created")
   @@map("likes")
 }
 

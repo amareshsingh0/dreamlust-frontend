@@ -1,186 +1,136 @@
-# Backend Server Troubleshooting Guide
+# Troubleshooting Guide
 
-## Quick Diagnostics
+## "Failed to fetch" Error
 
-### 1. Check if Backend is Running on Port 3001
+If you're seeing a "Failed to fetch" error when trying to sign in or sign up, follow these steps:
 
-```powershell
-# Show processes listening on port 3001
-Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | Format-Table
+### 1. Check if Backend Server is Running
 
-# Alternative using netstat
-netstat -ano | Select-String ":3001"
-```
+The backend server should be running on `http://localhost:3001`. 
 
-**Expected Output:** Should show a process listening on port 3001.
-
-**If no output:** Server is not running. Start it with:
-```powershell
+**To start the backend:**
+```bash
 cd backend
 bun run dev
 ```
 
-### 2. Test Backend Endpoint Manually
-
-```powershell
-# Test health endpoint (no auth required)
-curl.exe "http://localhost:3001/health" -v
-
-# Test recommendations endpoint (auth required)
-curl.exe "http://localhost:3001/api/recommendations/for-you?limit=1" -v
-```
-
-**Expected:** 
-- Health endpoint: `{"success":true,"message":"API is healthy",...}`
-- Recommendations: Either JSON response or 401 Unauthorized (both mean server is running)
-
-**If connection refused:** Server is not listening on port 3001.
-
-### 3. Check Server Logs
-
-When starting the server, you should see:
+You should see:
 ```
 🚀 Server running on http://localhost:3001
 📝 Environment: development
 🔗 Frontend URL: http://localhost:4000
 ```
 
-**If you see errors:**
-- **Port in use:** Kill the process using port 3001:
-  ```powershell
-  Get-NetTCPConnection -LocalPort 3001 | Select-Object -ExpandProperty OwningProcess | Stop-Process -Force
-  ```
-- **Database connection error:** Check `DATABASE_URL` in `.env`
-- **Missing environment variables:** Ensure `.env` has all required variables
+### 2. Check Frontend API URL
 
-### 4. Verify Configuration
+The frontend needs to know where the backend is. Check your `.env` file in the `frontend` directory:
 
-**Backend Port:** Check `backend/src/config/env.ts` or `.env` file:
 ```env
-PORT=3001
+VITE_API_URL=http://localhost:3001
 ```
 
-**Frontend API URL:** Check `frontend/src/lib/api.ts`:
-```typescript
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+If this file doesn't exist, create it. The frontend defaults to `http://localhost:3001` if not set.
+
+### 3. Verify CORS Configuration
+
+The backend CORS is configured to allow:
+- `http://localhost:4000` (default frontend)
+- `http://localhost:3000`
+- The value from `FRONTEND_URL` in backend `.env`
+
+**Backend `.env` should have:**
+```env
+FRONTEND_URL=http://localhost:4000
 ```
 
-**If using Vite proxy:** Check `frontend/vite.config.ts`:
-```typescript
-server: {
-  proxy: {
-    '/api': 'http://localhost:3001'
-  }
+### 4. Check Browser Console
+
+Open browser DevTools (F12) and check:
+- **Console tab**: Look for detailed error messages
+- **Network tab**: Check if the request is being made and what the response is
+
+### 5. Common Issues
+
+#### Issue: Backend not running
+**Solution**: Start the backend server with `bun run dev` in the backend directory
+
+#### Issue: Wrong port
+**Solution**: 
+- Backend should run on port 3001
+- Frontend should run on port 4000
+- Check `PORT` in backend `.env` and `VITE_API_URL` in frontend `.env`
+
+#### Issue: CORS blocking
+**Solution**: 
+- Ensure `FRONTEND_URL` in backend `.env` matches your frontend URL
+- Check browser console for CORS errors
+- In development, CORS allows localhost origins
+
+#### Issue: Network connectivity
+**Solution**:
+- Check if you can access `http://localhost:3001/health` directly in browser
+- Should return: `{"success":true,"message":"API is healthy",...}`
+
+### 6. Test Backend Health
+
+Open in browser: `http://localhost:3001/health`
+
+Expected response:
+```json
+{
+  "success": true,
+  "message": "API is healthy",
+  "timestamp": "..."
 }
 ```
 
-### 5. Common Issues & Solutions
+### 7. Test API Endpoint Directly
 
-#### Issue: Port 3001 Already in Use
-```powershell
-# Find and kill process
-$pid = Get-NetTCPConnection -LocalPort 3001 | Select-Object -ExpandProperty OwningProcess
-Stop-Process -Id $pid -Force
+You can test the login endpoint directly using curl:
+
+```bash
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}'
 ```
 
-#### Issue: Server Crashes on Start
-**Check:**
-1. Environment variables in `.env`:
-   - `DATABASE_URL`
-   - `JWT_SECRET`
-   - `PORT`
-2. Database connection (Prisma)
-3. TypeScript compilation errors
+### 8. Check Environment Variables
 
-#### Issue: Connection Refused from Frontend
-**Check:**
-1. Backend is actually running (step 1)
-2. Port matches in frontend config (step 4)
-3. CORS is configured in `backend/src/server.ts`:
-   ```typescript
-   app.use(cors({
-     origin: env.FRONTEND_URL,
-     credentials: true,
-   }));
-   ```
-
-#### Issue: 404 Not Found (not connection refused)
-- Check route registration in `backend/src/server.ts`
-- Verify endpoint path matches frontend call
-- Check route file exports default router
-
-### 6. Quick Test Server
-
-If main server won't start, test with minimal server:
-
-```javascript
-// backend/test-server.js
-const express = require('express');
-const app = express();
-app.get('/ping', (req, res) => res.json({ ok: true }));
-app.listen(3001, () => console.log('Test server on 3001'));
+**Backend `.env` should have:**
+```env
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:4000
+DATABASE_URL=postgresql://...
+JWT_SECRET=your-secret-key...
 ```
 
-Run:
-```powershell
-cd backend
-node test-server.js
-# In another terminal:
-curl.exe http://localhost:3001/ping
+**Frontend `.env` should have:**
+```env
+VITE_API_URL=http://localhost:3001
 ```
 
-If this works, your machine can accept connections. The issue is in your main server code.
+### 9. Restart Both Servers
 
-### 7. Firewall Check (Rare)
+If issues persist:
+1. Stop both frontend and backend servers
+2. Restart backend: `cd backend && bun run dev`
+3. Restart frontend: `cd frontend && bun run dev`
+4. Clear browser cache and try again
 
-If server is running but still refused:
+### 10. Check Database Connection
 
-```powershell
-# Check firewall state
-Get-NetFirewallProfile | Format-Table Name,Enabled
-
-# Temporarily disable for testing (admin required)
-Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+Ensure your database is running and accessible:
+```bash
+# If using PostgreSQL
+# Check if database is running
+# Verify DATABASE_URL in backend .env
 ```
 
-**⚠️ Re-enable firewall after testing!**
+## Still Having Issues?
 
-### 8. Server Binding
-
-Check `backend/src/server.ts`:
-```typescript
-app.listen(PORT, () => {
-  // Should bind to 0.0.0.0 or 127.0.0.1
-});
-```
-
-For local development, `0.0.0.0` or default (all interfaces) is fine.
-
-## Quick Checklist
-
-Run these commands in order:
-
-```powershell
-# 1. Check port
-Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue
-
-# 2. Start backend
-cd C:\desktop\dreamlust-project\backend
-bun run dev
-
-# 3. Test endpoint
-Start-Sleep -Seconds 3
-curl.exe "http://localhost:3001/health"
-
-# 4. Check frontend API config
-# Open frontend/src/lib/api.ts and verify API_BASE_URL
-```
-
-## Getting Help
-
-If still stuck, provide:
-1. Backend startup logs (full terminal output from `bun run dev`)
-2. Output of `Get-NetTCPConnection -LocalPort 3001`
-3. Contents of `backend/.env` (redact secrets)
-4. Frontend API base URL from `frontend/src/lib/api.ts`
-
+1. Check server logs for detailed error messages
+2. Check browser console for network errors
+3. Verify all environment variables are set correctly
+4. Ensure both servers are running on the correct ports
+5. Try accessing the API directly (curl or Postman) to isolate frontend vs backend issues

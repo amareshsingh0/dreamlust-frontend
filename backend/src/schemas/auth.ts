@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Register schema
+// Register schema - Updated to match UI (6 chars minimum, but still validate strength)
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   username: z.string()
@@ -8,11 +8,12 @@ export const registerSchema = z.object({
     .max(30, 'Username must be at most 30 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+    .min(6, 'Password must be at least 6 characters')
+    .refine((password) => {
+      // Warn but don't require complexity for minimum 6 chars
+      // Still validate strength separately in the route handler
+      return password.length >= 6;
+    }, 'Password must be at least 6 characters'),
   displayName: z.string().min(1).max(100).optional(),
 });
 

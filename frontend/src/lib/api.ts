@@ -20,6 +20,7 @@ export async function apiRequest<T>(
   try {
     const response = await fetch(url, {
       ...options,
+      credentials: options.credentials || 'include', // Include cookies for auth
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -47,27 +48,50 @@ export async function apiRequest<T>(
     }
 
     if (!response.ok) {
+      // Handle error responses
+      const errorData = data.error || {
+        code: data.code || 'UNKNOWN_ERROR',
+        message: data.message || response.statusText || 'An error occurred',
+        details: data.details,
+        timestamp: data.timestamp || new Date().toISOString(),
+      };
+      
       return {
         success: false,
-        error: data.error || {
-          code: 'UNKNOWN_ERROR',
-          message: data.message || 'An error occurred',
-          timestamp: new Date().toISOString(),
-        },
+        error: errorData,
       };
     }
 
+    // Success response - extract data
+    // Backend returns: { success: true, data: {...} }
+    // So we return: { success: true, data: data.data || data }
     return {
       success: true,
-      data: data.data || data,
+      data: data.data !== undefined ? data.data : data,
     };
   } catch (error: any) {
     // Handle fetch errors (network failures, CORS, etc.)
+    let errorMessage = 'Failed to fetch. ';
+    
+    if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+      errorMessage += 'Please ensure the backend server is running at ' + API_BASE_URL;
+    } else if (error.message?.includes('CORS')) {
+      errorMessage += 'CORS error. Please check server configuration.';
+    } else {
+      errorMessage += error.message || 'Please check your connection and ensure the server is running.';
+    }
+    
+    console.error('API Request Error:', {
+      url,
+      error: error.message,
+      stack: error.stack,
+    });
+    
     return {
       success: false,
       error: {
         code: 'NETWORK_ERROR',
-        message: error.message || 'Failed to fetch. Please check your connection and ensure the server is running.',
+        message: errorMessage,
         timestamp: new Date().toISOString(),
       },
     };
@@ -83,11 +107,17 @@ function getAuthToken(): string | null {
 // Helper to add auth headers
 function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
   const token = getAuthToken();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
     ...customHeaders,
   };
+  
+  // Only add Authorization header if token exists and not explicitly overridden
+  if (token && !customHeaders.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
+  return headers;
 }
 
 export const api = {
@@ -517,6 +547,72 @@ export const api = {
       apiRequest<T>('/api/moderation/stats', {
         method: 'GET',
         headers: getHeaders(),
+      }),
+  },
+  auth: {
+    register: <T>(data: {
+      email: string;
+      username: string;
+      password: string;
+      displayName?: string;
+    }) =>
+      apiRequest<T>('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      }),
+    login: <T>(data: {
+      email: string;
+      password: string;
+      rememberMe?: boolean;
+    }) =>
+      apiRequest<T>('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      }),
+    logout: <T>() => {
+      const token = getAuthToken();
+      return apiRequest<T>('/api/auth/logout', {
+        method: 'POST',
+        headers: token 
+          ? {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            }
+          : {
+              'Content-Type': 'application/json',
+            },
+        credentials: 'include',
+      });
+    },
+    me: <T>() =>
+      apiRequest<T>('/api/auth/me', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    refresh: <T>(refreshToken?: string) =>
+      apiRequest<T>('/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+        credentials: 'include',
+      }),
+    changePassword: <T>(data: {
+      currentPassword: string;
+      newPassword: string;
+    }) =>
+      apiRequest<T>('/api/auth/change-password', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
       }),
   },
 };

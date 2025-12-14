@@ -54,14 +54,14 @@ router.post(
           select: {
             id: true,
             username: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
           },
         },
         toCreator: {
           select: {
             id: true,
-            displayName: true,
+            display_name: true,
             handle: true,
             avatar: true,
           },
@@ -93,14 +93,14 @@ router.post(
           select: {
             id: true,
             username: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
           },
         },
         toCreator: {
           select: {
             id: true,
-            displayName: true,
+            display_name: true,
             handle: true,
             avatar: true,
           },
@@ -119,7 +119,7 @@ router.post(
           title: 'New Tip Received',
           message: isAnonymous
             ? `You received a $${amount} ${currency} tip!`
-            : `You received a $${amount} ${currency} tip from ${tip.fromUser.displayName || tip.fromUser.username}!`,
+            : `You received a $${amount} ${currency} tip from ${tip.fromUser.display_name || tip.fromUser.username}!`,
           link: `/creator/${creator.handle}`,
           metadata: {
             tipId: tip.id,
@@ -331,14 +331,14 @@ router.get(
           select: {
             id: true,
             username: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
           },
         },
         toCreator: {
           select: {
             id: true,
-            displayName: true,
+            display_name: true,
             handle: true,
             avatar: true,
           },

@@ -16,6 +16,7 @@ import {
 import { ConflictError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { UserRole } from '../config/constants';
 import cookieParser from 'cookie-parser';
+// Session caching is now handled in sessionStore
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.post(
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email }, { username }],
-        deletedAt: null,
+        deleted_at: null,
       },
     });
 
@@ -47,10 +48,14 @@ router.post(
       );
     }
 
-    // Validate password strength
+    // Validate password strength (minimum 6 chars, warnings for weak passwords)
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.valid) {
       throw new ValidationError('Password does not meet requirements', passwordValidation.errors);
+    }
+    // Log warnings but don't block registration
+    if (passwordValidation.warnings && passwordValidation.warnings.length > 0) {
+      console.log('Password strength warnings:', passwordValidation.warnings);
     }
 
     // Hash password
@@ -84,7 +89,7 @@ router.post(
 
     // Create session
     const sessionId = generateSessionId();
-    sessionStore.create(sessionId, {
+    await sessionStore.create(sessionId, {
       userId: user.id,
       refreshToken: tokens.refreshToken,
       ipAddress: req.ip || 'unknown',
@@ -135,11 +140,11 @@ router.post(
         password: true,
         role: true,
         status: true,
-        deletedAt: true,
+        deleted_at: true,
       },
     });
 
-    if (!user || user.deletedAt) {
+    if (!user || user.deleted_at) {
       throw new UnauthorizedError('Invalid email or password');
     }
 
@@ -164,14 +169,17 @@ router.post(
     const sessionId = generateSessionId();
     const expiresIn = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
     
-    sessionStore.create(sessionId, {
+    const sessionData = {
       userId: user.id,
       refreshToken: tokens.refreshToken,
       ipAddress: req.ip || 'unknown',
       userAgent: req.get('user-agent') || 'unknown',
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + expiresIn),
-    });
+    };
+    
+    // Store in memory and cache in Redis
+    await sessionStore.create(sessionId, sessionData);
 
     // Set httpOnly cookie
     res.cookie('refreshToken', tokens.refreshToken, {
@@ -228,11 +236,11 @@ router.post(
         email: true,
         role: true,
         status: true,
-        deletedAt: true,
+        deleted_at: true,
       },
     });
 
-    if (!user || user.deletedAt || user.status !== 'ACTIVE') {
+    if (!user || user.deleted_at || user.status !== 'ACTIVE') {
       throw new UnauthorizedError('User not found or inactive');
     }
 
@@ -257,11 +265,16 @@ router.post(
  * Logout user
  */
 router.post('/logout', authenticate, async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  
   // Clear refresh token cookie
   res.clearCookie('refreshToken');
 
-  // In production, invalidate refresh token in Redis/database
-  // For now, we'll rely on token expiration
+  // Get all user sessions before deleting
+  const userSessions = sessionStore.getUserSessions(userId);
+  
+  // Invalidate all sessions for user in memory store and Redis
+  await sessionStore.deleteAllForUser(userId);
 
   res.json({
     success: true,

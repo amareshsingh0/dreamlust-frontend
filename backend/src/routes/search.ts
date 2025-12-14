@@ -4,6 +4,7 @@ import { validateBody } from '../middleware/validation';
 import { searchSchema, SearchRequest } from '../schemas/search';
 import { Prisma } from '@prisma/client';
 import { searchRateLimiter } from '../middleware/rateLimit';
+import { getCachedSearchResults, invalidateSearchCache } from '../lib/cache/contentCache';
 
 const router = Router();
 

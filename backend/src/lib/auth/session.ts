@@ -1,5 +1,6 @@
-// Simple in-memory session store (replace with Redis in production)
-// For production, use Redis: import Redis from 'ioredis';
+// Session store with Redis caching support
+// Uses in-memory store as primary, Redis as cache layer
+import { cacheSession, invalidateSession } from '../cache/sessionCache';
 
 interface Session {
   userId: string;
@@ -17,7 +18,7 @@ class SessionStore {
   /**
    * Create a new session
    */
-  create(sessionId: string, session: Session): void {
+  async create(sessionId: string, session: Session): Promise<void> {
     this.sessions.set(sessionId, session);
     
     // Track user sessions
@@ -25,6 +26,9 @@ class SessionStore {
       this.userSessions.set(session.userId, new Set());
     }
     this.userSessions.get(session.userId)!.add(sessionId);
+    
+    // Also cache in Redis
+    await cacheSession(sessionId, session);
   }
 
   /**
@@ -35,7 +39,8 @@ class SessionStore {
     
     // Check if expired
     if (session && session.expiresAt < new Date()) {
-      this.delete(sessionId);
+      // Fire and forget async deletion
+      this.delete(sessionId).catch(err => console.error('Error deleting expired session:', err));
       return undefined;
     }
     
@@ -45,7 +50,7 @@ class SessionStore {
   /**
    * Delete session
    */
-  delete(sessionId: string): void {
+  async delete(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (session) {
       this.sessions.delete(sessionId);
@@ -56,18 +61,23 @@ class SessionStore {
           this.userSessions.delete(session.userId);
         }
       }
+      
+      // Also invalidate in Redis
+      await invalidateSession(sessionId);
     }
   }
 
   /**
    * Delete all sessions for a user
    */
-  deleteAllForUser(userId: string): void {
+  async deleteAllForUser(userId: string): Promise<void> {
     const userSessions = this.userSessions.get(userId);
     if (userSessions) {
-      userSessions.forEach((sessionId) => {
+      const sessionIds = Array.from(userSessions);
+      for (const sessionId of sessionIds) {
         this.sessions.delete(sessionId);
-      });
+        await invalidateSession(sessionId);
+      }
       this.userSessions.delete(userId);
     }
   }
@@ -75,13 +85,18 @@ class SessionStore {
   /**
    * Clean up expired sessions
    */
-  cleanup(): void {
+  async cleanup(): Promise<void> {
     const now = new Date();
+    const expiredSessions: string[] = [];
+    
     for (const [sessionId, session] of this.sessions.entries()) {
       if (session.expiresAt < now) {
-        this.delete(sessionId);
+        expiredSessions.push(sessionId);
       }
     }
+    
+    // Delete all expired sessions
+    await Promise.all(expiredSessions.map(sessionId => this.delete(sessionId)));
   }
 
   /**
@@ -103,7 +118,7 @@ export const sessionStore = new SessionStore();
 // Cleanup expired sessions every hour
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
-    sessionStore.cleanup();
+    sessionStore.cleanup().catch(err => console.error('Error during session cleanup:', err));
   }, 60 * 60 * 1000); // 1 hour
 }
 

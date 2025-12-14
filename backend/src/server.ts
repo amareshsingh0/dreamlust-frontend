@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { ipRateLimiter } from './middleware/rateLimit';
@@ -24,9 +25,43 @@ const app = express();
 
 // Security middleware - comprehensive security headers
 app.use(...securityMiddleware);
+
+// CORS configuration - allow frontend origin and localhost in development
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  'http://localhost:4000',
+  'http://localhost:3000',
+  'http://127.0.0.1:4000',
+  'http://127.0.0.1:3000',
+].filter(Boolean);
+
 app.use(cors({
-  origin: env.FRONTEND_URL,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+}));
+
+// Compression middleware - gzip/brotli for text responses
+app.use(compression({
+  filter: (req, res) => {
+    // Compress text responses
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Compression level (1-9)
+  threshold: 1024, // Only compress responses > 1KB
 }));
 
 // Body parsing
@@ -95,10 +130,41 @@ app.use(errorHandler);
 
 const PORT = parseInt(env.PORT, 10);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📝 Environment: ${env.NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${env.FRONTEND_URL}`);
+  console.log(`✅ Server ready to accept connections`);
+});
+
+// Handle server errors
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use.`);
+    console.error(`   Please free the port or change PORT in .env`);
+    console.error(`   To find what's using the port: Get-NetTCPConnection -LocalPort ${PORT}`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server error:', error);
+    process.exit(1);
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('\nSIGINT received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
 
 export default app;
