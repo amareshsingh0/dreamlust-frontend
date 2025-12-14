@@ -5,7 +5,8 @@ import { generateTokenPair, verifyToken, TokenType } from '../lib/auth/jwt';
 import { generateSessionId, sessionStore } from '../lib/auth/session';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
-import { userRateLimiter, strictRateLimiter } from '../middleware/rateLimit';
+import { userRateLimiter, strictRateLimiter, loginRateLimiter } from '../middleware/rateLimit';
+import { getCsrfToken } from '../middleware/csrf';
 import {
   registerSchema,
   loginSchema,
@@ -119,7 +120,7 @@ router.post(
  */
 router.post(
   '/login',
-  strictRateLimiter,
+  loginRateLimiter,
   validateBody(loginSchema),
   async (req: Request, res: Response) => {
     const { email, password, rememberMe } = req.body;
@@ -351,6 +352,12 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
     data: { user },
   });
 });
+
+/**
+ * GET /api/auth/csrf-token
+ * Get CSRF token for the current session
+ */
+router.get('/csrf-token', getCsrfToken);
 
 export default router;
 

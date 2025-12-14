@@ -1,9 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { ipRateLimiter } from './middleware/rateLimit';
+import { securityMiddleware } from './middleware/security';
 import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
 import searchRoutes from './routes/search';
@@ -19,8 +19,8 @@ import webhooksRoutes from './routes/webhooks';
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - comprehensive security headers
+app.use(...securityMiddleware);
 app.use(cors({
   origin: env.FRONTEND_URL,
   credentials: true,

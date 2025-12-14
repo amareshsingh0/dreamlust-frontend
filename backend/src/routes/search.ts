@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { validateBody } from '../middleware/validation';
 import { searchSchema, SearchRequest } from '../schemas/search';
 import { Prisma } from '@prisma/client';
+import { searchRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -42,6 +43,7 @@ function calculateTrendingScore(content: {
 // POST /api/search
 router.post(
   '/',
+  searchRateLimiter,
   validateBody(searchSchema),
   async (req: Request, res: Response) => {
     try {

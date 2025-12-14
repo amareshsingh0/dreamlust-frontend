@@ -49,3 +49,83 @@ export const strictRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * Per-endpoint rate limiters
+ */
+
+/**
+ * Search endpoint rate limiter: 60 requests per minute
+ */
+export const searchRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
+  message: 'Too many search requests. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    // Use user ID if authenticated, otherwise IP
+    return req.user?.userId || req.ip || 'unknown';
+  },
+  handler: (req: Request, res: Response) => {
+    throw new RateLimitError('Search rate limit exceeded. Please try again later.');
+  },
+});
+
+/**
+ * Comments endpoint rate limiter: 30 requests per minute
+ */
+export const commentsRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  message: 'Too many comment requests. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    // Use user ID if authenticated, otherwise IP
+    return req.user?.userId || req.ip || 'unknown';
+  },
+  handler: (req: Request, res: Response) => {
+    throw new RateLimitError('Comment rate limit exceeded. Please try again later.');
+  },
+});
+
+/**
+ * Upload endpoint rate limiter: 5 requests per hour (for creators only)
+ */
+export const uploadRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: 'Too many upload requests. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    // Use user ID for authenticated users (creators)
+    if (!req.user?.userId) {
+      return req.ip || 'unknown';
+    }
+    return `upload:${req.user.userId}`;
+  },
+  handler: (req: Request, res: Response) => {
+    throw new RateLimitError('Upload rate limit exceeded. You can upload up to 5 items per hour.');
+  },
+});
+
+/**
+ * Login endpoint rate limiter: 10 requests per minute
+ * (This is the same as strictRateLimiter, but kept separate for clarity)
+ */
+export const loginRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: 'Too many login attempts. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    // Use email from body if available, otherwise IP
+    return req.body?.email || req.ip || 'unknown';
+  },
+  handler: (req: Request, res: Response) => {
+    throw new RateLimitError('Too many login attempts. Please try again later.');
+  },
+});
+

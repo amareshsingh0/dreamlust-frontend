@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuth } from '../middleware/auth';
-import { userRateLimiter } from '../middleware/rateLimit';
+import { commentsRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { validateBody, validateQuery } from '../middleware/validation';
 import {
@@ -184,7 +184,7 @@ router.get(
 router.post(
   '/',
   authenticate,
-  userRateLimiter,
+  commentsRateLimiter,
   validateBody(createCommentSchema),
   async (req: Request, res: Response) => {
     const userId = req.user!.userId;
@@ -269,7 +269,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  userRateLimiter,
+  commentsRateLimiter,
   validateBody(updateCommentSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -327,7 +327,7 @@ router.put(
 router.delete(
   '/:id',
   authenticate,
-  userRateLimiter,
+  commentsRateLimiter,
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.userId;
@@ -383,7 +383,7 @@ router.delete(
 router.post(
   '/:id/like',
   authenticate,
-  userRateLimiter,
+  commentsRateLimiter,
   validateBody(commentLikeSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -482,7 +482,7 @@ router.post(
 router.post(
   '/:id/pin',
   authenticate,
-  userRateLimiter,
+  commentsRateLimiter,
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.userId;
@@ -539,7 +539,7 @@ router.post(
 router.post(
   '/:id/report',
   authenticate,
-  userRateLimiter,
+  commentsRateLimiter,
   validateBody(reportCommentSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;

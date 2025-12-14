@@ -1,13 +1,14 @@
 import { z } from 'zod';
 
+// Enhanced validation with CUID validation for IDs
 export const createCommentSchema = z.object({
-  contentId: z.string(),
-  text: z.string().min(1).max(5000),
-  parentId: z.string().optional().nullable(),
+  contentId: z.string().cuid().or(z.string().uuid()).or(z.string().min(1)), // Support CUID, UUID, or any string
+  text: z.string().min(1).max(2000).trim(),
+  parentId: z.string().cuid().or(z.string().uuid()).optional().nullable(),
 });
 
 export const updateCommentSchema = z.object({
-  text: z.string().min(1).max(5000),
+  text: z.string().min(1).max(2000).trim(),
 });
 
 export const commentLikeSchema = z.object({
