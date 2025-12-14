@@ -22,11 +22,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { mockCreators, mockContent } from '@/data/mockData';
 import { Helmet } from 'react-helmet-async';
 import { cn } from '@/lib/utils';
+import { TipModal } from '@/components/tips/TipModal';
 
 export default function CreatorProfile() {
   const { username } = useParams<{ username: string }>();
   const [isFollowing, setIsFollowing] = useState(false);
   const [selectedContentType, setSelectedContentType] = useState<string>('all');
+  const [tipModalOpen, setTipModalOpen] = useState(false);
   const creator = mockCreators.find(c => c.username === username);
   const creatorContent = mockContent.filter(c => c.creator.username === username);
   
@@ -246,7 +248,11 @@ export default function CreatorProfile() {
                     </>
                   )}
                 </Button>
-                <Button variant="outline" className="gap-2">
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => setTipModalOpen(true)}
+                >
                   <Heart className="h-4 w-4" />
                   Tip Creator
                 </Button>
@@ -328,6 +334,16 @@ export default function CreatorProfile() {
           </div>
         </div>
       </Layout>
+
+      {/* Tip Modal */}
+      {creator && (
+        <TipModal
+          open={tipModalOpen}
+          onOpenChange={setTipModalOpen}
+          creatorId={creator.id}
+          creatorName={creator.name}
+        />
+      )}
     </>
   );
 }

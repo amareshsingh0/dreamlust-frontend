@@ -25,6 +25,7 @@ import CreatorSignup from "./pages/CreatorSignup";
 import Guidelines from "./pages/Guidelines";
 import Monetization from "./pages/Monetization";
 import Analytics from "./pages/Analytics";
+import Earnings from "./pages/Earnings";
 import Creators from "./pages/Creators";
 import Live from "./pages/Live";
 import History from "./pages/History";
@@ -93,6 +94,7 @@ const App = () => (
             <Route path="/guidelines" element={<Guidelines />} />
             <Route path="/monetization" element={<Monetization />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/earnings" element={<Earnings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
