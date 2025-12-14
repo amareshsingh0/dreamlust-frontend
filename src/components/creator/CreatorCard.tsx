@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
-import { UserPlus, Users, Video, Zap, Check } from 'lucide-react';
+import { Users, Video, Check } from 'lucide-react';
 import { Creator } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface CreatorCardProps {
@@ -36,97 +35,91 @@ export function CreatorCard({
   };
 
   return (
-    <Link 
-      to={`/creator/${creator.username}`}
+    <div
       className={cn(
-        "group block rounded-xl overflow-hidden transition-all duration-300",
-        "hover:scale-[1.02] hover:shadow-lg",
-        variant === 'compact' ? 'p-3' : 'p-4'
+        "group relative bg-card rounded-2xl border-2 border-border/50",
+        "transition-all duration-300 ease-in-out",
+        "hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10",
+        "hover:-translate-y-1",
+        variant === 'compact' ? 'p-4' : 'p-6'
       )}
     >
-      <div className="space-y-4">
-        {/* Header with avatar and follow button */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Avatar className={cn(
-              "border-2 transition-colors",
-              variant === 'compact' ? "h-12 w-12" : "h-16 w-16",
-              "border-transparent group-hover:border-primary/50"
-            )}>
-              <AvatarImage src={creator.avatar} alt={creator.name} />
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground">
-                {creator.name[0]}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className={cn(
-                  "font-semibold line-clamp-1 group-hover:text-primary transition-colors",
-                  variant === 'compact' ? 'text-sm' : 'text-base'
-                )}>
-                  {creator.name}
-                </h3>
-                {creator.isVerified && (
-                  <Badge variant="default" className="h-4 px-1.5 text-xs">
-                    <Zap className="h-2.5 w-2.5 mr-0.5" />
-                    Verified
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground line-clamp-1">
-                @{creator.username}
-              </p>
+      <div className="flex flex-col items-center text-center space-y-4">
+        {/* Avatar with Verification Badge */}
+        <div className="relative">
+          <Avatar 
+            className={cn(
+              "border-[3px] transition-all duration-300",
+              "border-border/50 group-hover:border-primary/70",
+              "group-hover:scale-105",
+              variant === 'compact' ? "h-20 w-20" : "h-24 w-24"
+            )}
+          >
+            <AvatarImage src={creator.avatar} alt={creator.name} />
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-foreground text-2xl font-bold">
+              {creator.name[0]}
+            </AvatarFallback>
+          </Avatar>
+          
+          {/* Verification Badge */}
+          {creator.isVerified && (
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary border-2 border-background flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Check className="h-4 w-4 text-primary-foreground" />
             </div>
-          </div>
-
-          {showFollowButton && (
-            <Button
-              variant={isFollowing ? "secondary" : "default"}
-              size={variant === 'compact' ? "sm" : "default"}
-              className={cn(
-                "flex-shrink-0 transition-all",
-                isFollowing && "bg-primary/10 hover:bg-primary/20"
-              )}
-              onClick={handleFollow}
-            >
-              {isFollowing ? (
-                <>
-                  <Check className="h-4 w-4 mr-1" />
-                  Following
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  Follow
-                </>
-              )}
-            </Button>
           )}
         </div>
 
-        {/* Bio */}
-        {creator.bio && variant !== 'compact' && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {creator.bio}
+        {/* Creator Info */}
+        <div className="w-full space-y-2">
+          <h3 className={cn(
+            "font-bold text-foreground transition-colors duration-300",
+            "group-hover:text-primary",
+            variant === 'compact' ? 'text-base' : 'text-lg'
+          )}>
+            {creator.name}
+          </h3>
+          
+          <p className="text-sm text-muted-foreground font-medium">
+            @{creator.username}
           </p>
-        )}
+        </div>
 
-        {/* Stats */}
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Video className="h-4 w-4" />
-            <span className="font-medium">{formatNumber(creator.contentCount)}</span>
-            <span className="text-xs">videos</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
+        {/* Statistics */}
+        <div className="flex items-center justify-center gap-6 w-full">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
-            <span className="font-medium">{formatNumber(creator.followers)}</span>
-            <span className="text-xs">followers</span>
+            <span className="text-sm font-semibold">
+              {formatNumber(creator.followers)}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Video className="h-4 w-4" />
+            <span className="text-sm font-semibold">
+              {creator.contentCount} videos
+            </span>
           </div>
         </div>
+
+        {/* View Profile Button */}
+        <Link 
+          to={`/creator/${creator.username}`}
+          className={cn(
+            "w-full inline-flex items-center justify-center",
+            "rounded-lg border-2 transition-all duration-300",
+            "border-border/50 bg-background/50 text-foreground",
+            "hover:border-primary hover:bg-primary/10 hover:text-primary",
+            "hover:shadow-md hover:shadow-primary/20",
+            "font-semibold text-sm",
+            "px-4 py-2.5",
+            "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+            "active:scale-[0.98]"
+          )}
+        >
+          View Profile
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 }
 

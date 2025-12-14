@@ -29,30 +29,37 @@ const Creators = () => {
       </Helmet>
 
       <Layout>
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-display font-bold mb-2">Discover Creators</h1>
-            <p className="text-muted-foreground">
+          <div className="mb-10 lg:mb-12 text-center">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold mb-3 text-foreground">
+              Discover Creators
+            </h1>
+            <p className="text-base sm:text-lg text-muted-foreground mx-auto max-w-2xl">
               Follow your favorite creators and never miss their latest content.
             </p>
           </div>
 
           {/* Creators Grid */}
           {isLoading ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
               <CreatorCardSkeleton count={8} />
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {mockCreators.map((creator) => (
-                <CreatorCard
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+              {mockCreators.map((creator, index) => (
+                <div
                   key={creator.id}
-                  creator={creator}
-                  showFollowButton
-                  isFollowing={following.has(creator.id)}
-                  onFollow={handleFollow}
-                />
+                  className="animate-fadeIn"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <CreatorCard
+                    creator={creator}
+                    showFollowButton={false}
+                    isFollowing={following.has(creator.id)}
+                    onFollow={handleFollow}
+                  />
+                </div>
               ))}
             </div>
           )}
