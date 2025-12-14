@@ -90,12 +90,12 @@ export function verifyToken(token: string, expectedType?: TokenType): JWTPayload
  */
 export function extractTokenFromHeader(authHeader: string | undefined): string {
   if (!authHeader) {
-    throw new UnauthorizedError('Missing authorization header');
+    throw new UnauthorizedError('Authentication required. Please log in to continue.');
   }
 
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0] !== 'Bearer') {
-    throw new UnauthorizedError('Invalid authorization header format');
+    throw new UnauthorizedError('Invalid authentication token. Please log in again.');
   }
 
   return parts[1];

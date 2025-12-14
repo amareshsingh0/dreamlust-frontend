@@ -12,6 +12,10 @@ import playlistRoutes from './routes/playlists';
 import contentRoutes from './routes/content';
 import analyticsRoutes from './routes/analytics';
 import recommendationsRoutes from './routes/recommendations';
+import commentsRoutes from './routes/comments';
+import tipsRoutes from './routes/tips';
+import earningsRoutes from './routes/earnings';
+import webhooksRoutes from './routes/webhooks';
 
 const app = express();
 
@@ -72,6 +76,10 @@ app.use('/api/playlists', playlistRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/comments', commentsRoutes);
+app.use('/api/tips', tipsRoutes);
+app.use('/api/earnings', earningsRoutes);
+app.use('/api/webhooks', webhooksRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
