@@ -20,11 +20,20 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { ContentCard } from '@/components/content/ContentCard';
+import { lazy, Suspense } from 'react';
+import { ContentCardSkeleton } from '@/components/content/ContentCardSkeleton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CommentSection } from '@/components/comments/CommentSection';
+import { CommentSectionSkeleton } from '@/components/comments/CommentSectionSkeleton';
+
+// Lazy load CommentSection for code splitting
+const CommentSection = lazy(() => 
+  import('@/components/comments/CommentSection').then(module => ({ 
+    default: module.CommentSection 
+  }))
+);
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -666,11 +675,13 @@ export default function Watch() {
 
               {/* Comments */}
               {id && (
-                <CommentSection
-                  contentId={id}
-                  creatorId={content.creator.id}
-                  currentUserId={currentUserId}
-                />
+                <Suspense fallback={<CommentSectionSkeleton />}>
+                  <CommentSection
+                    contentId={id}
+                    creatorId={content.creator.id}
+                    currentUserId={currentUserId}
+                  />
+                </Suspense>
               )}
             </div>
 
@@ -694,7 +705,9 @@ export default function Watch() {
               ) : relatedContent.length > 0 ? (
                 <div className="space-y-2">
                   {relatedContent.map(item => (
-                    <ContentCard key={item.id} content={item} variant="horizontal" />
+                    <Suspense key={item.id} fallback={<ContentCardSkeleton variant="horizontal" />}>
+                      <ContentCard content={item} variant="horizontal" />
+                    </Suspense>
                   ))}
                 </div>
               ) : (

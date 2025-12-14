@@ -18,6 +18,7 @@ import earningsRoutes from './routes/earnings';
 import webhooksRoutes from './routes/webhooks';
 import privacyRoutes from './routes/privacy';
 import moderationRoutes from './routes/moderation';
+import uploadRoutes from './routes/upload';
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.use('/api/earnings', earningsRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/moderation', moderationRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

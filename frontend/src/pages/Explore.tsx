@@ -240,13 +240,24 @@ export default function Explore() {
 
           {/* Content */}
           {viewMode === 'grid' ? (
-            <ContentGrid content={filteredContent} columns={4} />
+            filteredContent.length > 50 ? (
+              <VirtualizedContentGrid 
+                content={filteredContent} 
+                columns={4}
+              />
+            ) : (
+              <ContentGrid content={filteredContent} columns={4} />
+            )
           ) : (
-            <div className="space-y-2">
-              {filteredContent.map(item => (
-                <ContentCard key={item.id} content={item} variant="horizontal" />
-              ))}
-            </div>
+            filteredContent.length > 50 ? (
+              <VirtualizedContentList content={filteredContent} />
+            ) : (
+              <div className="space-y-2">
+                {filteredContent.map(item => (
+                  <ContentCard key={item.id} content={item} variant="horizontal" />
+                ))}
+              </div>
+            )
           )}
         </div>
       </Layout>

@@ -3,6 +3,9 @@ import { useParams } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentCard } from "@/components/content/ContentCard";
+import { VirtualizedContentGrid } from "@/components/content/VirtualizedContentGrid";
+import { Suspense } from 'react';
+import { ContentCardSkeleton } from '@/components/content/ContentCardSkeleton';
 import { ContentCarousel } from "@/components/content/ContentCarousel";
 import { mockCategories, mockContent } from "@/data/mockData";
 
@@ -60,11 +63,20 @@ const Category = () => {
                 title={`Popular in ${category.name}`}
                 content={categoryContent}
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {categoryContent.map((content) => (
-                  <ContentCard key={content.id} content={content} />
-                ))}
-              </div>
+              {categoryContent.length > 50 ? (
+                <VirtualizedContentGrid 
+                  content={categoryContent} 
+                  columns={4}
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {categoryContent.map((content) => (
+                    <Suspense key={content.id} fallback={<ContentCardSkeleton />}>
+                      <ContentCard content={content} />
+                    </Suspense>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

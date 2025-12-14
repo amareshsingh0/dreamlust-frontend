@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Play, Sparkles, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
 import { mockContent } from '@/data/mockData';
 
 export function HeroSection() {
@@ -10,10 +12,13 @@ export function HeroSection() {
     <section className="relative h-[500px] md:h-[600px] overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
-        <img 
-          src={featuredContent.thumbnail}
+        <OptimizedImage
+          src={featuredContent.thumbnail || ''}
           alt={featuredContent.title}
-          className="w-full h-full object-cover"
+          blurDataURL={(featuredContent as any).thumbnailBlur || createSimpleBlurPlaceholder()}
+          className="w-full h-full"
+          objectFit="cover"
+          priority={true}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />

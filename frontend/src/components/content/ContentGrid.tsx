@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Content } from '@/types';
 import { ContentCard } from './ContentCard';
 import { ContentCardSkeleton } from './ContentCardSkeleton';
@@ -36,7 +37,9 @@ export function ContentGrid({
           className="animate-fadeIn"
           style={{ animationDelay: `${index * 50}ms` }}
         >
-          <ContentCard content={item} variant={variant} />
+          <Suspense fallback={<ContentCardSkeleton variant={variant} />}>
+            <ContentCard content={item} variant={variant} />
+          </Suspense>
         </div>
       ))}
     </div>

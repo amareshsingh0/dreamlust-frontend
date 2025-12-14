@@ -4,6 +4,8 @@ import { Content } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
 
 interface ContentCardProps {
   content: Content;
@@ -39,10 +41,12 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
         className="flex gap-4 p-3 rounded-xl hover:bg-muted/30 transition-all duration-300 group cursor-pointer"
       >
         <div className="relative w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-          <img 
-            src={content.thumbnail} 
+          <OptimizedImage
+            src={content.thumbnail || ''}
             alt={content.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            blurDataURL={(content as any).thumbnailBlur || createSimpleBlurPlaceholder()}
+            className="group-hover:scale-105 transition-transform duration-500"
+            objectFit="cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
           <span className={cn(
@@ -86,11 +90,12 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
     >
       {/* Thumbnail */}
       <div className="relative aspect-video rounded-xl overflow-hidden bg-muted">
-        <img 
-          src={content.thumbnail} 
+        <OptimizedImage
+          src={content.thumbnail || ''}
           alt={content.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          loading="lazy"
+          blurDataURL={(content as any).thumbnailBlur || createSimpleBlurPlaceholder()}
+          className="group-hover:scale-110 transition-transform duration-500"
+          objectFit="cover"
         />
         
         {/* Overlay gradient */}

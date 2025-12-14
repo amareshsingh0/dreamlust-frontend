@@ -87,6 +87,7 @@ model Content {
   type           content_type
   status         content_status? @default(DRAFT)
   thumbnail      String?
+  thumbnailBlur  String?         @map("thumbnail_blur") // Base64 blur placeholder
   mediaUrl       String          @map("media_url")
   mediaType      String?         @map("media_type")
   duration       Int?
