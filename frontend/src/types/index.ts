@@ -94,3 +94,40 @@ export interface SortOption {
   label: string;
   value: 'trending' | 'recent' | 'views' | 'rating';
 }
+
+export interface CommentUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatar: string | null;
+}
+
+export interface Comment {
+  id: string;
+  contentId: string;
+  userId: string;
+  text: string;
+  parentId: string | null;
+  likes: number;
+  dislikes: number;
+  isPinned: boolean;
+  isEdited: boolean;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: CommentUser;
+  replies?: Comment[];
+  userLiked?: boolean;
+  userDisliked?: boolean;
+  depth?: number;
+}
+
+export interface CommentResponse {
+  comments: Comment[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}

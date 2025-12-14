@@ -15,7 +15,6 @@ import {
   Plus,
   ThumbsUp,
   ThumbsDown,
-  MessageSquare,
   Zap,
   ListPlus
 } from 'lucide-react';
@@ -25,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
+import { CommentSection } from '@/components/comments/CommentSection';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,7 +79,8 @@ export default function Watch() {
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
-  const [showComments, setShowComments] = useState(true);
+  // Get current user ID from localStorage (in a real app, use auth context)
+  const currentUserId = localStorage.getItem('userId') || undefined;
   const [selectedQuality, setSelectedQuality] = useState<string>('auto');
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -665,64 +665,13 @@ export default function Watch() {
               </div>
 
               {/* Comments */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-display text-lg font-bold flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Comments
-                  </h2>
-                  <Button variant="ghost" size="sm" onClick={() => setShowComments(!showComments)}>
-                    {showComments ? 'Hide' : 'Show'}
-                  </Button>
-                </div>
-
-                {showComments && (
-                  <div className="space-y-4">
-                    <div className="flex gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" />
-                        <AvatarFallback>U</AvatarFallback>
-                      </Avatar>
-                      <Textarea 
-                        id="comment-input"
-                        name="comment-input"
-                        placeholder="Add a comment..."
-                        className="flex-1 min-h-[80px]"
-                      />
-                    </div>
-                    
-                    {/* Sample comments */}
-                    <div className="space-y-4 pt-4">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="flex gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={`https://i.pravatar.cc/100?img=${i + 10}`} />
-                            <AvatarFallback>U</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">User{i}</span>
-                              <span className="text-xs text-muted-foreground">2 days ago</span>
-                            </div>
-                            <p className="text-sm text-foreground/80">
-                              Amazing content! Love the visual quality and storytelling. 🔥
-                            </p>
-                            <div className="flex items-center gap-4 mt-2">
-                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                                <ThumbsUp className="h-3 w-3 mr-1" />
-                                42
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                                Reply
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              {id && (
+                <CommentSection
+                  contentId={id}
+                  creatorId={content.creator.id}
+                  currentUserId={currentUserId}
+                />
+              )}
             </div>
 
             {/* Sidebar - Related */}

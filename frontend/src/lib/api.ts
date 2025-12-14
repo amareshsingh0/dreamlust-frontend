@@ -17,31 +17,61 @@ export async function apiRequest<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
 
-  const data = await response.json();
+    // Handle network errors
+    if (!response.ok && response.status === 0) {
+      throw new Error('Network error: Unable to connect to server');
+    }
 
-  if (!response.ok) {
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      // If response is not JSON, return error
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_RESPONSE',
+          message: response.statusText || 'Invalid response from server',
+          timestamp: new Date().toISOString(),
+        },
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || {
+          code: 'UNKNOWN_ERROR',
+          message: data.message || 'An error occurred',
+          timestamp: new Date().toISOString(),
+        },
+      };
+    }
+
+    return {
+      success: true,
+      data: data.data || data,
+    };
+  } catch (error: any) {
+    // Handle fetch errors (network failures, CORS, etc.)
     return {
       success: false,
-      error: data.error || {
-        code: 'UNKNOWN_ERROR',
-        message: 'An error occurred',
+      error: {
+        code: 'NETWORK_ERROR',
+        message: error.message || 'Failed to fetch. Please check your connection and ensure the server is running.',
         timestamp: new Date().toISOString(),
       },
     };
   }
-
-  return {
-    success: true,
-    data: data.data || data,
-  };
 }
 
 // Helper to get auth token from localStorage or cookie
@@ -230,6 +260,133 @@ export const api = {
         headers: getHeaders(),
       });
     },
+  },
+  comments: {
+    get: <T>(contentId: string, params?: { sort?: 'top' | 'newest' | 'oldest'; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.sort) searchParams.append('sort', params.sort);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/comments/${contentId}${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    create: <T>(data: { contentId: string; text: string; parentId?: string }) => {
+      return apiRequest<T>('/api/comments', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+    },
+    update: <T>(id: string, data: { text: string }) => {
+      return apiRequest<T>(`/api/comments/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+    },
+    delete: <T>(id: string) => {
+      return apiRequest<T>(`/api/comments/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+    },
+    like: <T>(id: string, type: 'like' | 'dislike') => {
+      return apiRequest<T>(`/api/comments/${id}/like`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ type }),
+      });
+    },
+    pin: <T>(id: string) => {
+      return apiRequest<T>(`/api/comments/${id}/pin`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+    },
+    report: <T>(id: string, data: { reason: string; type?: string }) => {
+      return apiRequest<T>(`/api/comments/${id}/report`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+    },
+  },
+  tips: {
+    create: <T>(data: {
+      toCreatorId: string;
+      amount: number;
+      currency?: string;
+      message?: string;
+      isAnonymous?: boolean;
+    }) =>
+      apiRequest<T>('/api/tips', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    get: <T>(params?: {
+      creatorId?: string;
+      status?: 'pending' | 'completed' | 'failed' | 'refunded';
+      page?: number;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.creatorId) searchParams.append('creatorId', params.creatorId);
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/tips${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getByCreator: <T>(creatorId: string, params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/tips/creator/${creatorId}${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getById: <T>(id: string) =>
+      apiRequest<T>(`/api/tips/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    confirmPayment: <T>(tipId: string, data: { paymentIntentId: string; paymentMethodId?: string }) =>
+      apiRequest<T>(`/api/tips/${tipId}/confirm-payment`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+  },
+  earnings: {
+    get: <T>(params?: { startDate?: string; endDate?: string; type?: 'tips' | 'subscriptions' | 'all' }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.startDate) searchParams.append('startDate', params.startDate);
+      if (params?.endDate) searchParams.append('endDate', params.endDate);
+      if (params?.type) searchParams.append('type', params.type);
+      const queryString = searchParams.toString();
+      const url = `/api/earnings${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getStats: <T>() =>
+      apiRequest<T>('/api/earnings/stats', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
   },
 };
 
