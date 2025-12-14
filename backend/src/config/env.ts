@@ -34,6 +34,15 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.string().default('60000'), // 1 minute
   RATE_LIMIT_MAX_REQUESTS_USER: z.string().default('100'),
   RATE_LIMIT_MAX_REQUESTS_IP: z.string().default('1000'),
+  
+  // AWS Rekognition (optional, for image classification)
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_REGION: z.string().optional(),
+  
+  // Google Cloud Vision API (optional, for image classification)
+  GOOGLE_CLOUD_PROJECT_ID: z.string().optional(),
+  GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(), // Path to service account JSON file
 });
 
 export type Env = z.infer<typeof envSchema>;

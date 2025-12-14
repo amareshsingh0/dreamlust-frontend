@@ -64,3 +64,16 @@ The `DATABASE_URL` contains your database password.
 
 See [NEXT_STEPS.md](./NEXT_STEPS.md) for detailed instructions.
 
+## Scheduled Tasks
+
+For account deletion processing, see [SCHEDULED_TASKS.md](./SCHEDULED_TASKS.md) for detailed setup instructions.
+
+**Quick setup (Windows Task Scheduler):**
+```powershell
+# Run as Administrator
+$action = New-ScheduledTaskAction -Execute "powershell.exe" `
+    -Argument "-ExecutionPolicy Bypass -File `"$PWD\backend\scripts\scheduleAccountDeletion.ps1`""
+$trigger = New-ScheduledTaskTrigger -Daily -At "2:00 AM"
+Register-ScheduledTask -TaskName "Dreamlust Account Deletion" `
+    -Action $action -Trigger $trigger -Description "Processes account deletions"
+```

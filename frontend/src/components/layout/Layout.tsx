@@ -11,17 +11,22 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Handle panic exit (Escape key)
+  // Handle panic exit (Shift + X)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && e.shiftKey) {
-        // Panic exit - redirect to a safe page
-        window.location.href = 'https://google.com';
+    const handlePanicExit = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.key === 'X' || e.key === 'x')) {
+        // Clear current state
+        sessionStorage.clear();
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        
+        // Redirect to safe page
+        window.location.replace('https://google.com');
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handlePanicExit);
+    return () => window.removeEventListener('keydown', handlePanicExit);
   }, []);
 
   return (

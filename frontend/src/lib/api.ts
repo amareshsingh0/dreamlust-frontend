@@ -369,6 +369,67 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  privacy: {
+    get: <T>() =>
+      apiRequest<T>('/api/privacy', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    update: <T>(data: {
+      hideHistory?: boolean;
+      anonymousMode?: boolean;
+      allowPersonalization?: boolean;
+      showActivityStatus?: boolean;
+      allowMessages?: 'everyone' | 'following' | 'none';
+      showWatchHistory?: 'public' | 'friends' | 'private';
+      showPlaylists?: 'public' | 'friends' | 'private';
+      showLikedContent?: 'public' | 'friends' | 'private';
+    }) =>
+      apiRequest<T>('/api/privacy', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    setHistoryLock: <T>(data: { enabled: boolean; pin?: string }) =>
+      apiRequest<T>('/api/privacy/history-lock', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    verifyHistoryLock: <T>(data: { pin: string }) =>
+      apiRequest<T>('/api/privacy/verify-history-lock', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    exportData: <T>(data: {
+      format?: 'json' | 'csv';
+      includeContent?: boolean;
+      includeHistory?: boolean;
+      includePlaylists?: boolean;
+    }) =>
+      apiRequest<T>('/api/privacy/export-data', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    requestDeletion: <T>(data: { reason?: string; password: string }) =>
+      apiRequest<T>('/api/privacy/delete-account', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    cancelDeletion: <T>() =>
+      apiRequest<T>('/api/privacy/cancel-deletion', {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    getDeletionStatus: <T>() =>
+      apiRequest<T>('/api/privacy/deletion-status', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
   earnings: {
     get: <T>(params?: { startDate?: string; endDate?: string; type?: 'tips' | 'subscriptions' | 'all' }) => {
       const searchParams = new URLSearchParams();
@@ -384,6 +445,76 @@ export const api = {
     },
     getStats: <T>() =>
       apiRequest<T>('/api/earnings/stats', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  moderation: {
+    createReport: <T>(data: {
+      contentType: 'content' | 'comment' | 'creator';
+      targetId?: string;
+      contentId?: string;
+      reportedUserId?: string;
+      type: string;
+      reason: string;
+      description?: string;
+    }) =>
+      apiRequest<T>('/api/moderation/report', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getQueue: <T>(params?: {
+      status?: string;
+      contentType?: string;
+      severity?: string;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.contentType) searchParams.append('contentType', params.contentType);
+      if (params?.severity) searchParams.append('severity', params.severity);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.sortBy) searchParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) searchParams.append('sortOrder', params.sortOrder);
+      const queryString = searchParams.toString();
+      const url = `/api/moderation/queue${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getReport: <T>(id: string) =>
+      apiRequest<T>(`/api/moderation/reports/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    updateReport: <T>(id: string, data: {
+      status?: string;
+      action?: string;
+      moderatorNotes?: string;
+    }) =>
+      apiRequest<T>(`/api/moderation/reports/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    resolveReport: <T>(id: string, data: {
+      status: string;
+      action?: string;
+      moderatorNotes?: string;
+    }) =>
+      apiRequest<T>(`/api/moderation/reports/${id}/resolve`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getStats: <T>() =>
+      apiRequest<T>('/api/moderation/stats', {
         method: 'GET',
         headers: getHeaders(),
       }),

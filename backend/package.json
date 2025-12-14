@@ -1,9 +1,7 @@
 {
   "name": "dreamlust-backend",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
-  "packageManager": "bun@1.3.4",
   "scripts": {
     "dev": "bun run src/server.ts",
     "start": "NODE_ENV=production bun run src/server.ts",
@@ -15,43 +13,33 @@
     "db:seed": "bun run prisma/seed.ts"
   },
   "dependencies": {
-    "@paypal/checkout-server-sdk": "^1.0.3",
-    "@prisma/client": "^6.0.0",
-    "@supabase/supabase-js": "^2.87.1",
-    "@trpc/server": "^10.45.2",
-    "bcrypt": "^5.1.1",
-    "cookie-parser": "^1.4.6",
+    "@prisma/client": "^6.19.1",
+    "@aws-sdk/client-rekognition": "^3.700.0",
+    "@google-cloud/vision": "^4.4.0",
+    "express": "^4.21.2",
     "cors": "^2.8.5",
-    "csrf": "^3.1.0",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.1",
-    "express-rate-limit": "^7.4.1",
-    "express-validator": "^7.2.0",
-    "helmet": "^8.0.0",
-    "isomorphic-dompurify": "^2.34.0",
+    "helmet": "^8.1.0",
+    "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2",
-    "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0",
-    "passport-twitter": "^1.0.4",
-    "qrcode": "^1.5.4",
-    "speakeasy": "^2.0.0",
-    "stripe": "^20.0.0",
-    "zod": "^3.23.8"
+    "zod": "^3.24.1",
+    "dotenv": "^16.4.7",
+    "express-rate-limit": "^7.5.0",
+    "cookie-parser": "^1.4.7",
+    "csrf": "^3.1.0",
+    "isomorphic-dompurify": "^2.11.2",
+    "@paypal/checkout-server-sdk": "^1.0.3"
   },
   "devDependencies": {
-    "@types/node": "^22.16.5",
     "@types/express": "^5.0.0",
-    "@types/cors": "^2.8.17",
-    "@types/jsonwebtoken": "^9.0.7",
     "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/cookie-parser": "^1.4.7",
-    "@types/passport": "^1.0.16",
-    "@types/passport-google-oauth20": "^2.0.14",
-    "@types/passport-twitter": "^1.0.11",
-    "@types/speakeasy": "^2.0.10",
-    "@types/qrcode": "^1.5.5",
-    "prisma": "^6.0.0",
-    "typescript": "^5.8.3",
-    "tsx": "^4.19.2"
+    "@types/csrf": "^3.1.0",
+    "prisma": "^6.19.1",
+    "typescript": "^5.7.2",
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   }
 }

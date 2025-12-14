@@ -16,6 +16,8 @@ import commentsRoutes from './routes/comments';
 import tipsRoutes from './routes/tips';
 import earningsRoutes from './routes/earnings';
 import webhooksRoutes from './routes/webhooks';
+import privacyRoutes from './routes/privacy';
+import moderationRoutes from './routes/moderation';
 
 const app = express();
 
@@ -80,6 +82,8 @@ app.use('/api/comments', commentsRoutes);
 app.use('/api/tips', tipsRoutes);
 app.use('/api/earnings', earningsRoutes);
 app.use('/api/webhooks', webhooksRoutes);
+app.use('/api/privacy', privacyRoutes);
+app.use('/api/moderation', moderationRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
