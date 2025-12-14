@@ -36,10 +36,20 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const { theme, setTheme } = useTheme();
 
   // Panic exit: Shift + X
+  const handlePanicExit = () => {
+    // Clear current state
+    sessionStorage.clear();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    
+    // Redirect to safe page
+    window.location.replace('https://google.com');
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey && (e.key === 'X' || e.key === 'x')) {
-        window.location.href = 'https://google.com';
+        handlePanicExit();
       }
       // Cmd/Ctrl + K for search
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -139,6 +149,18 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
               </Link>
             </Button>
           )}
+
+          {/* Panic Exit Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handlePanicExit}
+            className="text-xs opacity-50 hover:opacity-100 transition-opacity"
+            title="Quick exit (Shift+X)"
+            aria-label="Quick exit"
+          >
+            ⚠️
+          </Button>
 
           <Button 
             variant="ghost" 

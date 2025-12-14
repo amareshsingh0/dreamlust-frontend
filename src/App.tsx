@@ -37,8 +37,10 @@ import Categories from "./pages/Categories";
 import Category from "./pages/Category";
 import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
+import PrivacySettings from "./pages/PrivacySettings";
 import Notifications from "./pages/Notifications";
 import Upload from "./pages/Upload";
+import ModerationDashboard from "./pages/admin/ModerationDashboard";
 
 const queryClient = new QueryClient();
 
@@ -77,7 +79,10 @@ const App = () => (
             {/* Premium & Settings */}
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/privacy" element={<PrivacySettings />} />
             <Route path="/notifications" element={<Notifications />} />
+            {/* Admin Pages */}
+            <Route path="/admin/moderation" element={<ModerationDashboard />} />
             <Route path="/upload" element={<Upload />} />
             {/* Support Pages */}
             <Route path="/help" element={<Help />} />
