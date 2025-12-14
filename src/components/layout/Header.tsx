@@ -4,6 +4,8 @@ import { useTheme } from 'next-themes';
 import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut, Upload, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,10 +30,11 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
+  const { user, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showCommandDialog, setShowCommandDialog] = useState(false);
-  const [isCreator, setIsCreator] = useState(false); // TODO: Get from auth context
+  const isCreator = user?.role === 'CREATOR' || user?.role === 'MODERATOR' || user?.role === 'ADMIN';
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -72,6 +75,38 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Call logout from context (clears state immediately)
+      await logout();
+      
+      toast.success('Logged out successfully');
+      
+      // Navigate to home
+      navigate('/');
+      
+      // Force reload after a short delay to ensure all state is cleared
+      setTimeout(() => {
+        // Final cleanup before reload
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/';
+      }, 300);
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      
+      // Even on error, ensure everything is cleared
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      toast.success('Logged out');
+      navigate('/');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 300);
+    }
   };
 
   return (
@@ -184,12 +219,13 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
             </Link>
           </Button>
 
+          {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9 border-2 border-primary/50">
-                  <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" />
-                  <AvatarFallback>U</AvatarFallback>
+                    <AvatarImage src={user?.avatar} />
+                    <AvatarFallback>{user?.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -213,12 +249,23 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem 
+                  className="text-destructive cursor-pointer focus:bg-destructive/10"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleLogout();
+                  }}
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          ) : (
+            <Button variant="default" asChild>
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          )}
         </div>
       </div>
 
