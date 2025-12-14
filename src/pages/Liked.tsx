@@ -5,6 +5,9 @@ import { Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContentCard } from "@/components/content/ContentCard";
+import { VirtualizedContentGrid } from "@/components/content/VirtualizedContentGrid";
+import { Suspense } from 'react';
+import { ContentCardSkeleton } from '@/components/content/ContentCardSkeleton';
 import { mockContent } from "@/data/mockData";
 
 const Liked = () => {
@@ -44,11 +47,20 @@ const Liked = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {likedContent.map((content) => (
-                <ContentCard key={content.id} content={content} />
-              ))}
-            </div>
+            likedContent.length > 50 ? (
+              <VirtualizedContentGrid 
+                content={likedContent} 
+                columns={4}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {likedContent.map((content) => (
+                  <Suspense key={content.id} fallback={<ContentCardSkeleton />}>
+                    <ContentCard content={content} />
+                  </Suspense>
+                ))}
+              </div>
+            )
           )}
         </div>
       </Layout>

@@ -1,7 +1,8 @@
-import { useRef } from 'react';
+import { useRef, Suspense } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Content } from '@/types';
 import { ContentCard } from './ContentCard';
+import { ContentCardSkeleton } from './ContentCardSkeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -93,7 +94,9 @@ export function ContentCarousel({
                 key={item.id} 
                 className="flex-shrink-0 w-[280px] sm:w-[300px]"
               >
-                <ContentCard content={item} variant="compact" />
+                <Suspense fallback={<ContentCardSkeleton variant="compact" />}>
+                  <ContentCard content={item} variant="compact" />
+                </Suspense>
               </div>
             ))
           ) : (

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, Clock, TrendingUp, X, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { ContentGrid } from '@/components/content/ContentGrid';
+import { VirtualizedContentGrid } from '@/components/content/VirtualizedContentGrid';
 import { FilterPanel, FilterValues } from '@/components/search/FilterPanel';
 import { FilterChip } from '@/components/search/FilterChip';
 import { Input } from '@/components/ui/input';
@@ -560,7 +561,15 @@ export default function Search() {
               )}
 
               {!loading && !error && results.length > 0 && (
-                <ContentGrid content={results} columns={4} />
+                results.length > 50 ? (
+                  <VirtualizedContentGrid 
+                    content={results} 
+                    columns={4}
+                    isLoading={loading}
+                  />
+                ) : (
+                  <ContentGrid content={results} columns={4} />
+                )
               )}
 
               {!loading && !error && results.length === 0 && query && (
