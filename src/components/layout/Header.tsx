@@ -175,16 +175,6 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
             <Search className="h-5 w-5" />
           </Button>
 
-          {/* Upload button (creators only) */}
-          {isCreator && (
-            <Button variant="default" size="sm" asChild>
-              <Link to="/upload">
-                <Upload className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Upload</span>
-              </Link>
-            </Button>
-          )}
-
           {/* Panic Exit Button */}
           <Button
             variant="ghost"

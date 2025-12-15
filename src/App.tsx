@@ -34,6 +34,7 @@ const Guidelines = lazy(() => import("./pages/Guidelines"));
 const Monetization = lazy(() => import("./pages/Monetization"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Earnings = lazy(() => import("./pages/Earnings"));
+const EarningsDashboard = lazy(() => import("./pages/EarningsDashboard"));
 const Creators = lazy(() => import("./pages/Creators"));
 const Live = lazy(() => import("./pages/Live"));
 const History = lazy(() => import("./pages/History"));
@@ -44,11 +45,16 @@ const Following = lazy(() => import("./pages/Following"));
 const Categories = lazy(() => import("./pages/Categories"));
 const Category = lazy(() => import("./pages/Category"));
 const Premium = lazy(() => import("./pages/Premium"));
+const SubscriptionPlans = lazy(() => import("./pages/SubscriptionPlans"));
 const Settings = lazy(() => import("./pages/Settings"));
 const PrivacySettings = lazy(() => import("./pages/PrivacySettings"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Upload = lazy(() => import("./pages/Upload"));
+const TroubleshootingGuide = lazy(() => import("./components/troubleshooting/TroubleshootingGuide"));
+const ConnectivityChecker = lazy(() => import("./components/connectivity/ConnectivityChecker"));
 const ModerationDashboard = lazy(() => import("./pages/admin/ModerationDashboard"));
+const LiveDashboard = lazy(() => import("./pages/creator/LiveDashboard"));
+const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage"));
 
 const queryClient = new QueryClient();
 
@@ -112,6 +118,14 @@ const App = () => (
               element={
                 <Suspense fallback={<PageSkeleton />}>
                   <Watch />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/watch/live/:streamId" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <LiveStreamPage />
                 </Suspense>
               } 
             />
@@ -207,10 +221,18 @@ const App = () => (
             />
             {/* Premium & Settings */}
             <Route 
-              path="/premium" 
+              path="/premium"
               element={
                 <Suspense fallback={<PageSkeleton />}>
                   <Premium />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/subscription-plans"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <SubscriptionPlans />
                 </Suspense>
               } 
             />
@@ -255,6 +277,14 @@ const App = () => (
                 </Suspense>
               } 
             />
+            <Route 
+              path="/creator/live/dashboard" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <LiveDashboard />
+                </Suspense>
+              } 
+            />
             {/* Support Pages */}
             <Route 
               path="/help" 
@@ -285,6 +315,22 @@ const App = () => (
               element={
                 <Suspense fallback={<PageSkeleton />}>
                   <Community />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/troubleshooting" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <TroubleshootingGuide />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/connectivity" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <ConnectivityChecker />
                 </Suspense>
               } 
             />
@@ -358,7 +404,7 @@ const App = () => (
               path="/earnings" 
               element={
                 <Suspense fallback={<PageSkeleton />}>
-                  <Earnings />
+                  <EarningsDashboard />
                 </Suspense>
               } 
             />

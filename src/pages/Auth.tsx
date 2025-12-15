@@ -226,15 +226,21 @@ const Auth = () => {
                   <p className="text-xs opacity-90 mb-2">
                     Cannot reach the backend server. You can still try to sign in - it might work if the server just started.
                   </p>
-                  <details className="text-xs">
-                    <summary className="cursor-pointer opacity-75 hover:opacity-100">Troubleshooting</summary>
-                    <div className="mt-2 space-y-1 opacity-90">
-                      <p>1. Check if backend is running:</p>
-                      <code className="block bg-yellow-100 dark:bg-yellow-900 px-2 py-1 rounded mt-1">cd backend && bun run dev</code>
-                      <p className="mt-2">2. Or use the startup script:</p>
-                      <code className="block bg-yellow-100 dark:bg-yellow-900 px-2 py-1 rounded mt-1">cd backend && .\start-server.ps1</code>
-                    </div>
-                  </details>
+                  <div className="flex gap-3 mt-2">
+                    <Link 
+                      to="/connectivity" 
+                      className="text-xs underline opacity-75 hover:opacity-100 inline-block"
+                    >
+                      🔍 Check Connectivity
+                    </Link>
+                    <span className="text-xs opacity-50">|</span>
+                    <Link 
+                      to="/troubleshooting" 
+                      className="text-xs underline opacity-75 hover:opacity-100 inline-block"
+                    >
+                      📋 Troubleshooting Guide
+                    </Link>
+                  </div>
                 </div>
               </div>
             )}
