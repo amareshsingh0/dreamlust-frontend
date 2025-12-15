@@ -7,6 +7,7 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { userRateLimiter, strictRateLimiter, loginRateLimiter } from '../middleware/rateLimit';
 import { getCsrfToken } from '../middleware/csrf';
+import { asyncHandler } from '../middleware/asyncHandler';
 import {
   registerSchema,
   loginSchema,
@@ -31,7 +32,7 @@ router.post(
   '/register',
   strictRateLimiter,
   validateBody(registerSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { email, username, password, displayName } = req.body;
 
     // Check if user already exists
@@ -67,16 +68,16 @@ router.post(
         email,
         username,
         password: hashedPassword,
-        displayName: displayName || username,
+        display_name: displayName || username,
         role: UserRole.USER,
       },
       select: {
         id: true,
         email: true,
         username: true,
-        displayName: true,
+        display_name: true,
         role: true,
-        createdAt: true,
+        created_at: true,
       },
     });
 
@@ -116,7 +117,7 @@ router.post(
         },
       },
     });
-  }
+  })
 );
 
 /**
@@ -127,7 +128,7 @@ router.post(
   '/login',
   loginRateLimiter,
   validateBody(loginSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { email, password, rememberMe } = req.body;
 
     // Find user
@@ -203,7 +204,7 @@ router.post(
         },
       },
     });
-  }
+  })
 );
 
 /**
@@ -214,7 +215,7 @@ router.post(
   '/refresh',
   optionalAuth,
   validateBody(refreshTokenSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
     const cookieToken = req.cookies?.refreshToken;
 
@@ -257,14 +258,14 @@ router.post(
         accessToken: tokens.accessToken,
       },
     });
-  }
+  })
 );
 
 /**
  * POST /api/auth/logout
  * Logout user
  */
-router.post('/logout', authenticate, async (req: Request, res: Response) => {
+router.post('/logout', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   
   // Clear refresh token cookie
@@ -280,7 +281,7 @@ router.post('/logout', authenticate, async (req: Request, res: Response) => {
     success: true,
     message: 'Logged out successfully',
   });
-});
+}));
 
 /**
  * POST /api/auth/change-password
@@ -291,7 +292,7 @@ router.post(
   authenticate,
   strictRateLimiter,
   validateBody(changePasswordSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user!.userId;
 
@@ -333,26 +334,26 @@ router.post(
       success: true,
       message: 'Password changed successfully',
     });
-  }
+  })
 );
 
 /**
  * GET /api/auth/me
  * Get current user
  */
-router.get('/me', authenticate, async (req: Request, res: Response) => {
+router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
     select: {
       id: true,
       email: true,
       username: true,
-      displayName: true,
+      display_name: true,
       avatar: true,
       bio: true,
       role: true,
-      isCreator: true,
-      createdAt: true,
+      is_creator: true,
+      created_at: true,
     },
   });
 
@@ -364,7 +365,7 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
     success: true,
     data: { user },
   });
-});
+}));
 
 /**
  * GET /api/auth/csrf-token

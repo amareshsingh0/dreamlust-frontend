@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Zap, 
   Users, 
@@ -12,30 +12,130 @@ import {
   Bell,
   Heart,
   FileText,
-  MessageCircle
+  MessageCircle,
+  Loader2
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { ContentGrid } from '@/components/content/ContentGrid';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { mockCreators, mockContent } from '@/data/mockData';
 import { Helmet } from 'react-helmet-async';
 import { cn } from '@/lib/utils';
 import { TipModal } from '@/components/tips/TipModal';
+import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { Creator, Content } from '@/types';
 
 export default function CreatorProfile() {
   const { username } = useParams<{ username: string }>();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [creator, setCreator] = useState<Creator | null>(null);
+  const [creatorContent, setCreatorContent] = useState<Content[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [following, setFollowing] = useState(false);
   const [selectedContentType, setSelectedContentType] = useState<string>('all');
   const [tipModalOpen, setTipModalOpen] = useState(false);
-  const creator = mockCreators.find(c => c.username === username);
-  const creatorContent = mockContent.filter(c => c.creator.username === username);
+  const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCreator = async () => {
+      if (!username) return;
+      
+      try {
+        setLoading(true);
+        // Get creator by handle/username
+        const response = await api.creators.getByHandle(username);
+        
+        if (response.success && response.data) {
+          const creatorData = response.data as any;
+          setCreator({
+            id: creatorData.id,
+            name: creatorData.display_name || creatorData.handle,
+            username: creatorData.handle,
+            avatar: creatorData.avatar || '',
+            banner: creatorData.banner || '',
+            bio: creatorData.bio || '',
+            isVerified: creatorData.is_verified || false,
+            followers: creatorData.follower_count || 0,
+            views: Number(creatorData.total_views) || 0,
+            contentCount: creatorData.content_count || 0,
+            socialLinks: {},
+          });
+          setIsFollowing(creatorData.isFollowing === true);
+        } else {
+          toast.error("Creator not found");
+        }
+      } catch (error: any) {
+        console.error("Error fetching creator:", error);
+        toast.error("Failed to load creator profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCreator();
+  }, [username]);
+
+  const handleFollow = async () => {
+    if (!user) {
+      toast.error("Please sign in to follow creators");
+      navigate("/auth");
+      return;
+    }
+
+    if (!creator) return;
+
+    setFollowLoading(true);
+    const previousFollowing = isFollowing;
+
+    // Optimistic update
+    setIsFollowing(!isFollowing);
+
+    try {
+      const response = await api.creators.follow(creator.id);
+      if (response.success) {
+        const responseData = response.data as { following?: boolean };
+        const following = responseData?.following ?? !previousFollowing;
+        setIsFollowing(following);
+        setCreator(prev => prev ? {
+          ...prev,
+          followers: following 
+            ? prev.followers + 1 
+            : Math.max(0, prev.followers - 1)
+        } : null);
+      } else {
+        // Revert on error
+        setIsFollowing(previousFollowing);
+        toast.error(response.error?.message || "Failed to follow creator");
+      }
+    } catch (error: any) {
+      // Revert on error
+      setIsFollowing(previousFollowing);
+      toast.error("Failed to follow creator");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
   
   // Filter content by type
   const filteredContent = selectedContentType === 'all' 
     ? creatorContent 
     : creatorContent.filter(c => c.type.toLowerCase() === selectedContentType);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-16 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading creator profile...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!creator) {
     return (
@@ -234,9 +334,15 @@ export default function CreatorProfile() {
                       ? "bg-secondary text-secondary-foreground" 
                       : "bg-gradient-to-r from-primary to-accent"
                   )}
-                  onClick={() => setIsFollowing(!isFollowing)}
+                  onClick={handleFollow}
+                  disabled={followLoading}
                 >
-                  {isFollowing ? (
+                  {followLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {isFollowing ? "Unfollowing..." : "Following..."}
+                    </>
+                  ) : isFollowing ? (
                     <>
                       <Bell className="h-4 w-4" />
                       Following

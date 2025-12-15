@@ -9,9 +9,7 @@ export const createTipSchema = z.object({
 });
 
 export const confirmPaymentSchema = z.object({
-  tipId: z.string(),
-  paymentIntentId: z.string(),
-  paymentMethodId: z.string().optional(),
+  paymentIntentId: z.string(), // Razorpay payment ID
 });
 
 export const tipQuerySchema = z.object({

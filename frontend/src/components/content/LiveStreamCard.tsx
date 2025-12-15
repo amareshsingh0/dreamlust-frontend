@@ -21,9 +21,13 @@ function formatViewers(viewers: number): string {
 export function LiveStreamCard({ stream, variant = 'default', startsIn }: LiveStreamCardProps) {
   const isUpcoming = variant === 'upcoming';
 
+  const streamUrl = stream.type === 'live' || stream.isLive 
+    ? `/watch/live/${stream.id}`
+    : `/watch/${stream.id}`;
+
   return (
     <Link 
-      to={`/watch/${stream.id}`}
+      to={streamUrl}
       className="group block rounded-xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all duration-300 hover:shadow-lg"
     >
       {/* Thumbnail */}

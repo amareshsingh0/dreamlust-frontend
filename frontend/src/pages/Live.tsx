@@ -3,49 +3,73 @@ import { Layout } from "@/components/layout/Layout";
 import { Radio } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LiveStreamCard } from "@/components/content/LiveStreamCard";
-import { mockContent, mockCreators } from "@/data/mockData";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+
+interface LiveStream {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  playbackUrl?: string;
+  status: 'idle' | 'live' | 'ended';
+  viewerCount: number;
+  peakViewerCount: number;
+  startedAt?: string;
+  scheduledFor?: string;
+  category?: string;
+  tags: string[];
+  chatEnabled: boolean;
+  creator: {
+    id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+    isVerified: boolean;
+  };
+}
 
 const Live = () => {
-  // Live streams with viewer counts
-  const liveStreams = [
-    {
-      ...mockContent[6], // "Live: Creative Session"
-      thumbnail: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800',
-      viewers: 1250,
-      creator: mockCreators[0], // Luna Starlight
-    },
-    {
-      ...mockContent[3], // VR Experience
-      thumbnail: 'https://images.unsplash.com/photo-1617802690992-15d93263d3a9?w=800',
-      viewers: 890,
-      creator: mockCreators[3], // Neo Flux
-      title: 'VR Experience Demo',
-    },
-    {
-      ...mockContent[1], // Mountain Peak
-      thumbnail: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800',
-      viewers: 542,
-      creator: mockCreators[1], // Max Thunder
-      title: 'Adventure Live Stream',
-    },
-  ].map(stream => ({
-    ...stream,
-    isLive: true,
-    type: 'live' as const,
-  }));
+  const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
+  const [upcomingStreams, setUpcomingStreams] = useState<LiveStream[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Upcoming streams
-  const upcomingStreams = [
-    {
-      ...mockContent[1],
-      thumbnail: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800',
-      creator: mockCreators[1], // Max Thunder
-      title: 'Art Workshop',
-      scheduledAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-    },
-  ];
+  useEffect(() => {
+    const fetchStreams = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch live streams
+        const liveResponse = await api.live.getAll({ status: 'live', limit: 20 });
+        if (liveResponse.success && liveResponse.data) {
+          setLiveStreams(liveResponse.data.streams || []);
+        }
 
-  const formatTimeUntil = (date: Date): string => {
+        // Fetch upcoming streams
+        const upcomingResponse = await api.live.getAll({ status: 'upcoming', limit: 20 });
+        if (upcomingResponse.success && upcomingResponse.data) {
+          setUpcomingStreams(upcomingResponse.data.streams || []);
+        }
+      } catch (error: any) {
+        console.error("Error fetching live streams:", error);
+        toast.error("Failed to load live streams");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStreams();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchStreams, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTimeUntil = (dateString: string): string => {
+    const date = new Date(dateString);
     const now = new Date();
     const diff = date.getTime() - now.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -56,6 +80,32 @@ const Live = () => {
     }
     return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
   };
+
+  // Transform LiveStream to Content format for LiveStreamCard
+  const transformStream = (stream: LiveStream) => ({
+    id: stream.id,
+    title: stream.title,
+    thumbnail: stream.thumbnailUrl || '',
+    duration: '0:00',
+    views: stream.viewerCount,
+    likes: 0,
+    createdAt: stream.startedAt || new Date().toISOString(),
+    creator: {
+      id: stream.creator.id,
+      name: stream.creator.name,
+      username: stream.creator.username,
+      avatar: stream.creator.avatar || '',
+      isVerified: stream.creator.isVerified,
+    },
+    type: 'live' as const,
+    quality: [],
+    tags: stream.tags,
+    category: stream.category || '',
+    description: stream.description,
+    isLive: stream.status === 'live',
+    isPremium: false,
+    viewers: stream.viewerCount,
+  });
 
   return (
     <>
@@ -89,12 +139,24 @@ const Live = () => {
               <h2 className="text-2xl font-display font-bold">Live Now</h2>
             </div>
 
-            {liveStreams.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <div className="aspect-video bg-muted" />
+                    <CardContent className="p-4 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : liveStreams.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <Radio className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-xl font-semibold mb-2">No Live Streams</h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-4">
                     There are no live streams at the moment. Check back later!
                   </p>
                 </CardContent>
@@ -102,23 +164,23 @@ const Live = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {liveStreams.map((stream) => (
-                  <LiveStreamCard key={stream.id} stream={stream} />
+                  <LiveStreamCard key={stream.id} stream={transformStream(stream)} />
                 ))}
               </div>
             )}
           </div>
 
           {/* Upcoming Streams Section */}
-          {upcomingStreams.length > 0 && (
+          {!loading && upcomingStreams.length > 0 && (
             <div>
               <h2 className="text-2xl font-display font-bold mb-6">Upcoming Streams</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {upcomingStreams.map((stream) => (
                   <LiveStreamCard 
                     key={stream.id} 
-                    stream={stream}
+                    stream={transformStream(stream)}
                     variant="upcoming"
-                    startsIn={formatTimeUntil(stream.scheduledAt)}
+                    startsIn={stream.scheduledFor ? formatTimeUntil(stream.scheduledFor) : undefined}
                   />
                 ))}
               </div>

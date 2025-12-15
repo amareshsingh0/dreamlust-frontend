@@ -49,6 +49,12 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
  */
 export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
   try {
+    // Check if authorization header exists before extracting token
+    if (!req.headers.authorization) {
+      req.user = undefined;
+      return next();
+    }
+
     const token = extractTokenFromHeader(req.headers.authorization);
     const payload = verifyToken(token, TokenType.ACCESS);
     
@@ -57,8 +63,9 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
       email: payload.email,
       role: payload.role as any,
     };
-  } catch {
+  } catch (error) {
     // No token or invalid token - continue without user
+    // This is expected for optional auth, so we don't log it as an error
     req.user = undefined;
   }
   

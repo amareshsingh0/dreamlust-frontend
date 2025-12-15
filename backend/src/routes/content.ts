@@ -5,6 +5,7 @@ import { userRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError } from '../lib/errors';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validation';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.post(
 
     if (userId) {
       const preferences = await prisma.userPreferences.findUnique({
-        where: { userId },
+        where: { userId }, // Prisma Client maps user_id to userId
       });
 
       if (preferences) {
@@ -95,6 +96,218 @@ router.post(
 );
 
 /**
+ * POST /api/content/:id/like
+ * Like or unlike content
+ */
+router.post(
+  '/:id/like',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+
+    // Check if content exists
+    const content = await prisma.content.findUnique({
+      where: { id },
+    });
+
+    if (!content) {
+      throw new NotFoundError('Content not found');
+    }
+
+    // Check if already liked
+    const existingLike = await prisma.like.findFirst({
+      where: {
+        contentId: id,
+        userId,
+      },
+    });
+
+    if (existingLike) {
+      // Unlike
+      await prisma.like.delete({
+        where: {
+          id: existingLike.id,
+        },
+      });
+
+      // Decrement like count
+      await prisma.content.update({
+        where: { id },
+        data: {
+          likeCount: { decrement: 1 },
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Content unliked',
+        data: { liked: false },
+      });
+    } else {
+      // Like
+      await prisma.like.create({
+        data: {
+          contentId: id,
+          userId,
+        },
+      });
+
+      // Increment like count
+      await prisma.content.update({
+        where: { id },
+        data: {
+          likeCount: { increment: 1 },
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Content liked',
+        data: { liked: true },
+      });
+    }
+  })
+);
+
+/**
+ * GET /api/content/liked
+ * Get user's liked content
+ */
+router.get(
+  '/liked',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const [likes, total] = await Promise.all([
+      prisma.like.findMany({
+        where: { userId },
+        include: {
+          content: {
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  handle: true,
+                  display_name: true,
+                  avatar: true,
+                  is_verified: true,
+                },
+              },
+              categories: {
+                include: {
+                  category: true,
+                },
+              },
+              tags: {
+                include: {
+                  tag: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.like.count({
+        where: { userId },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        content: likes.map(like => like.content),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/content/history
+ * Get user's watch history
+ */
+router.get(
+  '/history',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const [views, total] = await Promise.all([
+      prisma.view.findMany({
+        where: { userId },
+        include: {
+          content: {
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  handle: true,
+                  display_name: true,
+                  avatar: true,
+                  is_verified: true,
+                },
+              },
+              categories: {
+                include: {
+                  category: true,
+                },
+              },
+              tags: {
+                include: {
+                  tag: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { watchedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.view.count({
+        where: { userId },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        content: views.map(view => ({
+          ...view.content,
+          watchedAt: view.watchedAt,
+          duration: view.duration,
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    });
+  })
+);
+
+/**
  * GET /api/content/:id
  * Get content details
  */
@@ -102,8 +315,9 @@ router.get(
   '/:id',
   optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    const userId = req.user?.userId;
 
     const content = await prisma.content.findUnique({
       where: { id },
@@ -134,11 +348,26 @@ router.get(
       throw new NotFoundError('Content not found');
     }
 
+    // Check if user liked this content
+    let isLiked = false;
+    if (userId) {
+      const like = await prisma.like.findFirst({
+        where: {
+          contentId: id,
+          userId,
+        },
+      });
+      isLiked = !!like;
+    }
+
     res.json({
       success: true,
-      data: content,
+      data: {
+        ...content,
+        isLiked,
+      },
     });
-  }
+  })
 );
 
 export default router;

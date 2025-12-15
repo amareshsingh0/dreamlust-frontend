@@ -6,6 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ContentCardProps {
   content: Content;
@@ -33,6 +37,58 @@ function formatDate(dateString: string): string {
 export function ContentCard({ content, variant = 'default' }: ContentCardProps) {
   const isLive = content.type === 'live' || content.isLive;
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isLiked, setIsLiked] = useState((content as any).isLiked || false);
+  const [likeCount, setLikeCount] = useState(content.likes || 0);
+  const [liking, setLiking] = useState(false);
+
+  useEffect(() => {
+    // Check if content is liked when component mounts
+    if (user && content.id) {
+      // This will be set from the API response
+      setIsLiked((content as any).isLiked || false);
+    }
+  }, [user, content]);
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast.error("Please sign in to like content");
+      navigate("/auth");
+      return;
+    }
+
+    if (liking) return;
+
+    setLiking(true);
+    const previousLiked = isLiked;
+    const previousCount = likeCount;
+
+    // Optimistic update
+    setIsLiked(!isLiked);
+    setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+
+    try {
+      const response = await api.content.like(content.id);
+      if (response.success) {
+        setIsLiked(response.data?.liked ?? !previousLiked);
+        setLikeCount(response.data?.liked ? previousCount + 1 : previousCount - 1);
+      } else {
+        // Revert on error
+        setIsLiked(previousLiked);
+        setLikeCount(previousCount);
+        toast.error(response.error?.message || "Failed to like content");
+      }
+    } catch (error: any) {
+      // Revert on error
+      setIsLiked(previousLiked);
+      setLikeCount(previousCount);
+      toast.error("Failed to like content");
+    } finally {
+      setLiking(false);
+    }
+  };
   
   if (variant === 'horizontal') {
     return (
@@ -101,8 +157,9 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Play button on hover with ripple effect */}
+        {/* Action buttons on hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+          {/* Play button */}
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
             <div className="relative w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm shadow-lg group-hover:scale-110 transition-transform duration-300">
@@ -183,8 +240,8 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
               {formatViews(content.views)}
             </span>
             <span className="flex items-center gap-1">
-              <Heart className="h-3 w-3" />
-              {formatViews(content.likes)}
+              <Heart className={cn("h-3 w-3", isLiked && "fill-current text-destructive")} />
+              {formatViews(likeCount)}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />

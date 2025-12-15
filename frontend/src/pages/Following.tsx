@@ -6,15 +6,81 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { Creator } from "@/types";
 
 const Following = () => {
-  // Mock following list (in real app, fetch from Supabase)
-  const following = [
-    { id: '1', username: 'creator1', displayName: 'Creator One', avatar: '', isVerified: true, followerCount: 125000 },
-    { id: '2', username: 'creator2', displayName: 'Creator Two', avatar: '', isVerified: false, followerCount: 45000 },
-    { id: '3', username: 'creator3', displayName: 'Creator Three', avatar: '', isVerified: true, followerCount: 89000 },
-    { id: '4', username: 'creator4', displayName: 'Creator Four', avatar: '', isVerified: false, followerCount: 23000 },
-  ];
+  const { user } = useAuth();
+  const [following, setFollowing] = useState<Creator[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchFollowing = async () => {
+      try {
+        setLoading(true);
+        const response = await api.creators.getFollowing({ page, limit: 20 });
+        
+        if (response.success && response.data) {
+          const creators = response.data.creators || [];
+          setFollowing(prev => page === 1 ? creators : [...prev, ...creators]);
+          setHasMore(creators.length === 20);
+        } else {
+          toast.error(response.error?.message || "Failed to load following");
+        }
+      } catch (error: any) {
+        console.error("Error fetching following:", error);
+        toast.error("Failed to load following");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFollowing();
+  }, [user, page]);
+
+  const handleUnfollow = async (creatorId: string) => {
+    try {
+      const response = await api.creators.follow(creatorId);
+      if (response.success) {
+        setFollowing(prev => prev.filter(c => c.id !== creatorId));
+        toast.success("Unfollowed creator");
+      } else {
+        toast.error(response.error?.message || "Failed to unfollow");
+      }
+    } catch (error: any) {
+      console.error("Error unfollowing:", error);
+      toast.error("Failed to unfollow");
+    }
+  };
+
+  if (!user) {
+    return (
+      <Layout>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Sign In Required</h3>
+            <p className="text-muted-foreground mb-4">
+              Please sign in to view creators you're following
+            </p>
+            <Button asChild>
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </Layout>
+    );
+  }
 
   return (
     <>
@@ -35,7 +101,23 @@ const Following = () => {
             </p>
           </div>
 
-          {following.length === 0 ? (
+          {loading && page === 1 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-full bg-muted animate-pulse" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                        <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          ) : following.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -49,40 +131,57 @@ const Following = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {following.map((creator) => (
-                <Card key={creator.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={creator.avatar} />
-                        <AvatarFallback>{creator.displayName[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <CardTitle>{creator.displayName}</CardTitle>
-                          {creator.isVerified && (
-                            <Badge variant="default" className="text-xs">✓</Badge>
-                          )}
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {following.map((creator) => (
+                  <Card key={creator.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage src={creator.avatar} />
+                          <AvatarFallback>{creator.displayName?.[0] || creator.handle?.[0] || 'C'}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <CardTitle>{creator.displayName || creator.handle}</CardTitle>
+                            {creator.isVerified && (
+                              <Badge variant="default" className="text-xs">✓</Badge>
+                            )}
+                          </div>
+                          <CardDescription>@{creator.handle}</CardDescription>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {creator.followerCount?.toLocaleString() || 0} followers
+                          </p>
                         </div>
-                        <CardDescription>@{creator.username}</CardDescription>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {creator.followerCount.toLocaleString()} followers
-                        </p>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex gap-2">
-                    <Button variant="outline" className="flex-1" asChild>
-                      <a href={`/creator/${creator.username}`}>View Profile</a>
-                    </Button>
-                    <Button variant="secondary" size="icon">
-                      <UserPlus className="h-4 w-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardHeader>
+                    <CardContent className="flex gap-2">
+                      <Button variant="outline" className="flex-1" asChild>
+                        <Link to={`/creator/${creator.handle}`}>View Profile</Link>
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="icon"
+                        onClick={() => handleUnfollow(creator.id)}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {hasMore && (
+                <div className="mt-8 text-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setPage(prev => prev + 1)}
+                    disabled={loading}
+                  >
+                    Load More
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </Layout>
@@ -91,4 +190,3 @@ const Following = () => {
 };
 
 export default Following;
-

@@ -10,6 +10,8 @@ interface VideoPlayerProps {
   autoplay?: boolean;
   controls?: boolean;
   className?: string;
+  live?: boolean;
+  lowLatency?: boolean;
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
@@ -29,6 +31,8 @@ export function VideoPlayer({
   autoplay = false,
   controls = true,
   className,
+  live = false,
+  lowLatency = false,
   onPlay,
   onPause,
   onEnded,
@@ -138,10 +142,18 @@ export function VideoPlayer({
           className="w-full h-full"
           onLoadedData={() => setIsLoading(false)}
           onEnded={() => {
-            setIsPlaying(false);
-            onEnded?.();
+            if (!live) {
+              setIsPlaying(false);
+              onEnded?.();
+            }
           }}
           playsInline
+          autoPlay={autoplay || live}
+          muted={live ? false : undefined}
+          {...(live && {
+            'data-live': 'true',
+            ...(lowLatency && { 'data-low-latency': 'true' }),
+          })}
         />
 
         {/* Loading overlay */}

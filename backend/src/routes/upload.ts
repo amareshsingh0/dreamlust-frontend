@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 import { requireCreator } from '../middleware/authorize';
 import { userRateLimiter } from '../middleware/rateLimit';
+import { asyncHandler } from '../middleware/asyncHandler';
 import { ValidationError, NotFoundError } from '../lib/errors';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validation';
@@ -18,6 +19,29 @@ import {
 } from '../lib/queues/queueManager';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+
+// Extend Express Request type to include Multer file fields
+declare global {
+  namespace Express {
+    namespace Multer {
+      interface File {
+        fieldname: string;
+        originalname: string;
+        encoding: string;
+        mimetype: string;
+        size: number;
+        destination: string;
+        filename: string;
+        path: string;
+        buffer: Buffer;
+      }
+    }
+    interface Request {
+      file?: Express.Multer.File;
+      files?: { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[];
+    }
+  }
+}
 
 const router = Router();
 
@@ -57,6 +81,16 @@ const createContentSchema = z.object({
  * Upload content with thumbnail and media file
  * Generates blur placeholder for thumbnail automatically
  */
+// Helper function to add timeout to promises
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    ),
+  ]);
+}
+
 router.post(
   '/content',
   authenticate,
@@ -66,15 +100,17 @@ router.post(
     { name: 'thumbnail', maxCount: 1 },
     { name: 'media', maxCount: 1 },
   ]),
-  async (req: Request, res: Response) => {
-    try {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     
     console.log('📤 Upload request received:', {
+      userId,
       hasFiles: !!files,
       fileFields: files ? Object.keys(files) : [],
       bodyKeys: Object.keys(req.body),
+      mediaFileSize: files?.media?.[0]?.size,
+      thumbnailFileSize: files?.thumbnail?.[0]?.size,
     });
     
     // Parse form-data fields (they come as strings, need to convert)
@@ -116,8 +152,8 @@ router.post(
     } = validatedData;
 
     // Get creator
-    const creator = await prisma.creator.findUnique({
-      where: { userId },
+    const creator = await prisma.creator.findFirst({
+      where: { user_id: userId },
     });
 
     if (!creator) {
@@ -138,60 +174,105 @@ router.post(
     let thumbnailBlur: string | null = null;
     const isVideo = mediaFile.mimetype.startsWith('video/');
 
-    if (isVideo) {
-      // For videos, first upload to R2 as temporary storage, then to Mux/Cloudflare Stream
-      // Mux requires a URL, not a direct buffer upload
-      const tempVideoResult = await s3Storage.uploadVideo(
-        mediaFile.buffer,
-        mediaFile.originalname,
-        'temp-videos'
+    try {
+      if (isVideo) {
+        console.log('📹 Processing video upload...');
+        // For videos, first upload to R2 as temporary storage, then to Mux/Cloudflare Stream
+        // Mux requires a URL, not a direct buffer upload
+        console.log('⏳ Uploading video to temporary storage...');
+        const tempVideoResult = await withTimeout(
+          s3Storage.uploadVideo(
+            mediaFile.buffer,
+            mediaFile.originalname,
+            'temp-videos'
+          ),
+          300000, // 5 minutes timeout
+          'Video upload to storage timed out after 5 minutes'
+        );
+        const tempVideoUrl = tempVideoResult.cdnUrl || tempVideoResult.url;
+        console.log('✅ Video uploaded to temp storage:', tempVideoUrl);
+        
+        // Upload video to video storage service (Cloudflare Stream/Mux)
+        // If video storage is not configured, use the temp URL directly
+        try {
+          console.log('⏳ Uploading video to video storage service...');
+          const videoResult = await withTimeout(
+            videoStorage.uploadVideo(tempVideoUrl, {
+              title,
+              description: description || undefined,
+            }),
+            300000, // 5 minutes timeout
+            'Video upload to video storage service timed out after 5 minutes'
+          );
+          mediaUrl = videoResult.url;
+          console.log('✅ Video uploaded to video storage:', mediaUrl);
+        } catch (videoError: any) {
+          console.warn('⚠️ Video storage service not available, using temp URL:', videoError.message);
+          // Use temp URL as final URL if video storage fails
+          mediaUrl = tempVideoUrl;
+        }
+      } else {
+        console.log('🖼️ Processing image upload...');
+        // Upload image to S3/R2 using uploadFile (not uploadImage) for content folder
+        const imageResult = await withTimeout(
+          s3Storage.uploadFile(
+            mediaFile.buffer,
+            mediaFile.originalname,
+            'content'
+          ),
+          120000, // 2 minutes timeout
+          'Image upload to storage timed out after 2 minutes'
+        );
+        mediaUrl = imageResult.cdnUrl || imageResult.url;
+        console.log('✅ Image uploaded:', mediaUrl);
+      }
+    } catch (error: any) {
+      console.error('❌ Storage upload error:', error);
+      throw new ValidationError(
+        `Failed to upload media file: ${error.message || 'Storage service error. Please check your storage configuration.'}`
       );
-      const tempVideoUrl = tempVideoResult.cdnUrl || tempVideoResult.url;
-      
-      // Upload video to video storage service (Cloudflare Stream/Mux)
-      const videoResult = await videoStorage.uploadVideo(tempVideoUrl, {
-        title,
-        description: description || undefined,
-      });
-      mediaUrl = videoResult.url;
-    } else {
-      // Upload image to S3/R2
-      const imageResult = await s3Storage.uploadImage(
-        mediaFile.buffer,
-        mediaFile.originalname,
-        'content'
-      );
-      mediaUrl = imageResult.cdnUrl || imageResult.url;
     }
 
-    // Process thumbnail if provided
+    // Process thumbnail if provided (upload only, blur processing in background)
     if (thumbnailFile) {
-      // Upload thumbnail to S3/R2
-      const thumbnailResult = await s3Storage.uploadImage(
-        thumbnailFile.buffer,
-        thumbnailFile.originalname,
-        'thumbnails'
-      );
-      thumbnailUrl = thumbnailResult.cdnUrl || thumbnailResult.url;
-      
-      // Generate blur placeholder from thumbnail
-      const { blurPlaceholder } = await processThumbnailFromBuffer(
-        '', // Will be set after content creation
-        thumbnailFile.buffer
-      );
-      thumbnailBlur = blurPlaceholder;
+      try {
+        console.log('⏳ Uploading thumbnail...');
+        // Upload thumbnail to S3/R2 (fast, don't wait for blur)
+        const thumbnailResult = await withTimeout(
+          s3Storage.uploadImage(
+            thumbnailFile.buffer,
+            thumbnailFile.originalname,
+            'thumbnails'
+          ),
+          30000, // 30 seconds timeout
+          'Thumbnail upload timed out'
+        );
+        thumbnailUrl = thumbnailResult.cdnUrl || thumbnailResult.url;
+        console.log('✅ Thumbnail uploaded:', thumbnailUrl);
+      } catch (error: any) {
+        console.error('❌ Thumbnail upload error:', error);
+        // Don't fail upload if thumbnail fails
+      }
     }
 
-    // Create content
+    // Map lowercase type to uppercase enum value
+    const contentTypeMap: Record<string, 'VIDEO' | 'LIVE_STREAM' | 'VR'> = {
+      video: 'VIDEO',
+      live: 'LIVE_STREAM',
+      vr: 'VR',
+    };
+    const contentType = contentTypeMap[type] || 'VIDEO';
+
+    // Create content (thumbnailBlur will be added in background if needed)
     const content = await prisma.content.create({
       data: {
         creatorId: creator.id,
         title,
         description,
-        type: type as 'video' | 'live' | 'vr',
+        type: contentType,
         status: isVideo ? 'PENDING_REVIEW' : 'PUBLISHED', // Videos need processing
         thumbnail: thumbnailUrl,
-        thumbnailBlur,
+        thumbnailBlur: null, // Will be set in background if thumbnail provided
         mediaUrl,
         mediaType: mediaFile.mimetype,
         fileSize: BigInt(mediaFile.size),
@@ -206,92 +287,94 @@ router.post(
       },
     });
 
-    // Queue background jobs after content creation
-    if (isVideo) {
-      // Queue video transcoding job
-      await queueVideoTranscoding({
+    // Generate thumbnail blur in background (don't block response)
+    if (thumbnailFile) {
+      processThumbnailFromBuffer(content.id, thumbnailFile.buffer)
+        .then(({ blurPlaceholder }) => {
+          prisma.content.update({
+            where: { id: content.id },
+            data: { thumbnailBlur: blurPlaceholder },
+          }).catch(err => console.error('Failed to update thumbnail blur:', err));
+        })
+        .catch(err => console.error('Failed to generate thumbnail blur:', err));
+    }
+
+    // Process tags and categories in parallel (much faster)
+    const tagPromises = tags && Array.isArray(tags) ? tags.map(async (tagName) => {
+      // Generate slug from tag name
+      const tagSlug = tagName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const tag = await prisma.tag.upsert({
+        where: { name: tagName },
+        update: {},
+        create: { 
+          name: tagName,
+          slug: tagSlug,
+        },
+      });
+      return prisma.contentTag.create({
+        data: {
+          contentId: content.id,
+          tagId: tag.id,
+        },
+      });
+    }) : [];
+
+    const categoryPromises = categories && Array.isArray(categories) ? categories.map(async (categoryName) => {
+      // Generate slug from category name
+      const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const category = await prisma.category.upsert({
+        where: { slug: categorySlug },
+        update: {},
+        create: {
+          name: categoryName,
+          slug: categorySlug,
+        },
+      });
+      return prisma.contentCategory.create({
+        data: {
+          contentId: content.id,
+          categoryId: category.id,
+        },
+      });
+    }) : [];
+
+    // Wait for tags and categories in parallel
+    await Promise.all([...tagPromises, ...categoryPromises]);
+
+    // Queue all background jobs asynchronously (don't wait)
+    Promise.all([
+      // Queue video transcoding job if video
+      isVideo ? queueVideoTranscoding({
         contentId: content.id,
         videoUrl: mediaUrl,
         qualities: ['720p', '1080p', '4K'],
-      });
-
+      }) : Promise.resolve(),
+      
       // Queue thumbnail generation if not provided
-      if (!thumbnailFile) {
-        await queueThumbnailGeneration({
-          contentId: content.id,
-          videoUrl: mediaUrl,
-          timestamp: 0, // First frame
-        });
-      }
-    }
-
-    // Update thumbnail blur with content ID (if not already set)
-    if (thumbnailBlur && !content.thumbnailBlur) {
-      await prisma.content.update({
-        where: { id: content.id },
-        data: { thumbnailBlur },
-      });
-    }
-
-    // Process tags
-    if (tags && Array.isArray(tags)) {
-      for (const tagName of tags) {
-        const tag = await prisma.tag.upsert({
-          where: { name: tagName },
-          update: {},
-          create: { name: tagName },
-        });
-
-        await prisma.contentTag.create({
-          data: {
-            contentId: content.id,
-            tagId: tag.id,
-          },
-        });
-      }
-    }
-
-    // Process categories
-    if (categories && Array.isArray(categories)) {
-      for (const categoryName of categories) {
-        const category = await prisma.category.upsert({
-          where: { slug: categoryName },
-          update: {},
-          create: {
-            name: categoryName,
-            slug: categoryName.toLowerCase().replace(/\s+/g, '-'),
-          },
-        });
-
-        await prisma.contentCategory.create({
-          data: {
-            contentId: content.id,
-            categoryId: category.id,
-          },
-        });
-      }
-    }
-
-    // Auto-moderation: Check content and flag if needed
-    const moderationResult = await autoFlagContent(
-      content.id,
-      creator.id,
-      thumbnailUrl || undefined
-    );
-
-    // Send notification to creator about upload
-    await queueNotification({
-      userId: userId,
-      type: 'CONTENT_UPLOADED',
-      title: 'Content Uploaded Successfully',
-      message: `Your content "${title}" has been uploaded and is ${content.status === 'PUBLISHED' ? 'live' : 'being processed'}.`,
-      link: `/content/${content.id}`,
-      metadata: { contentId: content.id },
-    });
-
-    // Invalidate caches
-    await invalidateSearchCache();
-    await invalidateHomepageCache();
+      (isVideo && !thumbnailFile) ? queueThumbnailGeneration({
+        contentId: content.id,
+        videoUrl: mediaUrl,
+        timestamp: 0,
+      }) : Promise.resolve(),
+      
+      // Auto-moderation in background (don't block response)
+      autoFlagContent(content.id, creator.id)
+        .catch(err => console.error('Auto-moderation error:', err)),
+      
+      // Send notification in background
+      queueNotification({
+        userId: userId,
+        type: 'CONTENT_UPLOADED',
+        title: 'Content Uploaded Successfully',
+        message: `Your content "${title}" has been uploaded and is ${content.status === 'PUBLISHED' ? 'live' : 'being processed'}.`,
+        link: `/content/${content.id}`,
+        metadata: { contentId: content.id },
+      }).catch(err => console.error('Notification error:', err)),
+      
+      // Invalidate caches in background
+      invalidateSearchCache().catch(err => console.error('Cache invalidation error:', err)),
+      invalidateHomepageCache().catch(err => console.error('Cache invalidation error:', err)),
+    ]).catch(err => console.error('Background job error:', err));
 
     res.json({
       success: true,
@@ -299,34 +382,10 @@ router.post(
       data: {
         content: {
           ...content,
-          flagged: moderationResult.flagged,
-          flags: moderationResult.flags,
         },
       },
     });
-    } catch (error: any) {
-      console.error('❌ Upload error:', error);
-      if (error instanceof ValidationError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: error.message,
-            details: error.details,
-          },
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: {
-            code: 'UPLOAD_ERROR',
-            message: error.message || 'Failed to upload content',
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-          },
-        });
-      }
-    }
-  }
+  })
 );
 
 /**
@@ -339,7 +398,7 @@ router.post(
   requireCreator,
   userRateLimiter,
   upload.single('thumbnail'),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { contentId } = req.params;
     const file = req.file;
@@ -349,8 +408,8 @@ router.post(
     }
 
     // Verify content ownership
-    const creator = await prisma.creator.findUnique({
-      where: { userId },
+    const creator = await prisma.creator.findFirst({
+      where: { user_id: userId },
     });
 
     if (!creator) {
@@ -396,7 +455,7 @@ router.post(
         thumbnailBlur: blurPlaceholder,
       },
     });
-  }
+  })
 );
 
 export default router;

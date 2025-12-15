@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,7 @@ import { Loader2, Heart, DollarSign, Sparkles, MessageCircle, ArrowLeft } from '
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { getPayPalClientId } from '@/lib/paypal';
+import { toast } from 'sonner';
 
 interface TipModalProps {
   open: boolean;
@@ -22,14 +21,13 @@ interface TipModalProps {
 const PRESET_AMOUNTS = [1, 5, 10, 25, 50, 100];
 
 export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModalProps) {
-  const { toast } = useToast();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [message, setMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<'amount' | 'payment'>('amount');
-  const [paymentIntent, setPaymentIntent] = useState<{ id: string; clientSecret: string; tipId: string } | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<{ orderId: string; amount: number; currency: string; key: string; tipId: string } | null>(null);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -67,42 +65,28 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
     // Check if user is authenticated
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      toast({
-        title: 'Login Required',
-        description: 'Please log in to send a tip. You need to be signed in to support creators.',
-        variant: 'destructive',
-      });
-      // Optionally redirect to login page
-      // window.location.href = '/login';
+      toast.error('Please log in to send a tip. You need to be signed in to support creators.');
       return;
     }
 
     const amount = getAmount();
     if (!amount || amount <= 0) {
-      toast({
-        title: 'Invalid Amount',
-        description: 'Please select or enter a valid tip amount.',
-        variant: 'destructive',
-      });
+      toast.error('Please select or enter a valid tip amount.');
       return;
     }
 
     if (amount > 10000) {
-      toast({
-        title: 'Amount Too Large',
-        description: 'Maximum tip amount is $10,000.',
-        variant: 'destructive',
-      });
+      toast.error('Maximum tip amount is ₹10,000.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Create tip and get payment intent
+      // Create tip and get Razorpay payment order
       const response = await api.tips.create({
         toCreatorId: creatorId,
         amount: amount,
-        currency: 'USD',
+        currency: 'INR', // Use INR for Razorpay
         message: message.trim() || undefined,
         isAnonymous: isAnonymous,
       });
@@ -110,11 +94,7 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
       if (!response.success || !response.data) {
         // Handle authentication errors specifically
         if (response.error?.code === 'UNAUTHORIZED' || response.error?.message?.includes('authorization')) {
-          toast({
-            title: 'Authentication Required',
-            description: 'Your session has expired. Please log in again to send a tip.',
-            variant: 'destructive',
-          });
+          toast.error('Your session has expired. Please log in again to send a tip.');
           // Clear invalid token
           localStorage.removeItem('accessToken');
           return;
@@ -122,79 +102,187 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
         throw new Error(response.error?.message || 'Failed to create tip');
       }
 
-      const { tip, paymentIntent: intent } = response.data as any;
+      const { tip, paymentOrder: order } = response.data as any;
 
-      if (!intent || !intent.id) {
+      if (!order || !order.orderId) {
         throw new Error('Payment order not received');
       }
 
-      setPaymentIntent({
-        id: intent.id,
-        clientSecret: intent.clientSecret || '', // PayPal uses approval URL, not client secret
+      setPaymentOrder({
+        orderId: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        key: order.key,
         tipId: tip.id,
       });
       setStep('payment');
     } catch (error: any) {
+      console.error('Tip creation error:', error);
       // Handle network errors
       if (error?.error?.code === 'NETWORK_ERROR') {
-        toast({
-          title: 'Connection Error',
-          description: 'Unable to connect to the server. Please check your internet connection and try again.',
-          variant: 'destructive',
-        });
+        toast.error('Unable to connect to the server. Please check your internet connection and try again.');
       } else if (error?.error?.code === 'UNAUTHORIZED' || error?.error?.message?.includes('authorization')) {
-        toast({
-          title: 'Authentication Required',
-          description: 'Please log in to send a tip.',
-          variant: 'destructive',
-        });
+        toast.error('Please log in to send a tip.');
       } else {
-        toast({
-          title: 'Error',
-          description: error?.error?.message || error?.message || 'Failed to create payment. Please try again.',
-          variant: 'destructive',
-        });
+        toast.error(error?.error?.message || error?.message || 'Failed to create payment. Please try again.');
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handlePaymentSuccess = async () => {
-    if (!paymentIntent) return;
-
-    try {
-      // Confirm payment with backend (PayPal order is already captured, just update tip status)
-      const confirmResponse = await api.tips.confirmPayment(paymentIntent.tipId, {
-        paymentIntentId: paymentIntent.id,
-      });
-
-      if (confirmResponse.success) {
-        const amount = getAmount();
-        toast({
-          title: 'Tip Sent!',
-          description: `Your $${amount?.toFixed(2)} tip has been sent to ${creatorName}.`,
-        });
-        // Reset form
-        handleClose();
-      } else {
-        throw new Error(confirmResponse.error?.message || 'Payment confirmation failed');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error?.error?.message || error?.message || 'Payment confirmation failed. Please contact support.',
-        variant: 'destructive',
-      });
+  const handleRazorpayPayment = async () => {
+    if (!paymentOrder) {
+      toast.error('Payment order not found. Please try again.');
+      return;
     }
+
+    const amount = getAmount();
+    if (!amount) {
+      toast.error('Invalid amount');
+      return;
+    }
+
+    // Check if Razorpay is already loaded
+    if ((window as any).Razorpay) {
+      openRazorpayCheckout();
+      return;
+    }
+
+    // Load Razorpay script dynamically
+    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existingScript) {
+      // Script already exists, wait a bit and try again
+      setTimeout(() => {
+        if ((window as any).Razorpay) {
+          openRazorpayCheckout();
+        } else {
+          toast.error('Razorpay script failed to load. Please refresh the page and try again.');
+        }
+      }, 500);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => {
+      if ((window as any).Razorpay) {
+        openRazorpayCheckout();
+      } else {
+        toast.error('Razorpay failed to initialize. Please try again.');
+      }
+    };
+    script.onerror = () => {
+      toast.error('Failed to load Razorpay. Please check your internet connection and try again.');
+    };
+    document.body.appendChild(script);
   };
 
-  const handlePaymentError = (error: string) => {
-    toast({
-      title: 'Payment Error',
-      description: error,
-      variant: 'destructive',
-    });
+  const openRazorpayCheckout = () => {
+    console.log('openRazorpayCheckout called');
+    
+    if (!paymentOrder) {
+      console.error('paymentOrder is null in openRazorpayCheckout');
+      toast.error('Payment order not found. Please try again.');
+      return;
+    }
+
+    const amount = getAmount();
+    if (!amount) {
+      console.error('Invalid amount in openRazorpayCheckout');
+      toast.error('Invalid amount');
+      return;
+    }
+
+    if (!paymentOrder.key) {
+      console.error('Razorpay key missing:', paymentOrder);
+      toast.error('Razorpay key not configured. Please contact support.');
+      return;
+    }
+
+    const Razorpay = (window as any).Razorpay;
+    if (!Razorpay) {
+      console.error('Razorpay not available on window object');
+      toast.error('Razorpay is not loaded. Please refresh the page.');
+      return;
+    }
+
+    try {
+      console.log('Creating Razorpay options:', {
+        key: paymentOrder.key?.substring(0, 10) + '...',
+        amount: paymentOrder.amount,
+        currency: paymentOrder.currency,
+        order_id: paymentOrder.orderId,
+      });
+
+      const options = {
+        key: paymentOrder.key,
+        amount: paymentOrder.amount, // Amount in paise
+        currency: paymentOrder.currency,
+        name: 'Dreamlust',
+        description: `Tip to ${creatorName}`,
+        order_id: paymentOrder.orderId,
+        handler: async function (response: any) {
+          console.log('Razorpay payment handler called:', response);
+          try {
+            // Verify payment with backend
+            const verifyResponse = await api.razorpay.verifyPayment({
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            });
+
+            if (verifyResponse.success) {
+              // Confirm tip payment
+              const confirmResponse = await api.tips.confirmPayment(paymentOrder.tipId, {
+                paymentIntentId: response.razorpay_payment_id,
+              });
+
+              if (confirmResponse.success) {
+                toast.success(`Your ₹${amount.toFixed(2)} tip has been sent to ${creatorName}!`);
+                handleClose();
+              } else {
+                throw new Error(confirmResponse.error?.message || 'Payment confirmation failed');
+              }
+            } else {
+              throw new Error('Payment verification failed');
+            }
+          } catch (error: any) {
+            console.error('Payment verification error:', error);
+            toast.error(error?.error?.message || error?.message || 'Payment verification failed. Please contact support.');
+          }
+        },
+        prefill: {
+          name: '', // Will be filled from user profile if available
+          email: '', // Will be filled from user profile if available
+        },
+        theme: {
+          color: '#6366f1', // Primary color
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('Razorpay modal dismissed by user');
+            toast.info('Payment cancelled');
+          },
+        },
+      };
+
+      console.log('Instantiating Razorpay...');
+      const razorpay = new Razorpay(options);
+      console.log('Razorpay instance created, opening checkout...');
+      razorpay.open();
+      console.log('razorpay.open() called - payment modal should be opening');
+    } catch (error: any) {
+      console.error('Razorpay checkout error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        paymentOrder: paymentOrder,
+        RazorpayAvailable: !!(window as any).Razorpay,
+      });
+      toast.error(error?.message || 'Failed to open payment window. Please refresh the page and try again.');
+    }
   };
 
   const handleClose = () => {
@@ -203,7 +291,7 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
     setMessage('');
     setIsAnonymous(false);
     setStep('amount');
-    setPaymentIntent(null);
+    setPaymentOrder(null);
     onOpenChange(false);
   };
 
@@ -213,7 +301,7 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
   useEffect(() => {
     if (!open) {
       setStep('amount');
-      setPaymentIntent(null);
+      setPaymentOrder(null);
     }
   }, [open]);
 
@@ -278,7 +366,7 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
                   )}
                 >
                   <span className="flex items-center gap-1">
-                    <DollarSign className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="text-xs">₹</span>
                     {preset}
                   </span>
                 </Button>
@@ -310,7 +398,7 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
             </div>
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary"></span>
-              Minimum $0.01 • Maximum $10,000
+              Minimum ₹0.01 • Maximum ₹10,000
             </p>
           </div>
 
@@ -369,61 +457,57 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
             />
           </div>
             </>
-          ) : paymentIntent ? (
+          ) : paymentOrder ? (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl border-2 border-border/50 bg-muted/30">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Complete your payment using PayPal
-                </p>
-                <PayPalScriptProvider
-                  options={{
-                    clientId: getPayPalClientId(),
-                    currency: 'USD',
-                    intent: 'capture',
-                  }}
-                >
-                  <PayPalButtons
-                    createOrder={async () => {
-                      // Return the order ID from our payment intent
-                      return paymentIntent.id;
-                    }}
-                    onApprove={async (data, actions) => {
+              <div className="p-6 rounded-xl border-2 border-border/50 bg-muted/30">
+                <div className="text-center space-y-4">
+                  <div>
+                    <p className="text-lg font-semibold mb-2">Ready to send your tip!</p>
+                    <p className="text-sm text-muted-foreground">
+                      Click the button below to complete your payment securely with Razorpay
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <p className="text-2xl font-bold text-primary">
+                      ₹{paymentOrder.amount / 100}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Amount to be paid</p>
+                  </div>
+                  <Button
+                    onClick={async () => {
+                      console.log('Pay button clicked, paymentOrder:', paymentOrder);
+                      if (!paymentOrder) {
+                        toast.error('Payment order not available. Please try again.');
+                        return;
+                      }
+                      if (!paymentOrder.key) {
+                        toast.error('Razorpay key not configured. Please contact support.');
+                        return;
+                      }
                       try {
-                        // Capture the payment
-                        const details = await actions.order?.capture();
-                        
-                        if (details?.status === 'COMPLETED') {
-                          // Confirm payment with backend
-                          await handlePaymentSuccess();
-                        } else {
-                          handlePaymentError('Payment was not completed');
-                        }
+                        await handleRazorpayPayment();
                       } catch (error: any) {
-                        handlePaymentError(error?.message || 'Payment processing failed');
+                        console.error('Payment button error:', error);
+                        toast.error(error?.message || 'Failed to open payment. Please try again.');
                       }
                     }}
-                    onError={(err) => {
-                      handlePaymentError(err.message || 'Payment failed');
-                    }}
-                    onCancel={() => {
-                      toast({
-                        title: 'Payment Cancelled',
-                        description: 'You cancelled the payment process.',
-                        variant: 'default',
-                      });
-                    }}
-                    style={{
-                      layout: 'vertical',
-                      color: 'blue',
-                      shape: 'rect',
-                      label: 'paypal',
-                    }}
-                  />
-                </PayPalScriptProvider>
+                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary via-primary/95 to-accent hover:from-primary/95 hover:via-primary/90 hover:to-accent/95 text-white shadow-xl shadow-primary/40"
+                    size="lg"
+                    disabled={!paymentOrder || !paymentOrder.key}
+                  >
+                    <Heart className="h-5 w-5 mr-2 fill-current" />
+                    {paymentOrder?.key ? 'Pay with Razorpay' : 'Loading Payment...'}
+                  </Button>
+                  {!paymentOrder?.key && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Waiting for payment configuration...
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">
-                  Secure payment processed by PayPal
+                  Secure payment processed by Razorpay
                 </p>
               </div>
             </div>
@@ -441,9 +525,9 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
                 </div>
                 <div className="text-right">
                   <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-primary via-primary/90 to-accent bg-clip-text text-transparent block leading-tight">
-                    ${amount.toFixed(2)}
+                    ₹{amount.toFixed(2)}
                   </span>
-                  <span className="text-xs sm:text-sm lg:text-base text-muted-foreground font-medium">USD</span>
+                  <span className="text-xs sm:text-sm lg:text-base text-muted-foreground font-medium">INR</span>
                 </div>
               </div>
             </div>

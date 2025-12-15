@@ -76,6 +76,23 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_PASS: z.string().optional(), // Alternative to SMTP_PASSWORD
   SMTP_FROM: z.string().email().optional(),
+  
+  // Razorpay (for payments)
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  RAZORPAY_BASIC_PLAN_ID: z.string().optional(),
+  RAZORPAY_PREMIUM_PLAN_ID: z.string().optional(),
+  RAZORPAY_PRO_PLAN_ID: z.string().optional(),
+  
+  // Stripe (for payments - legacy, deprecated)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  
+  // PayPal (for payments - alternative)
+  PAYPAL_CLIENT_ID: z.string().optional(),
+  PAYPAL_CLIENT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { validateBody } from '../middleware/validation';
+import { asyncHandler } from '../middleware/asyncHandler';
 import { searchSchema, SearchRequest } from '../schemas/search';
 import { Prisma } from '@prisma/client';
 import { searchRateLimiter } from '../middleware/rateLimit';
@@ -46,8 +47,7 @@ router.post(
   '/',
   searchRateLimiter,
   validateBody(searchSchema),
-  async (req: Request, res: Response) => {
-    try {
+  asyncHandler(async (req: Request, res: Response) => {
       const {
         query = '',
         filters = {},
@@ -82,7 +82,12 @@ router.post(
           },
           {
             creator: {
-              name: { contains: query, mode: 'insensitive' },
+              display_name: { contains: query, mode: 'insensitive' },
+            },
+          },
+          {
+            creator: {
+              handle: { contains: query, mode: 'insensitive' },
             },
           },
         ];
@@ -211,10 +216,10 @@ router.post(
             creator: {
               select: {
                 id: true,
-                name: true,
-                username: true,
+                display_name: true,
+                handle: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             tags: {
@@ -278,9 +283,9 @@ router.post(
         matchingContentIds.length > 0
           ? prisma.category.findMany({
               where: {
-                deletedAt: null,
-                isActive: true,
-                content: {
+                deleted_at: null,
+                is_active: true,
+                contents: {
                   some: {
                     contentId: { in: matchingContentIds },
                   },
@@ -291,7 +296,7 @@ router.post(
                 name: true,
                 _count: {
                   select: {
-                    content: {
+                    contents: {
                       where: {
                         contentId: { in: matchingContentIds },
                       },
@@ -306,7 +311,7 @@ router.post(
               categories.map(cat => ({
                 id: cat.id,
                 name: cat.name,
-                count: cat._count.content,
+                count: cat._count.contents,
               }))
             )
           : [],
@@ -314,7 +319,7 @@ router.post(
         matchingContentIds.length > 0
           ? prisma.tag.findMany({
               where: {
-                content: {
+                contents: {
                   some: {
                     contentId: { in: matchingContentIds },
                   },
@@ -325,7 +330,7 @@ router.post(
                 name: true,
                 _count: {
                   select: {
-                    content: {
+                    contents: {
                       where: {
                         contentId: { in: matchingContentIds },
                       },
@@ -334,14 +339,14 @@ router.post(
                 },
               },
               orderBy: {
-                usageCount: 'desc',
+                usage_count: 'desc',
               },
               take: 50, // Limit to top 50 tags
             }).then(tags =>
               tags.map(tag => ({
                 id: tag.id,
                 name: tag.name,
-                count: tag._count.content,
+                count: tag._count.contents,
               }))
             )
           : [],
@@ -358,17 +363,17 @@ router.post(
         createdAt: content.createdAt.toISOString(),
         creator: {
           id: content.creator.id,
-          name: content.creator.name,
-          username: content.creator.username,
+          name: content.creator.display_name,
+          username: content.creator.handle,
           avatar: content.creator.avatar || '',
-          isVerified: content.creator.isVerified,
+          isVerified: content.creator.is_verified || false,
         },
-        type: content.type.toLowerCase().replace('_', '') as 'video' | 'photo' | 'vr' | 'live' | 'audio',
+        type: content.type.toLowerCase().replace('_stream', '').replace('_', '') as 'video' | 'photo' | 'vr' | 'live' | 'audio',
         quality: content.resolution ? [content.resolution] : [],
         tags: content.tags.map((ct) => ct.tag.name),
         category: content.categories[0]?.category.name || '',
         description: content.description || undefined,
-        isLive: content.type === 'LIVE_STREAM',
+        isLive: content.type === 'LIVE_STREAM' || content.type === 'live_stream',
         isPremium: content.isPremium,
       }));
 
@@ -389,18 +394,7 @@ router.post(
           facets,
         },
       });
-    } catch (error) {
-      console.error('Search error:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'SEARCH_ERROR',
-          message: 'An error occurred while searching',
-          timestamp: new Date().toISOString(),
-        },
-      });
-    }
-  }
+  })
 );
 
 export default router;

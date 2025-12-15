@@ -16,10 +16,19 @@ import recommendationsRoutes from './routes/recommendations';
 import commentsRoutes from './routes/comments';
 import tipsRoutes from './routes/tips';
 import earningsRoutes from './routes/earnings';
+import payoutsRoutes from './routes/payouts';
 import webhooksRoutes from './routes/webhooks';
 import privacyRoutes from './routes/privacy';
 import moderationRoutes from './routes/moderation';
 import uploadRoutes from './routes/upload';
+import creatorsRoutes from './routes/creators';
+import liveRoutes from './routes/live';
+import paymentsRoutes from './routes/payments';
+import subscriptionsRoutes from './routes/subscriptions';
+import plansRoutes from './routes/plans';
+import razorpayRoutes from './routes/razorpay';
+import { createServer } from 'http';
+import { initializeSocketServer } from './socket/socketServer';
 
 const app = express();
 
@@ -117,10 +126,17 @@ app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/comments', commentsRoutes);
 app.use('/api/tips', tipsRoutes);
 app.use('/api/earnings', earningsRoutes);
+app.use('/api/payouts', payoutsRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/moderation', moderationRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/creators', creatorsRoutes);
+app.use('/api/live', liveRoutes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
+app.use('/api/plans', plansRoutes);
+app.use('/api/razorpay', razorpayRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -130,11 +146,18 @@ app.use(errorHandler);
 
 const PORT = parseInt(env.PORT, 10);
 
-const server = app.listen(PORT, () => {
+// Create HTTP server for Socket.io
+const httpServer = createServer(app);
+
+// Initialize Socket.io
+const io = initializeSocketServer(httpServer);
+
+const server = httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📝 Environment: ${env.NODE_ENV}`);
   console.log(`🔗 Frontend URL: ${env.FRONTEND_URL}`);
   console.log(`✅ Server ready to accept connections`);
+  console.log(`🔌 WebSocket server initialized`);
 });
 
 // Handle server errors
@@ -148,6 +171,22 @@ server.on('error', (error: NodeJS.ErrnoException) => {
     console.error('❌ Server error:', error);
     process.exit(1);
   }
+});
+
+// Handle unhandled promise rejections (prevents server crashes)
+process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
+  console.error('Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  // Don't exit - let the error handler middleware handle it
+  // This prevents the server from crashing on async errors
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  console.error('Uncaught Exception:', error);
+  // Only exit on truly unexpected errors
+  // Most errors should be caught by asyncHandler
+  process.exit(1);
 });
 
 // Graceful shutdown

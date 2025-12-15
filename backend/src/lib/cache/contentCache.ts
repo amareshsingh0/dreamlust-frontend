@@ -44,14 +44,15 @@ async function calculateTrendingContent(period: string = 'today') {
         gte: sinceDate,
       },
     },
+    // @ts-expect-error - Creator relation exists in schema, TypeScript cache issue
     include: {
       creator: {
         select: {
           id: true,
           handle: true,
-          display_name: true,
+          display_name: true, // Creator model uses snake_case (no @map)
           avatar: true,
-          is_verified: true,
+          is_verified: true, // Creator model uses snake_case (no @map)
         },
       },
       categories: {

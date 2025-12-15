@@ -26,8 +26,12 @@ class VideoStorageService {
   constructor() {
     if (env.CLOUDFLARE_STREAM_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID) {
       this.provider = 'cloudflare';
+      console.log('✅ Video storage: Cloudflare Stream configured');
     } else if (env.MUX_TOKEN_ID && env.MUX_TOKEN_SECRET) {
       this.provider = 'mux';
+      console.log('✅ Video storage: Mux configured');
+    } else {
+      console.warn('⚠️  Video storage not configured. Videos will use direct URLs.');
     }
   }
 

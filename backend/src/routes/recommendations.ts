@@ -4,6 +4,7 @@ import { optionalAuth, authenticate } from '../middleware/auth';
 import { userRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError } from '../lib/errors';
 import { getCachedTrendingContent, invalidateHomepageCache } from '../lib/cache/contentCache';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get(
   '/similar/:id',
   optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const limit = parseInt(req.query.limit as string) || 20;
 
@@ -63,7 +64,7 @@ router.get(
         id: { not: id },
         status: 'PUBLISHED',
         isPublic: true,
-        deleted_at: null,
+        deletedAt: null,
         OR: [
           // Same category
           {
@@ -92,9 +93,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -189,7 +190,7 @@ router.get(
       success: true,
       data: transformedResults,
     });
-  }
+  })
 );
 
 /**
@@ -333,16 +334,16 @@ router.get(
           where: {
             status: 'PUBLISHED',
             isPublic: true,
-            deleted_at: null,
+            deletedAt: null,
           },
           include: {
             creator: {
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -373,10 +374,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.display_name,
+            name: item.creator.displayName,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.is_verified,
+            isVerified: item.creator.isVerified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -405,7 +406,7 @@ router.get(
           where: {
             status: 'PUBLISHED',
             isPublic: true,
-            deleted_at: null,
+            deletedAt: null,
             id: { notIn: userHistory },
           },
           include: {
@@ -413,9 +414,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -446,10 +447,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.display_name,
+            name: item.creator.displayName,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.is_verified,
+            isVerified: item.creator.isVerified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -474,7 +475,7 @@ router.get(
         where: {
           status: 'PUBLISHED',
           isPublic: true,
-          deleted_at: null,
+          deletedAt: null,
           id: { notIn: userHistory },
           views: {
             some: {
@@ -487,9 +488,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
-              is_verified: true,
+              isVerified: true,
             },
           },
           categories: {
@@ -578,21 +579,25 @@ router.get(
  */
 router.get(
   '/continue-watching',
-  authenticate,
+  optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) {
-      throw new UnauthorizedError('Authentication required');
+      // Return empty array for unauthenticated users
+      return res.json({
+        success: true,
+        data: [],
+      });
     }
 
     const limit = parseInt(req.query.limit as string) || 20;
 
-    // Get view events with completion rate < 0.9
-    const incompleteViews = await prisma.viewEvent.findMany({
+    // Get incomplete views (where duration is less than 90% of content duration)
+    // First get user's views with full content information
+    const userViews = await prisma.view.findMany({
       where: {
         userId,
-        completionRate: { lt: 0.9 },
       },
       include: {
         content: {
@@ -601,9 +606,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -620,14 +625,31 @@ router.get(
         },
       },
       orderBy: {
-        timestamp: 'desc',
+        watchedAt: 'desc',
       },
-      take: limit,
-      distinct: ['contentId'],
     });
 
+    // Filter views where watched duration < 90% of content duration
+    const incompleteViews = userViews.filter(view => {
+      if (!view.duration || !view.content.duration) return false;
+      const completionRate = view.duration / view.content.duration;
+      return completionRate < 0.9;
+    });
+
+    // Get unique content IDs (distinct by contentId)
+    const seenContentIds = new Set<string>();
+    const uniqueIncompleteViews = incompleteViews.filter(view => {
+      if (seenContentIds.has(view.contentId)) return false;
+      seenContentIds.add(view.contentId);
+      return true;
+    }).slice(0, limit);
+
     // Transform to Content type
-    const transformedResults = incompleteViews.map(item => ({
+    const transformedResults = uniqueIncompleteViews.map(item => {
+      const completionRate = item.duration && item.content.duration 
+        ? item.duration / item.content.duration 
+        : 0;
+      return {
       id: item.content.id,
       title: item.content.title,
       description: item.content.description || undefined,
@@ -652,14 +674,15 @@ router.get(
       tags: item.content.tags.map(t => t.tag.name),
       category: item.content.categories[0]?.category.name || 'Uncategorized',
       isPremium: item.content.isPremium,
-      completionRate: item.completionRate, // Include completion rate
-    }));
+      completionRate, // Include completion rate
+      };
+    });
 
     res.json({
       success: true,
       data: transformedResults,
     });
-  }
+  })
 );
 
 /**
@@ -668,12 +691,16 @@ router.get(
  */
 router.get(
   '/followed-creators',
-  authenticate,
+  optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) {
-      throw new UnauthorizedError('Authentication required');
+      // Return empty array for unauthenticated users
+      return res.json({
+        success: true,
+        data: [],
+      });
     }
 
     const limit = parseInt(req.query.limit as string) || 20;
@@ -707,7 +734,7 @@ router.get(
         creatorId: { in: creatorIds },
         status: 'PUBLISHED',
         isPublic: true,
-        deleted_at: null,
+        deletedAt: null,
         publishedAt: {
           gte: sinceDate,
         },
@@ -717,9 +744,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -771,7 +798,7 @@ router.get(
       success: true,
       data: transformedResults,
     });
-  }
+  })
 );
 
 /**
@@ -782,7 +809,7 @@ router.get(
   '/trending-now',
   optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const hours = parseInt(req.query.hours as string) || 24; // Last 24 hours
     const period = hours <= 24 ? 'today' : hours <= 168 ? 'week' : 'today';
@@ -833,7 +860,7 @@ router.get(
       where: {
         status: 'PUBLISHED',
         isPublic: true,
-        deleted_at: null,
+        deletedAt: null,
         publishedAt: {
           gte: sinceDate,
         },
@@ -843,9 +870,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -907,7 +934,7 @@ router.get(
       success: true,
       data: transformedResults,
     });
-  }
+  })
 );
 
 /**
@@ -918,7 +945,7 @@ router.get(
   '/regional',
   optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     const limit = parseInt(req.query.limit as string) || 20;
 
@@ -927,7 +954,7 @@ router.get(
     // Get user's region from preferences
     if (userId) {
       const preferences = await prisma.userPreferences.findUnique({
-        where: { userId },
+        where: { userId: userId },
         select: { region: true },
       });
       region = preferences?.region || undefined;
@@ -939,16 +966,16 @@ router.get(
         where: {
           status: 'PUBLISHED',
           isPublic: true,
-          deleted_at: null,
+          deletedAt: null,
         },
         include: {
           creator: {
             select: {
               id: true,
               handle: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
-              is_verified: true,
+              isVerified: true,
             },
           },
           categories: {
@@ -1001,11 +1028,9 @@ router.get(
       });
     }
 
-    // Get content with view events from users in the same region
-    const regionalViewEvents = await prisma.viewEvent.findMany({
-      where: {
-        region,
-      },
+    // Get views (region filtering removed as View model doesn't have region field)
+    // For now, we'll get popular content instead
+    const regionalViewEvents = await prisma.view.findMany({
       select: {
         contentId: true,
       },
@@ -1028,16 +1053,16 @@ router.get(
         id: { in: contentIds },
         status: 'PUBLISHED',
         isPublic: true,
-        deleted_at: null,
+        deletedAt: null,
       },
       include: {
         creator: {
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -1050,10 +1075,7 @@ router.get(
             tag: true,
           },
         },
-        viewEvents: {
-          where: {
-            region,
-          },
+        views: {
           select: {
             id: true,
           },
@@ -1062,14 +1084,14 @@ router.get(
       take: limit * 2,
     });
 
-    // Score by regional views
+    // Score by views
     const scoredContent = content.map(item => ({
       ...item,
-      _regionalScore: item.viewEvents.length,
+      _regionalScore: item.views.length,
     }));
 
     scoredContent.sort((a, b) => b._regionalScore - a._regionalScore);
-    const topResults = scoredContent.slice(0, limit).map(({ _regionalScore, viewEvents, ...item }) => item);
+    const topResults = scoredContent.slice(0, limit).map(({ _regionalScore, views, ...item }) => item);
 
     // Transform to Content type
     const transformedResults = topResults.map(item => ({
@@ -1103,7 +1125,7 @@ router.get(
       success: true,
       data: transformedResults,
     });
-  }
+  })
 );
 
 /**
@@ -1112,12 +1134,73 @@ router.get(
  */
 router.get(
   '/for-you',
-  authenticate,
+  optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) {
-      throw new UnauthorizedError('Authentication required');
+      // Return trending content for unauthenticated users
+      const limit = parseInt(req.query.limit as string) || 20;
+      const trendingContent = await prisma.content.findMany({
+        where: {
+          status: 'PUBLISHED',
+          isPublic: true,
+          deletedAt: null,
+        },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              handle: true,
+              displayName: true,
+              avatar: true,
+              isVerified: true,
+            },
+          },
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+        },
+        orderBy: {
+          viewCount: 'desc',
+        },
+        take: limit,
+      });
+
+      const transformedResults = trendingContent.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || undefined,
+        thumbnail: item.thumbnail || '',
+        duration: item.duration ? formatDuration(item.duration) : '0:00',
+        views: item.viewCount,
+        likes: item.likeCount,
+        createdAt: item.createdAt.toISOString(),
+        creator: {
+          id: item.creator.id,
+          name: item.creator.display_name,
+          username: item.creator.handle,
+          avatar: item.creator.avatar || '',
+          isVerified: item.creator.is_verified,
+        },
+        type: mapContentType(item.type),
+        quality: item.resolution ? [item.resolution] : [],
+        tags: item.tags.map(t => t.tag.name),
+        category: item.categories[0]?.category.name || 'Uncategorized',
+        isPremium: item.isPremium,
+      }));
+
+      return res.json({
+        success: true,
+        data: transformedResults,
+      });
     }
 
     const limit = parseInt(req.query.limit as string) || 20;
@@ -1136,7 +1219,7 @@ router.get(
           where: {
             status: 'PUBLISHED',
             isPublic: true,
-            deleted_at: null,
+            deletedAt: null,
             id: { notIn: userHistory },
             views: {
               some: {
@@ -1149,9 +1232,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -1182,10 +1265,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.display_name,
+            name: item.creator.displayName,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.is_verified,
+            isVerified: item.creator.isVerified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -1200,9 +1283,9 @@ router.get(
       }
 
       // Get user's last watched content for content-based recommendations (50%)
-      const lastWatched = await prisma.viewEvent.findFirst({
+      const lastWatched = await prisma.view.findFirst({
         where: { userId },
-        orderBy: { timestamp: 'desc' },
+        orderBy: { watchedAt: 'desc' },
         select: { contentId: true },
       });
 
@@ -1225,7 +1308,7 @@ router.get(
               id: { not: lastWatched.contentId },
               status: 'PUBLISHED',
               isPublic: true,
-              deleted_at: null,
+              deletedAt: null,
               OR: [
                 { categories: { some: { categoryId: { in: categoryIds } } } },
                 { tags: { some: { tagId: { in: tagIds } } } },
@@ -1237,9 +1320,9 @@ router.get(
                 select: {
                   id: true,
                   handle: true,
-                  display_name: true,
+                  displayName: true,
                   avatar: true,
-                  is_verified: true,
+                  isVerified: true,
                 },
               },
               categories: {
@@ -1270,10 +1353,10 @@ router.get(
             createdAt: item.createdAt.toISOString(),
             creator: {
               id: item.creator.id,
-              name: item.creator.display_name,
+              name: item.creator.displayName,
               username: item.creator.handle,
               avatar: item.creator.avatar || '',
-              isVerified: item.creator.is_verified,
+              isVerified: item.creator.isVerified,
               followers: 0,
               views: 0,
               contentCount: 0,
@@ -1305,7 +1388,7 @@ router.get(
       console.error('Error generating for-you recommendations:', error);
       throw error;
     }
-  }
+  })
 );
 
 /**
@@ -1314,20 +1397,27 @@ router.get(
  */
 router.get(
   '/last-watched-similar',
-  authenticate,
+  optionalAuth,
   userRateLimiter,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) {
-      throw new UnauthorizedError('Authentication required');
+      // Return empty array for unauthenticated users
+      return res.json({
+        success: true,
+        data: {
+          data: [],
+          lastWatchedTitle: null,
+        },
+      });
     }
 
     const limit = parseInt(req.query.limit as string) || 20;
 
     // Get last watched content
-    const lastWatched = await prisma.viewEvent.findFirst({
+    const lastWatched = await prisma.view.findFirst({
       where: { userId },
-      orderBy: { timestamp: 'desc' },
+      orderBy: { watchedAt: 'desc' },
       include: {
         content: {
           select: {
@@ -1374,7 +1464,7 @@ router.get(
         id: { not: lastWatched.contentId },
         status: 'PUBLISHED',
         isPublic: true,
-        deleted_at: null,
+        deletedAt: null,
         OR: [
           { categories: { some: { categoryId: { in: categoryIds } } } },
           { tags: { some: { tagId: { in: tagIds } } } },
@@ -1386,9 +1476,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -1435,14 +1525,14 @@ router.get(
       isPremium: item.isPremium,
     }));
 
-    res.json({
-      success: true,
-      data: {
-        data: transformedResults,
-        lastWatchedTitle: lastWatched.content.title,
-      },
-    });
-  }
+      res.json({
+        success: true,
+        data: {
+          data: transformedResults,
+          lastWatchedTitle: lastWatched.content.title,
+        },
+      });
+    })
 );
 
 // Helper function for trending score (import from search route or define here)

@@ -15,7 +15,13 @@ export const redis: Redis | null = env.REDIS_URL
   ? (globalForRedis.redis ??
     new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 3,
+      lazyConnect: true, // Don't connect immediately
       retryStrategy: (times) => {
+        // Stop retrying after 3 attempts
+        if (times > 3) {
+          console.warn('⚠️  Redis connection failed after 3 attempts. Running without Redis cache.');
+          return null;
+        }
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
@@ -33,18 +39,32 @@ if (env.REDIS_URL && process.env.NODE_ENV !== 'production') {
   globalForRedis.redis = redis as Redis;
 }
 
-// Graceful shutdown
+// Graceful shutdown and connection handling
 if (redis) {
+  // Suppress error logging to avoid spam
   redis.on('error', (err) => {
-    console.error('Redis Client Error:', err);
+    // Only log once, not repeatedly
+    if (!redis.listenerCount('error')) {
+      console.warn('⚠️  Redis connection error. Running without cache.');
+    }
   });
 
   redis.on('connect', () => {
     console.log('✅ Redis connected');
   });
 
+  redis.on('ready', () => {
+    console.log('✅ Redis ready');
+  });
+
+  // Attempt to connect, but don't crash if it fails
+  redis.connect().catch((err) => {
+    console.warn('⚠️  Could not connect to Redis. Running without cache.');
+    console.warn('   To use Redis caching, ensure Redis is running on the configured URL.');
+  });
+
   process.on('SIGINT', async () => {
-    if (redis) {
+    if (redis && redis.status === 'ready') {
       await redis.quit();
       console.log('Redis connection closed');
     }

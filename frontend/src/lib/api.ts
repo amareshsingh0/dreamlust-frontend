@@ -197,6 +197,165 @@ export const api = {
         headers: getHeaders(),
         body: JSON.stringify(body),
       }),
+    like: <T>(id: string) =>
+      apiRequest<T>(`/api/content/${id}/like`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    getLiked: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/content/liked${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getHistory: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/content/history${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+  },
+  creators: {
+    getAll: <T>(params?: { page?: number; limit?: number; search?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.search) searchParams.append('search', params.search);
+      const query = searchParams.toString();
+      const url = `/api/creators${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/creators/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getByHandle: <T>(handle: string) =>
+      apiRequest<T>(`/api/creators/handle/${handle}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    follow: <T>(id: string) =>
+      apiRequest<T>(`/api/creators/${id}/follow`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    getFollowing: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/creators/following${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+  },
+  upload: {
+    content: async <T>(formData: FormData): Promise<ApiResponse<T>> => {
+      const token = getAuthToken();
+      const url = `${API_BASE_URL}/api/upload/content`;
+      
+      try {
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        // Don't set Content-Type - browser will set it with boundary for FormData
+
+        // Create an AbortController for timeout (10 minutes for large uploads)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+          credentials: 'include',
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok && response.status === 0) {
+          throw new Error('Network error: Unable to connect to server');
+        }
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_RESPONSE',
+              message: response.statusText || 'Invalid response from server',
+              timestamp: new Date().toISOString(),
+            },
+          };
+        }
+
+        if (!response.ok) {
+          const errorData = data.error || {
+            code: data.code || 'UNKNOWN_ERROR',
+            message: data.message || response.statusText || 'An error occurred',
+            details: data.details,
+            timestamp: data.timestamp || new Date().toISOString(),
+          };
+          
+          return {
+            success: false,
+            error: errorData,
+          };
+        }
+
+        return {
+          success: true,
+          data: data.data !== undefined ? data.data : data,
+        };
+      } catch (error: any) {
+        let errorMessage = 'Failed to upload. ';
+        
+        if (error.name === 'AbortError') {
+          errorMessage = 'Upload timed out. The file may be too large or the server is taking too long to respond. Please try again with a smaller file.';
+        } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          errorMessage += 'Please ensure the backend server is running at ' + API_BASE_URL;
+        } else if (error.message?.includes('CORS')) {
+          errorMessage += 'CORS error. Please check server configuration.';
+        } else {
+          errorMessage += error.message || 'Please check your connection and ensure the server is running.';
+        }
+        
+        console.error('Upload Error:', {
+          url,
+          error: error.message,
+          stack: error.stack,
+        });
+        
+        return {
+          success: false,
+          error: {
+            code: 'NETWORK_ERROR',
+            message: errorMessage,
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+    },
   },
   analytics: {
     trackViewEvent: <T>(body: unknown) =>
@@ -392,11 +551,57 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    confirmPayment: <T>(tipId: string, data: { paymentIntentId: string; paymentMethodId?: string }) =>
+    confirmPayment: <T>(tipId: string, data: { paymentIntentId: string }) =>
       apiRequest<T>(`/api/tips/${tipId}/confirm-payment`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
+      }),
+  },
+  earnings: {
+    get: <T>(params?: { startDate?: string; endDate?: string; type?: 'tips' | 'subscriptions' | 'all' }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.startDate) searchParams.append('startDate', params.startDate);
+      if (params?.endDate) searchParams.append('endDate', params.endDate);
+      if (params?.type) searchParams.append('type', params.type);
+      const query = searchParams.toString();
+      return apiRequest<T>(`/api/earnings${query ? `?${query}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getStats: <T>() =>
+      apiRequest<T>('/api/earnings/stats', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  payouts: {
+    get: <T>() =>
+      apiRequest<T>('/api/payouts', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getBalance: <T>() =>
+      apiRequest<T>('/api/payouts/balance', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    request: <T>(data: {
+      accountNumber: string;
+      ifsc: string;
+      beneficiaryName: string;
+      amount?: number;
+    }) =>
+      apiRequest<T>('/api/payouts/request', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getById: <T>(payoutId: string) =>
+      apiRequest<T>(`/api/payouts/${payoutId}`, {
+        method: 'GET',
+        headers: getHeaders(),
       }),
   },
   privacy: {
@@ -613,6 +818,162 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
+      }),
+  },
+  live: {
+    getAll: <T>(params?: { status?: 'live' | 'upcoming' | 'all'; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/live${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/live/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: <T>(data: {
+      title: string;
+      description?: string;
+      category?: string;
+      tags?: string[];
+      scheduledFor?: string;
+      chatEnabled?: boolean;
+      isRecorded?: boolean;
+    }) =>
+      apiRequest<T>('/api/live', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: <T>(id: string, data: {
+      title?: string;
+      description?: string;
+      category?: string;
+      tags?: string[];
+      chatEnabled?: boolean;
+      isRecorded?: boolean;
+    }) =>
+      apiRequest<T>(`/api/live/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    start: <T>(id: string, data?: { playbackUrl?: string }) =>
+      apiRequest<T>(`/api/live/${id}/start`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data || {}),
+      }),
+    end: <T>(id: string, data?: { recordingUrl?: string }) =>
+      apiRequest<T>(`/api/live/${id}/end`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data || {}),
+      }),
+    addViewer: <T>(id: string) =>
+      apiRequest<T>(`/api/live/${id}/viewer`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    removeViewer: <T>(id: string) =>
+      apiRequest<T>(`/api/live/${id}/viewer`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    getChat: <T>(id: string, limit?: number) => {
+      const searchParams = new URLSearchParams();
+      if (limit) searchParams.append('limit', limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/live/${id}/chat${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    sendMessage: <T>(id: string, message: string) =>
+      apiRequest<T>(`/api/live/${id}/chat`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ message }),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/live/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+  },
+  plans: {
+    getAll: <T>() =>
+      apiRequest<T>('/api/plans', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/plans/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  subscriptions: {
+    create: <T>(data: { plan: string }) =>
+      apiRequest<T>('/api/subscriptions', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getAll: <T>() =>
+      apiRequest<T>('/api/subscriptions', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/subscriptions/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    cancel: <T>(id: string, data?: { cancelAtPeriodEnd?: boolean }) =>
+      apiRequest<T>(`/api/subscriptions/${id}/cancel`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data || { cancelAtPeriodEnd: false }),
+      }),
+  },
+  razorpay: {
+    createOrder: <T>(data: { amount: number; currency?: string; metadata?: Record<string, string> }) =>
+      apiRequest<T>('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    verifyPayment: <T>(data: { orderId: string; paymentId: string; signature: string }) =>
+      apiRequest<T>('/api/razorpay/verify-payment', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    createCheckout: <T>(data: { planId: string }) =>
+      apiRequest<T>('/api/razorpay/create-checkout', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    createSubscription: <T>(data: { planId: string }) =>
+      apiRequest<T>('/api/razorpay/create-subscription', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getSubscription: <T>(subscriptionId: string) =>
+      apiRequest<T>(`/api/razorpay/subscription/${subscriptionId}`, {
+        method: 'GET',
+        headers: getHeaders(),
       }),
   },
 };

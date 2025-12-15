@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { mockCategories } from '@/data/mockData';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ const libraryItems = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <>
@@ -80,30 +82,34 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
             <Separator className="bg-border/50" />
 
-            {/* Library */}
-            <div className="space-y-1">
-              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Your Library
-              </h3>
-              {libraryItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                    location.pathname === item.path
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              ))}
-            </div>
+            {/* Library - Only show when logged in */}
+            {user && (
+              <>
+                <div className="space-y-1">
+                  <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Your Library
+                  </h3>
+                  {libraryItems.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={onClose}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                        location.pathname === item.path
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
 
-            <Separator className="bg-border/50" />
+                <Separator className="bg-border/50" />
+              </>
+            )}
 
             {/* Categories */}
             <div className="space-y-1">
