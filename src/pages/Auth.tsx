@@ -206,16 +206,16 @@ const Auth = () => {
       <Helmet>
         <title>{mode === "signin" ? "Sign In" : "Sign Up"} - Dreamlust</title>
       </Helmet>
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
+      <main className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
             {/* Header */}
-            <div className="text-center mb-8">
+            <header className="text-center mb-8">
               <h1 className="text-3xl font-bold mb-2">Welcome</h1>
               <p className="text-gray-600 dark:text-gray-400">
                 Sign in to your account or create a new one
               </p>
-            </div>
+            </header>
 
             {/* Backend Connection Warning - Only show if explicitly failed (not on initial load) */}
             {backendConnected === false && (
@@ -255,7 +255,7 @@ const Auth = () => {
                 }}
                 className={`flex-1 py-3 text-center font-medium transition-colors ${
                   mode === "signin"
-                    ? "text-primary border-b-2 border-primary"
+                    ? "text-primary-foreground bg-primary border-b-2 border-primary-foreground"
                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 }`}
               >
@@ -269,7 +269,7 @@ const Auth = () => {
                 }}
                 className={`flex-1 py-3 text-center font-medium transition-colors ${
                   mode === "signup"
-                    ? "text-primary border-b-2 border-primary"
+                    ? "text-primary-foreground bg-primary border-b-2 border-primary-foreground"
                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 }`}
               >
@@ -316,6 +316,7 @@ const Auth = () => {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -407,6 +408,7 @@ const Auth = () => {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -443,7 +445,7 @@ const Auth = () => {
             )}
           </div>
         </div>
-      </div>
+      </main>
     </>
   );
 };
