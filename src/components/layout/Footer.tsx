@@ -69,7 +69,7 @@ export function Footer() {
 
           {/* Explore */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Explore</h4>
+            <h2 className="font-display font-semibold mb-4 text-base">Explore</h2>
             <ul className="space-y-2">
               {footerLinks.explore.map((link) => (
                 <li key={link.href}>
@@ -86,7 +86,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Support</h4>
+            <h2 className="font-display font-semibold mb-4 text-base">Support</h2>
             <ul className="space-y-2">
               {footerLinks.support.map((link) => (
                 <li key={link.href}>
@@ -103,7 +103,7 @@ export function Footer() {
 
           {/* Legal */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Legal</h4>
+            <h2 className="font-display font-semibold mb-4 text-base">Legal</h2>
             <ul className="space-y-2">
               {footerLinks.legal.map((link) => (
                 <li key={link.href}>
@@ -120,7 +120,7 @@ export function Footer() {
 
           {/* Creators */}
           <div>
-            <h4 className="font-display font-semibold mb-4">Creators</h4>
+            <h2 className="font-display font-semibold mb-4 text-base">Creators</h2>
             <ul className="space-y-2">
               {footerLinks.creators.map((link) => (
                 <li key={link.href}>
