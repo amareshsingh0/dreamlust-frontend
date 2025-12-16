@@ -6,11 +6,10 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi, expect } from 'vitest';
-import { toHaveNoViolations } from 'vitest-axe';
 import React from 'react';
 
-// Extend Vitest matchers with a11y assertions
-expect.extend(toHaveNoViolations);
+// Note: vitest-axe doesn't export toHaveNoViolations directly
+// It's handled in src/test/a11y.tsx instead
 
 // Cleanup after each test
 afterEach(() => {
