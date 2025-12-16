@@ -97,8 +97,8 @@
     --popover-foreground: 210 40% 98%;
 
     /* Keep project colors - Primary and Accent */
-    /* Adjusted primary lightness from 55% to 50% for better contrast (WCAG AA 4.5:1) */
-    --primary: 340 82% 50%;
+    /* Adjusted primary lightness from 55% to 47% for better contrast (WCAG AA 4.5:1) */
+    --primary: 340 82% 47%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
