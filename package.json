@@ -20,9 +20,11 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
+    "lhci": "lhci autorun",
     "lighthouse": "lhci autorun",
     "lighthouse:local": "lhci autorun --collect.startServerCommand='bun run preview'",
-    "lighthouse:ci": "lhci autorun"
+    "lighthouse:ci": "lhci autorun",
+    "lighthouse:build": "bun run build && bun run lhci"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.952.0",
@@ -95,6 +97,7 @@
   "devDependencies": {
     "@axe-core/react": "^4.11.0",
     "@eslint/js": "^9.32.0",
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.1",
