@@ -30,7 +30,7 @@ export function TrendingCreators() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="h-14 w-14 border-2 border-primary/50 group-hover:border-primary transition-colors">
-                  <AvatarImage src={creator.avatar} />
+                  <AvatarImage src={creator.avatar} alt={`${creator.name} avatar`} />
                   <AvatarFallback>{creator.name[0]}</AvatarFallback>
                 </Avatar>
                 {creator.isVerified && (

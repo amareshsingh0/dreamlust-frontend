@@ -187,7 +187,7 @@ export default function CreatorProfile() {
               <div className="flex items-start gap-4 mb-6">
                 <div className="relative">
                   <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-xl">
-                    <AvatarImage src={creator.avatar} />
+                    <AvatarImage src={creator.avatar} alt={`${creator.name} avatar`} />
                     <AvatarFallback className="text-2xl md:text-4xl">{creator.name[0]}</AvatarFallback>
                   </Avatar>
                   {creator.isVerified && (
