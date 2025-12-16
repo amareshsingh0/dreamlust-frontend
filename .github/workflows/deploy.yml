@@ -36,7 +36,6 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       
@@ -68,13 +67,19 @@ jobs:
       #   with:
       #     railway_token: ${{ secrets.RAILWAY_TOKEN }}
       #     service: backend
+      
+      - name: Deployment placeholder
+        run: |
+          echo "⚠️ Legacy deployment workflow - no deployment configured"
+          echo "Please use cd.yml for deployments or configure deployment steps here"
+          exit 0
+        continue-on-error: true
 
   # Deploy frontend
   deploy-frontend:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       
@@ -105,4 +110,11 @@ jobs:
       #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
       #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
       #     working-directory: ./frontend
+      
+      - name: Deployment placeholder
+        run: |
+          echo "⚠️ Legacy deployment workflow - no deployment configured"
+          echo "Please use cd.yml for deployments or configure deployment steps here"
+          exit 0
+        continue-on-error: true
 
