@@ -31,6 +31,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
+  /* Ensure browsers are installed before running tests */
+  globalSetup: process.env.CI ? undefined : undefined,
+
   /* Configure projects for major browsers */
   projects: [
     {
@@ -60,10 +63,17 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
+  webServer: process.env.CI ? {
+    command: 'bun run build && bun run preview --port 4173 --host',
+    url: 'http://localhost:4173',
+    reuseExistingServer: false,
+    timeout: 120 * 1000,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  } : {
     command: 'bun run dev',
     url: 'http://localhost:4001',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 });
