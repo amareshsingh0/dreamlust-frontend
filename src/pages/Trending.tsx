@@ -88,7 +88,7 @@ export default function Trending() {
                       <div className="flex flex-col items-center text-center">
                         <div className="relative mb-4">
                           <Avatar className="h-20 w-20 border-2 border-primary/50 group-hover:border-primary transition-colors">
-                            <AvatarImage src={creator.avatar} />
+                            <AvatarImage src={creator.avatar} alt={`${creator.name} avatar`} />
                             <AvatarFallback>{creator.name[0]}</AvatarFallback>
                           </Avatar>
                           {creator.isVerified && (

@@ -138,7 +138,7 @@ const Following = () => {
                     <CardHeader>
                       <div className="flex items-center gap-4">
                         <Avatar className="h-16 w-16">
-                          <AvatarImage src={creator.avatar} />
+                          <AvatarImage src={creator.avatar} alt={creator.displayName || creator.handle ? `${creator.displayName || creator.handle} avatar` : 'Creator avatar'} />
                           <AvatarFallback>{creator.displayName?.[0] || creator.handle?.[0] || 'C'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
