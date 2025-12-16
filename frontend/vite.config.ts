@@ -11,12 +11,27 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    // Exclude Playwright e2e tests - they should only run with Playwright
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/tests/e2e/**', // Exclude Playwright e2e tests
+      '**/*.e2e.{ts,tsx}',
+      '**/playwright.config.ts',
+    ],
+    include: [
+      '**/*.{test,spec}.{ts,tsx}',
+      '**/__tests__/**/*.{ts,tsx}',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
         'src/test/',
+        'tests/e2e/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/mockData',

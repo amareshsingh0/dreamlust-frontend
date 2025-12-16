@@ -33,6 +33,7 @@ describe('Button Accessibility', () => {
     
     const button = screen.getByRole('button', { name: 'Disabled Button' });
     expect(button).toBeDisabled();
+    // aria-disabled is set when disabled prop is true
     expect(button).toHaveAttribute('aria-disabled', 'true');
   });
 
