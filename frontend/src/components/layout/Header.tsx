@@ -119,6 +119,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
             size="icon"
             className="lg:hidden"
             onClick={onMenuToggle}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -156,6 +157,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
                 size="icon"
                 className="absolute right-1 top-1/2 -translate-y-1/2 md:hidden"
                 onClick={() => setShowSearch(false)}
+                aria-label="Close search"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -212,7 +214,11 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
           {isAuthenticated ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+              <Button 
+                variant="ghost" 
+                className="relative h-9 w-9 rounded-full"
+                aria-label="User menu"
+              >
                 <Avatar className="h-9 w-9 border-2 border-primary/50">
                     <AvatarImage src={user?.avatar} />
                     <AvatarFallback>{user?.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
