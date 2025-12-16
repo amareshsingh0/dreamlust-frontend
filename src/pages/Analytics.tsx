@@ -85,7 +85,7 @@ const Analytics = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-primary">${(Math.random() * 1000).toFixed(0)}</p>
+                        <p className="font-medium text-primary-foreground bg-primary px-2 py-1 rounded">${(Math.random() * 1000).toFixed(0)}</p>
                         <p className="text-xs text-muted-foreground">earned</p>
                       </div>
                     </div>
