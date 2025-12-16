@@ -3,8 +3,45 @@
  * Provides helpers for automated a11y testing with axe-core
  */
 
-import { axe, toHaveNoViolations } from 'vitest-axe';
 import { expect } from 'vitest';
+import { axe } from 'vitest-axe';
+
+// Create custom matcher for a11y violations
+const toHaveNoViolations = {
+  toHaveNoViolations(received: any) {
+    const { pass, message } = this.utils.matcherHint(
+      '.toHaveNoViolations',
+      'received',
+      ''
+    );
+
+    if (!received || !received.violations) {
+      return {
+        pass: false,
+        message: () => `${message}\n\nExpected: accessibility audit results\nReceived: ${received}`,
+      };
+    }
+
+    if (received.violations.length === 0) {
+      return {
+        pass: true,
+        message: () => 'Expected accessibility violations, but found none.',
+      };
+    }
+
+    const violations = received.violations
+      .map((violation: any) => {
+        const nodes = violation.nodes.map((node: any) => `  - ${node.html}`).join('\n');
+        return `  ${violation.id}: ${violation.description}\n${nodes}`;
+      })
+      .join('\n\n');
+
+    return {
+      pass: false,
+      message: () => `${message}\n\nFound ${received.violations.length} accessibility violation(s):\n\n${violations}`,
+    };
+  },
+};
 
 // Extend Vitest matchers
 expect.extend(toHaveNoViolations);
@@ -17,7 +54,15 @@ expect.extend(toHaveNoViolations);
  */
 export async function checkA11y(container: HTMLElement, options?: any) {
   const results = await axe(container, options);
-  expect(results).toHaveNoViolations();
+  if (results.violations && results.violations.length > 0) {
+    const violations = results.violations
+      .map((violation: any) => {
+        const nodes = violation.nodes.map((node: any) => `  - ${node.html}`).join('\n');
+        return `  ${violation.id}: ${violation.description}\n${nodes}`;
+      })
+      .join('\n\n');
+    throw new Error(`Found ${results.violations.length} accessibility violation(s):\n\n${violations}`);
+  }
   return results;
 }
 
@@ -31,6 +76,6 @@ export async function checkA11y(container: HTMLElement, options?: any) {
  * });
  * ```
  */
-export { axe, toHaveNoViolations };
+export { axe };
 
 
