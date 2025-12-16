@@ -1,330 +1,281 @@
-# Performance & Scale Optimization
+# Performance Optimization Guide
 
-This document describes the performance optimizations implemented in the Dreamlust platform.
+Based on Chrome DevTools Performance analysis, here are the identified issues and optimization strategies.
 
-## ✅ Implementation Status
+## 🔴 Critical Performance Issues Identified
 
-All performance features are **fully implemented**.
+### 1. **Unattributed Main Thread Time: 1,426 ms**
+**Issue:** Significant time spent in unattributed code (likely third-party scripts or unoptimized code)
 
----
+**Solutions:**
+- Code splitting and lazy loading
+- Defer non-critical third-party scripts
+- Optimize bundle size
+- Use Web Workers for heavy computations
 
-## 1. Code Splitting & Lazy Loading
+### 2. **Large DOM Size**
+**Issue:** "Optimize DOM size" suggestion from DevTools
 
-### Route-Based Code Splitting
+**Solutions:**
+- Virtualize long lists (already implemented with `VirtualizedContentGrid`)
+- Limit initial content rendering
+- Use pagination instead of infinite scroll for very long lists
+- Remove hidden/unused DOM elements
 
-All routes are lazy-loaded using React's `lazy()` and `Suspense`:
+### 3. **Third-Party Scripts**
+**Issue:** Razorpay checkout frame and other third-party scripts blocking main thread
 
+**Solutions:**
+- Load Razorpay script only when needed (on payment page)
+- Use `defer` or `async` attributes for third-party scripts
+- Implement script loading on demand
+- Consider using iframe for third-party widgets
+
+### 4. **Rendering Time: 707 ms**
+**Issue:** High rendering time indicates layout thrashing or excessive repaints
+
+**Solutions:**
+- Use CSS `will-change` for animated elements
+- Optimize CSS selectors
+- Reduce forced reflows
+- Use `transform` and `opacity` for animations (GPU accelerated)
+
+### 5. **Scripting Time: 661 ms**
+**Issue:** JavaScript execution blocking main thread
+
+**Solutions:**
+- Code splitting and lazy loading
+- Defer non-critical JavaScript
+- Use Web Workers for heavy computations
+- Optimize React re-renders with `React.memo`, `useMemo`, `useCallback`
+
+## ✅ Already Implemented Optimizations
+
+1. **Code Splitting:**
+   - React lazy loading for routes
+   - Manual chunks in Vite config
+   - Dynamic imports
+
+2. **Image Optimization:**
+   - `OptimizedImage` component with lazy loading
+   - Blur placeholders
+   - Responsive images
+
+3. **Virtualization:**
+   - `VirtualizedContentGrid` for long lists
+   - `VirtualizedContentList` for list views
+
+4. **Bundle Optimization:**
+   - Manual chunk splitting (react-vendor, ui-vendor, etc.)
+   - Tree shaking enabled
+
+## 🚀 Recommended Optimizations
+
+### 1. **Lazy Load Third-Party Scripts**
+
+**Razorpay Script:**
 ```typescript
-// Eagerly loaded (above the fold)
-import Index from "./pages/Index";
-
-// Lazy loaded (code splitting)
-const Watch = lazy(() => import("./pages/Watch"));
-const CreatorProfile = lazy(() => import("./pages/CreatorProfile"));
-// ... all other routes
+// Load Razorpay only when needed
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(window.Razorpay);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(window.Razorpay);
+    document.head.appendChild(script);
+  });
+};
 ```
 
-**Benefits:**
-- Reduced initial bundle size
-- Faster page load times
-- Better Core Web Vitals scores
-- Improved user experience
+### 2. **Optimize React Re-renders**
 
-### Component-Based Lazy Loading
-
-Heavy components are lazy-loaded:
-
+**Use React.memo for expensive components:**
 ```typescript
-// CommentSection - lazy loaded in Watch page
-const CommentSection = lazy(() => 
-  import('@/components/comments/CommentSection').then(module => ({ 
-    default: module.CommentSection 
-  }))
-);
-
-// VideoPlayer - lazy loaded when needed
-const VideoPlayer = lazy(() => import('@/components/video/VideoPlayer'));
+export const ContentCard = React.memo(({ content, ...props }) => {
+  // Component code
+});
 ```
 
-### Vite Manual Chunks
-
-Configured in `vite.config.ts` for optimal bundle splitting:
-
+**Use useMemo and useCallback:**
 ```typescript
-manualChunks: {
-  'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-  'ui-vendor': ['@radix-ui/...'],
-  'video': ['./src/components/video/VideoPlayer'],
-  'comments': ['./src/components/comments/CommentSection'],
-  'admin': ['./src/pages/admin/ModerationDashboard'],
-}
+const memoizedValue = useMemo(() => expensiveComputation(), [deps]);
+const memoizedCallback = useCallback(() => handleClick(), [deps]);
 ```
 
----
+### 3. **Reduce Initial Bundle Size**
 
-## 2. Image Optimization
-
-### OptimizedImage Component
-
-Created `OptimizedImage` component with:
-
-✅ **Lazy Loading**: Images load only when in viewport  
-✅ **Blur Placeholders**: Smooth loading experience  
-✅ **Error Handling**: Fallback images on error  
-✅ **Responsive Sizing**: Automatic width/height handling  
-✅ **Priority Loading**: Above-the-fold images load eagerly  
-
-**Usage:**
-```typescript
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
-
-<OptimizedImage
-  src={thumbnail}
-  alt={title}
-  width={320}
-  height={180}
-  blurDataURL={createSimpleBlurPlaceholder()}
-  priority={false} // true for above-the-fold
-  objectFit="cover"
-/>
-```
-
-### Blur Placeholder Generation
-
-**Frontend** (`frontend/src/lib/imageUtils.ts`):
-- `generateBlurPlaceholder()` - Creates blur from image URL
-- `createSimpleBlurPlaceholder()` - Simple SVG placeholder
-- `getOptimizedImageUrl()` - CDN optimization (ready for integration)
-
-**Backend** (`backend/src/lib/imageProcessing.ts`):
-- `generateBlurPlaceholder()` - Server-side blur generation using Sharp
-- `generateThumbnails()` - Multiple thumbnail sizes
-- `processContentThumbnail()` - Process on upload
-
-### Integration Points
-
-✅ **ContentCard** - Uses `OptimizedImage`  
-✅ **HeroSection** - Uses `OptimizedImage` with priority  
-✅ **All image displays** - Ready for optimization  
-
----
-
-## 3. Video Optimization
-
-### VideoPlayer Component
-
-Created optimized video player with:
-
-✅ **Lazy Library Loading**: Video player library loads on demand  
-✅ **HLS Support**: Adaptive streaming with multiple quality levels  
-✅ **CDN Preconnect**: Faster video loading  
-✅ **Poster Images**: Thumbnail before play  
-✅ **Lazy Video Loading**: Video loads only when user clicks play  
-
-**Features:**
-- HLS adaptive streaming
-- Multiple quality options
-- Preview sprites support
-- Fullscreen support
-- Custom controls
-
-### Video Utilities
-
-**`frontend/src/lib/videoUtils.ts`**:
-- `getVideoThumbnail()` - Extract frame at time
-- `getHLSManifestUrl()` - Convert to HLS format
-- `getVideoQualityOptions()` - Quality selection
-- `preconnectVideoCDN()` - CDN optimization
-- `loadVideoPlayerLibrary()` - Lazy load player
-- `getPreviewSpriteUrl()` - Thumbnail grid for scrubbing
-- `supportsHLS()` - Browser capability check
-
-### CDN Preconnect
-
-Added to `index.html`:
-```html
-<link rel="dns-prefetch" href="//cdn.example.com" />
-<link rel="preconnect" href="https://your-video-cdn.com" crossorigin />
-```
-
----
-
-## 4. Performance Metrics
-
-### Bundle Size Optimization
-
-- **Before**: All code in single bundle
-- **After**: Split into multiple chunks
-  - React vendor: ~150KB
-  - UI vendor: ~100KB
-  - Feature chunks: ~50-100KB each
-  - Route chunks: ~20-50KB each
-
-### Loading Strategy
-
-1. **Initial Load**: Only critical code (Index page, Layout)
-2. **Route Navigation**: Load route chunk on demand
-3. **Component Interaction**: Load heavy components when needed
-4. **Images**: Lazy load with blur placeholders
-5. **Videos**: Load only when user clicks play
-
----
-
-## 5. Implementation Details
-
-### Skeleton Loaders
-
-Created skeleton components for better UX:
-- `CommentSectionSkeleton` - For comment loading
-- `VideoPlayerSkeleton` - For video loading
-- `PageSkeleton` - Generic page skeleton
-
-### Error Boundaries
-
-Consider adding error boundaries for lazy-loaded components:
-
-```typescript
-<ErrorBoundary fallback={<ErrorPage />}>
-  <Suspense fallback={<PageSkeleton />}>
-    <LazyComponent />
-  </Suspense>
-</ErrorBoundary>
-```
-
-### Image CDN Integration
-
-To integrate with image CDN (Cloudinary, Imgix, etc.):
-
-1. Update `getOptimizedImageUrl()` in `imageUtils.ts`
-2. Configure CDN base URL in environment variables
-3. Use CDN URLs in `OptimizedImage` component
-
-**Example (Cloudinary):**
-```typescript
-export function getOptimizedImageUrl(originalUrl: string, options) {
-  const cloudinaryUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload`;
-  return `${cloudinaryUrl}/w_${width},h_${height},q_${quality},f_${format}/${originalUrl}`;
-}
-```
-
-### Video CDN Integration
-
-To integrate with video CDN (Mux, Cloudinary, etc.):
-
-1. Update `getHLSManifestUrl()` in `videoUtils.ts`
-2. Configure CDN base URL
-3. Use CDN URLs in `VideoPlayer` component
-
-**Example (Mux):**
-```typescript
-export function getHLSManifestUrl(videoUrl: string): string {
-  const muxPlaybackId = extractPlaybackId(videoUrl);
-  return `https://stream.mux.com/${muxPlaybackId}.m3u8`;
-}
-```
-
----
-
-## 6. Best Practices
-
-### Image Optimization
-
-1. **Use WebP format** when possible (better compression)
-2. **Generate multiple sizes** (responsive images)
-3. **Lazy load below-the-fold** images
-4. **Use blur placeholders** for smooth loading
-5. **Optimize on upload** (backend processing)
-
-### Video Optimization
-
-1. **Use HLS/DASH** for adaptive streaming
-2. **Generate thumbnails** on upload
-3. **Lazy load player** until user clicks
-4. **Preconnect to CDN** for faster loading
-5. **Use poster images** for better UX
-
-### Code Splitting
-
-1. **Lazy load routes** (except home page)
-2. **Lazy load heavy components** (video player, charts, etc.)
-3. **Split vendor code** (React, UI libraries)
-4. **Monitor bundle sizes** (keep chunks < 200KB)
-5. **Use dynamic imports** for conditional features
-
----
-
-## 7. Performance Monitoring
-
-### Metrics to Track
-
-- **First Contentful Paint (FCP)**: < 1.8s
-- **Largest Contentful Paint (LCP)**: < 2.5s
-- **Time to Interactive (TTI)**: < 3.8s
-- **Total Blocking Time (TBT)**: < 200ms
-- **Cumulative Layout Shift (CLS)**: < 0.1
-
-### Tools
-
-- **Lighthouse**: Chrome DevTools
-- **WebPageTest**: Real-world testing
-- **Bundle Analyzer**: `vite-bundle-visualizer`
-- **React DevTools Profiler**: Component performance
-
----
-
-## 8. Production Deployment
-
-### Build Optimization
-
+**Check current bundle size:**
 ```bash
-# Production build with optimizations
-npm run build
-
-# Analyze bundle size
-npx vite-bundle-visualizer
+bun run build
+# Check dist/assets/ folder sizes
 ```
 
-### CDN Configuration
+**Optimize imports:**
+- Use named imports instead of default imports where possible
+- Remove unused dependencies
+- Use dynamic imports for heavy libraries
 
-1. **Image CDN**: Configure in `imageUtils.ts`
-2. **Video CDN**: Configure in `videoUtils.ts`
-3. **Static Assets**: Serve from CDN
-4. **Environment Variables**: Set CDN URLs
+### 4. **Optimize Images**
 
-### Caching Strategy
+**Already using OptimizedImage, but ensure:**
+- All images have proper `width` and `height` attributes
+- Use WebP format where supported
+- Implement responsive images with `srcset`
 
-- **Static Assets**: Long-term caching (1 year)
-- **HTML**: Short-term caching (1 hour)
-- **API Responses**: Appropriate cache headers
-- **Images**: CDN caching with versioning
+### 5. **Defer Non-Critical CSS**
 
----
+**Move non-critical CSS to separate file:**
+```html
+<link rel="preload" href="/critical.css" as="style">
+<link rel="stylesheet" href="/critical.css">
+<link rel="stylesheet" href="/non-critical.css" media="print" onload="this.media='all'">
+```
 
-## 9. Future Enhancements
+### 6. **Implement Service Worker for Caching**
 
-### Advanced Optimizations
+**Already have `sw.js`, ensure it's:**
+- Caching static assets
+- Caching API responses (with appropriate strategy)
+- Implementing offline fallbacks
 
-1. **Service Worker**: Offline support and caching
-2. **Image CDN**: Cloudinary/Imgix integration
-3. **Video CDN**: Mux/Cloudinary integration
-4. **HTTP/2 Server Push**: Preload critical resources
-5. **Resource Hints**: Prefetch, preload, prerender
-6. **Web Workers**: Heavy computations off main thread
-7. **Virtual Scrolling**: For long lists
-8. **Intersection Observer**: Advanced lazy loading
+### 7. **Optimize Font Loading**
 
----
+**Use font-display: swap:**
+```css
+@font-face {
+  font-family: 'Space Grotesk';
+  font-display: swap;
+  /* ... */
+}
+```
 
-## Summary
+**Preload critical fonts:**
+```html
+<link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+```
 
-✅ **Code Splitting**: All routes and heavy components lazy-loaded  
-✅ **Image Optimization**: OptimizedImage component with blur placeholders  
-✅ **Video Optimization**: Lazy-loaded player with HLS support  
-✅ **CDN Preconnect**: DNS prefetch and preconnect links  
-✅ **Bundle Optimization**: Manual chunks for optimal splitting  
-✅ **Skeleton Loaders**: Better loading UX  
-✅ **Performance Utilities**: Image and video processing helpers  
+### 8. **Reduce Main Thread Blocking**
 
-All performance optimizations are production-ready and will significantly improve page load times and user experience!
+**Use requestIdleCallback for non-critical work:**
+```typescript
+if ('requestIdleCallback' in window) {
+  requestIdleCallback(() => {
+    // Non-critical initialization
+  });
+}
+```
 
+**Debounce/throttle event handlers:**
+```typescript
+import { debounce, throttle } from 'lodash-es';
+
+const handleScroll = throttle(() => {
+  // Scroll handler
+}, 100);
+```
+
+### 9. **Optimize State Management**
+
+**Avoid unnecessary re-renders:**
+- Split large contexts into smaller ones
+- Use Zustand or Jotai for better performance (if needed)
+- Memoize context values
+
+### 10. **Implement Resource Hints**
+
+**Add to index.html:**
+```html
+<!-- Preconnect to external domains -->
+<link rel="preconnect" href="https://api.razorpay.com">
+<link rel="dns-prefetch" href="https://api.razorpay.com">
+
+<!-- Prefetch critical resources -->
+<link rel="prefetch" href="/api/content/trending">
+```
+
+## 📊 Performance Targets
+
+### Core Web Vitals Goals:
+- **LCP (Largest Contentful Paint):** < 2.5s
+- **FID/INP (Interaction to Next Paint):** < 100ms
+- **CLS (Cumulative Layout Shift):** < 0.1
+
+### Lighthouse Scores:
+- **Performance:** 90+
+- **Accessibility:** 95+
+- **Best Practices:** 90+
+- **SEO:** 90+
+
+## 🔧 Quick Wins
+
+1. **Enable Compression:**
+   - Gzip/Brotli compression on server
+   - Already configured in Vite build
+
+2. **CDN for Static Assets:**
+   - Serve images, fonts, and static files from CDN
+   - Configure in `S3_CDN_URL` or `R2_PUBLIC_URL`
+
+3. **Remove Unused Code:**
+   ```bash
+   # Check for unused exports
+   bunx depcheck
+   ```
+
+4. **Optimize Bundle:**
+   ```bash
+   bun run build
+   # Analyze bundle with:
+   bunx vite-bundle-visualizer
+   ```
+
+5. **Minimize Re-renders:**
+   - Add React DevTools Profiler
+   - Identify components re-rendering unnecessarily
+   - Apply React.memo, useMemo, useCallback
+
+## 📝 Monitoring
+
+### Performance Monitoring Tools:
+1. **Lighthouse CI** - Automated performance testing
+2. **Chrome DevTools Performance** - Manual profiling
+3. **Web Vitals** - Real user monitoring
+4. **Datadog RUM** - APM and performance tracking (when configured)
+
+### Metrics to Track:
+- Time to First Byte (TTFB)
+- First Contentful Paint (FCP)
+- Largest Contentful Paint (LCP)
+- Time to Interactive (TTI)
+- Total Blocking Time (TBT)
+- Cumulative Layout Shift (CLS)
+
+## 🎯 Priority Actions
+
+### High Priority (Do First):
+1. ✅ Lazy load Razorpay script
+2. ✅ Optimize React re-renders with memoization
+3. ✅ Reduce initial bundle size
+4. ✅ Implement resource hints
+
+### Medium Priority:
+5. Defer non-critical CSS
+6. Optimize font loading
+7. Implement service worker caching strategy
+8. Use Web Workers for heavy computations
+
+### Low Priority:
+9. Implement requestIdleCallback for non-critical work
+10. Optimize state management structure
+11. Add performance monitoring
+
+## 📚 Resources
+
+- [Web.dev Performance](https://web.dev/performance/)
+- [React Performance Optimization](https://react.dev/learn/render-and-commit)
+- [Vite Performance Guide](https://vitejs.dev/guide/performance.html)
+- [Chrome DevTools Performance](https://developer.chrome.com/docs/devtools/performance/)

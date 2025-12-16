@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -35,7 +35,7 @@ function formatDate(dateString: string): string {
   return `${Math.floor(diffDays / 30)} months ago`;
 }
 
-export function ContentCard({ content, variant = 'default', className }: ContentCardProps) {
+export const ContentCard = React.memo(function ContentCard({ content, variant = 'default', className }: ContentCardProps) {
   const isLive = content.type === 'live' || content.isLive;
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -255,4 +255,12 @@ export function ContentCard({ content, variant = 'default', className }: Content
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for React.memo
+  return (
+    prevProps.content.id === nextProps.content.id &&
+    prevProps.content.likes === nextProps.content.likes &&
+    prevProps.variant === nextProps.variant &&
+    prevProps.className === nextProps.className
+  );
+});

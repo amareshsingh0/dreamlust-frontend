@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Sparkles, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
 import { mockContent } from '@/data/mockData';
 
-export function HeroSection() {
+export const HeroSection = React.memo(function HeroSection() {
   const featuredContent = mockContent[0];
 
   return (

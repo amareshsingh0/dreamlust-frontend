@@ -22,9 +22,9 @@
     <link rel="dns-prefetch" href="//cdn.example.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Razorpay Payment Gateway -->
-    <link rel="preconnect" href="https://checkout.razorpay.com" crossorigin />
-    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+    <!-- Razorpay Payment Gateway - Loaded on demand, not on every page -->
+    <!-- Preconnect only, script loaded dynamically when needed -->
+    <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
     <!-- Add your video CDN URL here when configured -->
     <!-- <link rel="dns-prefetch" href="//your-video-cdn.com" /> -->
     <!-- <link rel="preconnect" href="https://your-video-cdn.com" crossorigin /> -->
