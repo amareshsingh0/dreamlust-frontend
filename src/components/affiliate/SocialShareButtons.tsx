@@ -51,7 +51,7 @@ export function SocialShareButtons({ affiliateLink, affiliateCode }: SocialShare
 
   return (
     <div className="space-y-3">
-      <h4 className="text-sm font-medium">Share Your Link</h4>
+      <h2 className="text-sm font-medium">Share Your Link</h2>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
