@@ -30,6 +30,9 @@ logs/
 # Local env files
 .env
 .env*.local
+.env.temp
+*.env.temp
+.env.*.temp
 
 # Prisma
 node_modules/.prisma
