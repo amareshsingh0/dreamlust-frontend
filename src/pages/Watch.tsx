@@ -387,7 +387,7 @@ export default function Watch() {
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-4">
               {/* Video Player */}
-              <div className="relative aspect-video bg-black rounded-xl overflow-hidden group">
+              <div className="relative aspect-video bg-black rounded-xl overflow-hidden group" data-testid="video-player">
                 <img 
                   src={content.thumbnail} 
                   alt={content.title}
@@ -523,6 +523,7 @@ export default function Watch() {
                       size="sm"
                       className="gap-2"
                       onClick={handleLike}
+                      data-testid="like-button"
                     >
                       <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
                       {(content.likes + (isLiked ? 1 : 0)).toLocaleString()}

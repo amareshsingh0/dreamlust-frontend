@@ -210,15 +210,46 @@ export function FilterPanel({
 
         {/* Duration */}
         <FilterSection title="Duration">
-          <DualRangeSlider
-            min={0}
-            max={120}
-            value={filters.duration ? [filters.duration.min, filters.duration.max] : [0, 120]}
-            onChange={([min, max]) => {
-              updateFilter('duration', { min, max });
-            }}
-            unit="min"
-          />
+          <div className="space-y-2">
+            <DualRangeSlider
+              min={0}
+              max={120}
+              value={filters.duration ? [filters.duration.min, filters.duration.max] : [0, 120]}
+              onChange={([min, max]) => {
+                updateFilter('duration', { min, max });
+              }}
+              unit="min"
+            />
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={filters.duration && filters.duration.max <= 10 ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateFilter('duration', { min: 0, max: 10 })}
+                data-testid="filter-duration-short"
+                className="text-xs"
+              >
+                Short (&lt;10min)
+              </Button>
+              <Button
+                variant={filters.duration && filters.duration.min >= 10 && filters.duration.max <= 30 ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateFilter('duration', { min: 10, max: 30 })}
+                data-testid="filter-duration-medium"
+                className="text-xs"
+              >
+                Medium (10-30min)
+              </Button>
+              <Button
+                variant={filters.duration && filters.duration.min >= 30 ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => updateFilter('duration', { min: 30, max: 120 })}
+                data-testid="filter-duration-long"
+                className="text-xs"
+              >
+                Long (&gt;30min)
+              </Button>
+            </div>
+          </div>
         </FilterSection>
 
         <Separator />

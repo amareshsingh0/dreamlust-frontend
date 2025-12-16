@@ -665,25 +665,6 @@ export const api = {
         headers: getHeaders(),
       }),
   },
-  earnings: {
-    get: <T>(params?: { startDate?: string; endDate?: string; type?: 'tips' | 'subscriptions' | 'all' }) => {
-      const searchParams = new URLSearchParams();
-      if (params?.startDate) searchParams.append('startDate', params.startDate);
-      if (params?.endDate) searchParams.append('endDate', params.endDate);
-      if (params?.type) searchParams.append('type', params.type);
-      const queryString = searchParams.toString();
-      const url = `/api/earnings${queryString ? `?${queryString}` : ''}`;
-      return apiRequest<T>(url, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
-    },
-    getStats: <T>() =>
-      apiRequest<T>('/api/earnings/stats', {
-        method: 'GET',
-        headers: getHeaders(),
-      }),
-  },
   moderation: {
     createReport: <T>(data: {
       contentType: 'content' | 'comment' | 'creator';
@@ -974,6 +955,402 @@ export const api = {
       apiRequest<T>(`/api/razorpay/subscription/${subscriptionId}`, {
         method: 'GET',
         headers: getHeaders(),
+      }),
+  },
+  giftcards: {
+    purchase: <T>(data: {
+      amount: number;
+      currency?: string;
+      recipientEmail?: string;
+      personalMessage?: string;
+      sendDate?: string;
+      expiresInDays?: number;
+    }) =>
+      apiRequest<T>('/api/giftcards/purchase', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    redeem: <T>(data: { code: string }) =>
+      apiRequest<T>('/api/giftcards/redeem', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getMyPurchases: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/giftcards/my-purchases${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getMyRedemptions: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/giftcards/my-redemptions${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getByCode: <T>(code: string) =>
+      apiRequest<T>(`/api/giftcards/${code}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  loyalty: {
+    getStatus: <T>() =>
+      apiRequest<T>('/api/loyalty/status', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    earnPoints: <T>(data: { points: number; reason: string; metadata?: any }) =>
+      apiRequest<T>('/api/loyalty/earn', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getTransactions: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/loyalty/transactions${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getRewards: <T>(params?: { category?: string; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.category) searchParams.append('category', params.category);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/loyalty/rewards${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    redeemReward: <T>(data: { rewardId: string }) =>
+      apiRequest<T>('/api/loyalty/redeem', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getReward: <T>(id: string) =>
+      apiRequest<T>(`/api/loyalty/rewards/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    claimDailyLogin: <T>() =>
+      apiRequest<T>('/api/loyalty/daily-login', {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+  },
+  creatorAnalytics: {
+    getOverview: <T>(params?: { timeRange?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.timeRange) searchParams.append('timeRange', params.timeRange);
+      const query = searchParams.toString();
+      const url = `/api/creator-analytics/overview${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getViewsOverTime: <T>(params?: { timeRange?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.timeRange) searchParams.append('timeRange', params.timeRange);
+      const query = searchParams.toString();
+      const url = `/api/creator-analytics/views-over-time${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getTopContent: <T>(params?: { timeRange?: string; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.timeRange) searchParams.append('timeRange', params.timeRange);
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/creator-analytics/top-content${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getTrafficSources: <T>(params?: { timeRange?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.timeRange) searchParams.append('timeRange', params.timeRange);
+      const query = searchParams.toString();
+      const url = `/api/creator-analytics/traffic-sources${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getAudience: <T>(params?: { timeRange?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.timeRange) searchParams.append('timeRange', params.timeRange);
+      const query = searchParams.toString();
+      const url = `/api/creator-analytics/audience${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getContentPerformance: <T>(params?: {
+      timeRange?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.timeRange) searchParams.append('timeRange', params.timeRange);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/creator-analytics/content-performance${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+  },
+  affiliates: {
+    apply: <T>(data?: { commissionRate?: number }) =>
+      apiRequest<T>('/api/affiliates/apply', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data || {}),
+      }),
+    getMe: <T>() =>
+      apiRequest<T>('/api/affiliates/me', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getReferrals: <T>(params?: {
+      page?: number;
+      limit?: number;
+      status?: 'pending' | 'converted' | 'paid';
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.status) searchParams.append('status', params.status);
+      const query = searchParams.toString();
+      const url = `/api/affiliates/referrals${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getStats: <T>() =>
+      apiRequest<T>('/api/affiliates/stats', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getByCode: <T>(code: string) =>
+      apiRequest<T>(`/api/affiliates/${code}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    update: <T>(data: { status?: string; commissionRate?: number }) =>
+      apiRequest<T>('/api/affiliates/me', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getBanners: <T>() =>
+      apiRequest<T>('/api/affiliates/banners', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  notifications: {
+    getAll: <T>(params?: {
+      page?: number;
+      limit?: number;
+      unreadOnly?: boolean;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.unreadOnly) searchParams.append('unreadOnly', 'true');
+      const query = searchParams.toString();
+      const url = `/api/notifications${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getUnreadCount: <T>() =>
+      apiRequest<T>('/api/notifications/unread-count', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    markAsRead: <T>(id: string) =>
+      apiRequest<T>(`/api/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+      }),
+    markAllAsRead: <T>() =>
+      apiRequest<T>('/api/notifications/read-all', {
+        method: 'PATCH',
+        headers: getHeaders(),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/notifications/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    getPreferences: <T>() =>
+      apiRequest<T>('/api/notifications/preferences', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    updatePreferences: <T>(data: {
+      email?: Record<string, boolean>;
+      push?: Record<string, boolean>;
+      inApp?: Record<string, boolean>;
+      frequency?: 'instant' | 'daily' | 'weekly' | 'never';
+      unsubscribedAll?: boolean;
+    }) =>
+      apiRequest<T>('/api/notifications/preferences', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+  },
+  push: {
+    getVAPIDKey: <T>() =>
+      apiRequest<T>('/api/push/vapid-key', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    subscribe: <T>(data: {
+      endpoint: string;
+      keys: { p256dh: string; auth: string };
+      userAgent?: string;
+      device?: string;
+    }) =>
+      apiRequest<T>('/api/push/subscribe', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    unsubscribe: <T>(data: { endpoint: string }) =>
+      apiRequest<T>('/api/push/unsubscribe', {
+        method: 'DELETE',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getSubscriptions: <T>() =>
+      apiRequest<T>('/api/push/subscriptions', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  feedback: {
+    submit: <T>(data: {
+      type: 'bug_report' | 'feature_request' | 'general_feedback';
+      message: string;
+      screenshot?: string;
+      url?: string;
+      metadata?: Record<string, any>;
+    }) =>
+      apiRequest<T>('/api/feedback', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getAll: <T>(params?: {
+      status?: string;
+      type?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.type) searchParams.append('type', params.type);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/feedback${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/feedback/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    updateStatus: <T>(id: string, data: { status: string }) =>
+      apiRequest<T>(`/api/feedback/${id}/status`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+  },
+  funnelAnalytics: {
+    getFunnels: <T>() =>
+      apiRequest<T>('/api/funnel-analytics/funnels', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    analyze: <T>(data: {
+      funnelName: 'signup' | 'video_watch' | 'creator_conversion' | 'subscription' | 'content_upload';
+      startDate: string;
+      endDate: string;
+      userId?: string;
+    }) =>
+      apiRequest<T>('/api/funnel-analytics/analyze', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    analyzeMultiple: <T>(data: {
+      funnelNames: Array<'signup' | 'video_watch' | 'creator_conversion' | 'subscription' | 'content_upload'>;
+      startDate: string;
+      endDate: string;
+      userId?: string;
+    }) =>
+      apiRequest<T>('/api/funnel-analytics/analyze-multiple', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getSummary: <T>(funnelName: string, params: { startDate: string; endDate: string }) => {
+      const searchParams = new URLSearchParams();
+      searchParams.append('startDate', params.startDate);
+      searchParams.append('endDate', params.endDate);
+      return apiRequest<T>(`/api/funnel-analytics/summary/${funnelName}?${searchParams.toString()}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    compare: <T>(data: {
+      funnelName: 'signup' | 'video_watch' | 'creator_conversion' | 'subscription' | 'content_upload';
+      period1Start: string;
+      period1End: string;
+      period2Start: string;
+      period2End: string;
+    }) =>
+      apiRequest<T>('/api/funnel-analytics/compare', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
       }),
   },
 };

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, TrendingUp, Calendar, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,

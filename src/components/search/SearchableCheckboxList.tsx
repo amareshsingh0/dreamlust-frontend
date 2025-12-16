@@ -70,6 +70,7 @@ export function SearchableCheckboxList({
                 key={item.id}
                 className="flex items-center space-x-2 py-1.5 hover:bg-muted/50 rounded-md px-1 cursor-pointer"
                 onClick={() => handleToggle(item.id)}
+                data-testid={`filter-category-${item.id}`}
               >
                 <Checkbox
                   id={`checkbox-${item.id}`}

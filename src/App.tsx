@@ -8,6 +8,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 
 // Eagerly loaded pages (above the fold, critical)
 import Index from "./pages/Index";
@@ -52,6 +53,7 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const Upload = lazy(() => import("./pages/Upload"));
 const TroubleshootingGuide = lazy(() => import("./components/troubleshooting/TroubleshootingGuide"));
 const ConnectivityChecker = lazy(() => import("./components/connectivity/ConnectivityChecker"));
+const APIDebugger = lazy(() => import("./pages/APIDebugger"));
 const ModerationDashboard = lazy(() => import("./pages/admin/ModerationDashboard"));
 const LiveDashboard = lazy(() => import("./pages/creator/LiveDashboard"));
 const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage"));
@@ -334,6 +336,14 @@ const App = () => (
                 </Suspense>
               } 
             />
+            <Route 
+              path="/api-debugger" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <APIDebugger />
+                </Suspense>
+              } 
+            />
             {/* Legal Pages */}
             <Route 
               path="/terms" 
@@ -412,6 +422,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        <FeedbackWidget />
       </TooltipProvider>
         </AuthProvider>
     </QueryClientProvider>
