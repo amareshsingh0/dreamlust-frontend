@@ -212,7 +212,7 @@ export function ContentCard({ content, variant = 'default', className }: Content
       {/* Content info */}
       <div className="flex gap-3">
         <Avatar className="h-9 w-9 border-2 border-transparent group-hover:border-primary/50 transition-colors">
-          <AvatarImage src={content.creator.avatar} />
+          <AvatarImage src={content.creator.avatar} alt={`${content.creator.name} avatar`} />
           <AvatarFallback>{content.creator.name[0]}</AvatarFallback>
         </Avatar>
         

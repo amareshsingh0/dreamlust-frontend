@@ -220,7 +220,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
                 aria-label="User menu"
               >
                 <Avatar className="h-9 w-9 border-2 border-primary/50">
-                    <AvatarImage src={user?.avatar} />
+                    <AvatarImage src={user?.avatar} alt={user?.username ? `${user.username} avatar` : 'User avatar'} />
                     <AvatarFallback>{user?.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
               </Button>
