@@ -36,9 +36,9 @@ const Analytics = () => {
               {stats.map((stat) => (
                 <Card key={stat.label}>
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                    <div className="text-sm font-medium text-muted-foreground">
                       {stat.label}
-                    </CardTitle>
+                    </div>
                     <stat.icon className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>

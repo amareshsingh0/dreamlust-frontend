@@ -114,9 +114,9 @@ export function ContentCard({ content, variant = 'default', className }: Content
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
+          <div className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
             {content.title}
-          </h3>
+          </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -217,12 +217,12 @@ export function ContentCard({ content, variant = 'default', className }: Content
         </Avatar>
         
         <div className="flex-1 min-w-0">
-          <h3 className={cn(
+          <div className={cn(
             "font-medium line-clamp-2 group-hover:text-primary transition-colors",
             variant === 'compact' ? 'text-sm' : 'text-base'
           )}>
             {content.title}
-          </h3>
+          </div>
           
           <button
             onClick={(e) => {

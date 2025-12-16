@@ -391,9 +391,9 @@ export default function Profile() {
                               {creator.name[0]}
                             </AvatarFallback>
                           </Avatar>
-                          <h3 className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                          <div className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
                             {creator.name}
-                          </h3>
+                          </div>
                           {creator.isVerified && (
                             <Badge variant="default" className="mt-1 text-xs px-1.5 py-0">
                               <Check className="h-3 w-3 mr-0.5" />

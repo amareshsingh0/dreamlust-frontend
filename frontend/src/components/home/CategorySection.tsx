@@ -22,9 +22,9 @@ export function CategorySection() {
             <div className="flex items-center gap-3">
               <span className="text-2xl">{category.icon}</span>
               <div className="min-w-0">
-                <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                <div className="font-medium text-sm truncate group-hover:text-primary transition-colors">
                   {category.name}
-                </h3>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {category.count.toLocaleString()} items
                 </p>
