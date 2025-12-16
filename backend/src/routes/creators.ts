@@ -44,30 +44,58 @@ router.get(
         }
       : baseWhere;
 
-    const [creators, total] = await Promise.all([
-      prisma.creator.findMany({
-        where,
-        select: {
-          id: true,
-          handle: true,
-          display_name: true,
-          avatar: true,
-          banner: true,
-          bio: true,
-          is_verified: true,
-          follower_count: true,
-          content_count: true,
-          total_views: true,
-        },
-        orderBy: [
-          { follower_count: 'desc' },
-          { created_at: 'desc' },
-        ],
-        skip,
-        take: limit,
-      }),
-      prisma.creator.count({ where }),
-    ]);
+    let creators, total;
+    try {
+      [creators, total] = await Promise.all([
+        prisma.creator.findMany({
+          where,
+          select: {
+            id: true,
+            handle: true,
+            display_name: true,
+            avatar: true,
+            banner: true,
+            bio: true,
+            is_verified: true,
+            follower_count: true,
+            content_count: true,
+            total_views: true,
+          },
+          orderBy: [
+            { follower_count: 'desc' },
+            { created_at: 'desc' },
+          ],
+          skip,
+          take: limit,
+        }),
+        prisma.creator.count({ where }),
+      ]);
+    } catch (error: any) {
+      // Enhanced error logging for database issues
+      console.error('Database error in GET /api/creators:', {
+        error: error.message,
+        code: error.code,
+        name: error.name,
+        meta: error.meta,
+      });
+      
+      // Re-throw with more context for database connection errors
+      if (error.code === 'P1001' || error.code === 'P1017') {
+        throw new Error('Database connection failed. Please check if your database is running and DATABASE_URL is configured correctly.');
+      }
+      
+      // Prisma schema/migration errors
+      if (error.code === 'P2001' || error.code === 'P2025') {
+        throw new Error('Database schema error. Please run: bun run db:push or bun run db:migrate');
+      }
+      
+      // Table doesn't exist
+      if (error.code === 'P2021' || error.code === '42P01') {
+        throw new Error('Database table does not exist. Please run migrations: bun run db:push');
+      }
+      
+      throw error;
+    }
 
     // Get following status for each creator if user is logged in
     let followingMap: Record<string, boolean> = {};
@@ -91,6 +119,8 @@ router.get(
       data: {
         creators: creators.map(creator => ({
           ...creator,
+          // Convert BigInt to string for JSON serialization
+          total_views: creator.total_views ? String(creator.total_views) : null,
           isFollowing: followingMap[creator.id] || false,
         })),
         pagination: {
@@ -158,6 +188,8 @@ router.get(
       success: true,
       data: {
         ...creator,
+        // Convert BigInt to string for JSON serialization
+        total_views: creator.total_views ? String(creator.total_views) : null,
         isFollowing,
       },
     });
@@ -370,6 +402,8 @@ router.get(
       success: true,
       data: {
         ...creator,
+        // Convert BigInt to string for JSON serialization
+        total_views: creator.total_views ? String(creator.total_views) : null,
         isFollowing,
       },
     });

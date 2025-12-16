@@ -12,6 +12,13 @@ const globalForPrisma = globalThis as unknown as {
 
 // Get DATABASE_URL and add connection pool parameters
 const databaseUrl = process.env.DATABASE_URL || '';
+
+if (!databaseUrl) {
+  console.error('❌ DATABASE_URL is not set in environment variables!');
+  console.error('Please add DATABASE_URL to your .env file');
+  console.error('Example: DATABASE_URL="postgresql://user:password@localhost:5432/dreamlust?schema=public"');
+}
+
 const poolUrl = databaseUrl.includes('?')
   ? `${databaseUrl}&connection_limit=50&pool_timeout=20`
   : `${databaseUrl}?connection_limit=50&pool_timeout=20`;
