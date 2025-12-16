@@ -242,7 +242,7 @@ router.patch(
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!['new', 'in_progress', 'resolved', 'won't_fix'].includes(status)) {
+    if (!['new', 'in_progress', 'resolved', "won't_fix"].includes(status)) {
       throw new ValidationError('Invalid status value');
     }
 
