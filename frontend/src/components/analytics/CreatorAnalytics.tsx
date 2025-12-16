@@ -132,7 +132,7 @@ export function CreatorAnalytics() {
         />
         <MetricCard
           title="Earnings"
-          value={`$${Number(metrics.earnings?.value || 0).toFixed(2))}`}
+          value={`$${Number(metrics.earnings?.value || 0).toFixed(2)}`}
           change={metrics.earnings?.change}
           trend={metrics.earnings?.trend}
           icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
