@@ -6,9 +6,27 @@ import { securityHeadersPlugin } from "./vite.config.security-headers";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    css: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.d.ts',
+        '**/*.config.*',
+        '**/mockData',
+        '**/*.test.{ts,tsx}',
+      ],
+    },
+  },
   server: {
     host: "::",
-    port: 4000,
+    port: 4001,
   },
   build: {
     outDir: "dist",

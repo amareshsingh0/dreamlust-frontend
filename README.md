@@ -86,6 +86,9 @@ dreamlust-project/
 - `KEEP_SERVER_RUNNING.md` - How to keep server running
 - `backend/START_SERVER.md` - Server startup guide
 - `backend/COMPREHENSIVE_FIX.md` - Root cause analysis
+- `DEPLOYMENT.md` - Production deployment guide
+- `PRODUCTION_SETUP.md` - Step-by-step production setup
+- `README_DEPLOYMENT.md` - Quick deployment reference
 - `GUIDE/` - Additional guides and documentation
 
 ## 🐛 Troubleshooting

@@ -1,0 +1,29 @@
+# Auto-assign reviewers based on file paths
+addAssignees: true
+addReviewers: true
+
+# Reviewers for different areas
+reviewers:
+  backend:
+    - # Add backend team members
+  frontend:
+    - # Add frontend team members
+  infrastructure:
+    - # Add DevOps team members
+
+# File path patterns
+paths:
+  backend/**:
+    reviewers:
+      - backend
+  frontend/**:
+    reviewers:
+      - frontend
+  .github/**:
+    reviewers:
+      - infrastructure
+  *.yml:
+    reviewers:
+      - infrastructure
+
+

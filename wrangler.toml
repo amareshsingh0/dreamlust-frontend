@@ -1,0 +1,43 @@
+# Cloudflare Pages/Workers Configuration
+
+name = "dreamlust-platform"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Main application
+[env.production]
+  name = "dreamlust-platform"
+  account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+  route = { pattern = "api.yourplatform.com/*", zone_name = "yourplatform.com" }
+
+# Pages configuration (for frontend)
+pages_build_output_dir = "frontend/dist"
+
+# Environment variables (set in Cloudflare dashboard)
+# [env.production.vars]
+#   NODE_ENV = "production"
+#   API_URL = "https://api.yourplatform.com"
+
+# KV namespaces (for caching)
+# [[kv_namespaces]]
+#   binding = "CACHE"
+#   id = "YOUR_KV_NAMESPACE_ID"
+#   preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+
+# Durable Objects (for WebSocket connections)
+# [[durable_objects.bindings]]
+#   name = "WEBSOCKET"
+#   class_name = "WebSocketDurableObject"
+#   script_name = "dreamlust-platform"
+
+# R2 buckets
+# [[r2_buckets]]
+#   binding = "STORAGE"
+#   bucket_name = "your-bucket-name"
+#   preview_bucket_name = "your-preview-bucket-name"
+
+# Limits
+[limits]
+  cpu_ms = 50
+
+

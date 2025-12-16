@@ -1,0 +1,106 @@
+name: Deploy to Production (Legacy)
+
+# ⚠️ This workflow is deprecated. Use cd.yml instead.
+# Kept for backward compatibility.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  # Lint and test
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: |
+          cd backend && bun install
+          cd ../frontend && bun install
+      
+      - name: Run backend tests
+        run: cd backend && bun test
+      
+      - name: Run frontend tests
+        run: cd frontend && bun run test
+
+  # Deploy backend
+  deploy-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: bun install
+      
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: bunx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      - name: Run migrations
+        working-directory: ./backend
+        run: bunx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      # Add your deployment step here (Railway, Render, etc.)
+      # Example for Railway:
+      # - name: Deploy to Railway
+      #   uses: bervProject/railway-deploy@v0.2.0
+      #   with:
+      #     railway_token: ${{ secrets.RAILWAY_TOKEN }}
+      #     service: backend
+
+  # Deploy frontend
+  deploy-frontend:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        run: bun run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_CDN_URL: ${{ secrets.VITE_CDN_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      
+      # Add your deployment step here (Vercel, Netlify, Cloudflare Pages)
+      # Example for Vercel:
+      # - name: Deploy to Vercel
+      #   uses: amondnet/vercel-action@v25
+      #   with:
+      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #     working-directory: ./frontend
+

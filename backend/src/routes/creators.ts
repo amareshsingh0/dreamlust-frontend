@@ -6,7 +6,7 @@ import { NotFoundError, ValidationError } from '../lib/errors';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/validation';
-import { creator_status, subscription_status, subscription_tier } from '@prisma/client';
+import { awardPoints } from '../lib/loyalty/points';
 
 const router = Router();
 
@@ -28,7 +28,7 @@ router.get(
 
     // Build where clause
     const baseWhere: any = {
-      status: creator_status.APPROVED, // Only show approved creators
+      status: 'APPROVED', // Only show approved creators
       deleted_at: null, // Exclude soft-deleted creators
     };
 
@@ -103,7 +103,7 @@ router.get(
       const subscriptions = await prisma.subscription.findMany({
         where: {
           subscriber_id: userId,
-          status: subscription_status.ACTIVE, // Subscription status, not creator status
+          status: 'ACTIVE', // Subscription status, not creator status
           creator_id: { in: creators.map(c => c.id) },
         },
         select: { creator_id: true },
@@ -258,8 +258,8 @@ router.post(
         data: {
           subscriber_id: userId,
           creator_id: creatorId,
-          tier: subscription_tier.BASIC,
-          status: subscription_status.ACTIVE,
+          tier: 'BASIC',
+          status: 'ACTIVE',
           amount: 0,
           is_recurring: false,
         },
@@ -271,6 +271,13 @@ router.post(
         data: {
           follower_count: { increment: 1 },
         },
+      });
+
+      // Award points for following a creator
+      awardPoints(userId, 'FOLLOW_CREATOR', {
+        creatorId,
+      }).catch((error) => {
+        console.error('Failed to award follow points:', error);
       });
 
       res.json({
@@ -304,7 +311,7 @@ router.get(
       prisma.subscription.findMany({
         where: {
           subscriber_id: userId,
-          status: subscription_status.ACTIVE,
+          status: 'ACTIVE',
         },
         include: {
           creator: {
@@ -329,7 +336,7 @@ router.get(
       prisma.subscription.count({
         where: {
           subscriber_id: userId,
-          status: subscription_status.ACTIVE,
+          status: 'ACTIVE',
         },
       }),
     ]);

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 interface ContentCardProps {
   content: Content;
   variant?: 'default' | 'compact' | 'horizontal';
+  className?: string;
 }
 
 function formatViews(views: number): string {
@@ -34,7 +35,7 @@ function formatDate(dateString: string): string {
   return `${Math.floor(diffDays / 30)} months ago`;
 }
 
-export function ContentCard({ content, variant = 'default' }: ContentCardProps) {
+export function ContentCard({ content, variant = 'default', className }: ContentCardProps) {
   const isLive = content.type === 'live' || content.isLive;
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -138,10 +139,12 @@ export function ContentCard({ content, variant = 'default' }: ContentCardProps) 
   return (
     <div 
       onClick={() => navigate(`/watch/${content.id}`)}
+      data-testid="video-card"
       className={cn(
         "group block rounded-xl overflow-hidden transition-all duration-300 cursor-pointer",
         "hover:scale-[1.02] hover:shadow-lg",
-        variant === 'compact' ? 'space-y-2' : 'space-y-3'
+        variant === 'compact' ? 'space-y-2' : 'space-y-3',
+        className
       )}
     >
       {/* Thumbnail */}

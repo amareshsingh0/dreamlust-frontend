@@ -403,6 +403,7 @@ export default function Search() {
                     id="search-input"
                     name="search-input"
                     type="search"
+                    data-testid="search-input"
                     placeholder="Search content, creators, tags..."
                     value={searchInput}
                     onChange={(e) => {
@@ -561,15 +562,17 @@ export default function Search() {
               )}
 
               {!loading && !error && results.length > 0 && (
-                results.length > 50 ? (
-                  <VirtualizedContentGrid 
-                    content={results} 
-                    columns={4}
-                    isLoading={loading}
-                  />
-                ) : (
-                  <ContentGrid content={results} columns={4} />
-                )
+                <div data-testid="search-results">
+                  {results.length > 50 ? (
+                    <VirtualizedContentGrid 
+                      content={results} 
+                      columns={4}
+                      isLoading={loading}
+                    />
+                  ) : (
+                    <ContentGrid content={results} columns={4} />
+                  )}
+                </div>
               )}
 
               {!loading && !error && results.length === 0 && query && (

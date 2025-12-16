@@ -287,6 +287,29 @@ router.post(
       },
     });
 
+    // Send email notifications to followers if content is published
+    if (content.status === 'PUBLISHED') {
+      import('../lib/email/sendNewUploadEmail').then(({ sendNewUploadEmail }) => {
+        sendNewUploadEmail(
+          {
+            id: content.id,
+            title: content.title,
+            description: content.description || undefined,
+            thumbnail: content.thumbnail || undefined,
+            creatorId: creator.id,
+          },
+          {
+            id: creator.id,
+            display_name: creator.display_name,
+            handle: creator.handle || undefined,
+            avatar: creator.avatar || undefined,
+          }
+        ).catch((error) => {
+          console.error('Failed to send new upload emails:', error);
+        });
+      });
+    }
+
     // Generate thumbnail blur in background (don't block response)
     if (thumbnailFile) {
       processThumbnailFromBuffer(content.id, thumbnailFile.buffer)

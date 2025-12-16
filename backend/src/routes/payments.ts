@@ -350,8 +350,8 @@ router.post(
     // Create account link for onboarding
     const accountLink = await createAccountLink(
       account.id,
-      `${process.env.FRONTEND_URL || 'http://localhost:4000'}/creator/payouts/return`,
-      `${process.env.FRONTEND_URL || 'http://localhost:4000'}/creator/payouts/refresh`
+      `${process.env.FRONTEND_URL || 'http://localhost:4001'}/creator/payouts/return`,
+      `${process.env.FRONTEND_URL || 'http://localhost:4001'}/creator/payouts/refresh`
     );
 
     res.json({

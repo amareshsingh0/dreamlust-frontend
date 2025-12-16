@@ -66,8 +66,8 @@ class PayPalProvider implements PaymentProvider {
           brand_name: 'Dreamlust',
           landing_page: 'NO_PREFERENCE',
           user_action: 'PAY_NOW',
-          return_url: `${process.env.FRONTEND_URL || 'http://localhost:4000'}/payment/success`,
-          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4000'}/payment/cancel`,
+          return_url: `${process.env.FRONTEND_URL || 'http://localhost:4001'}/payment/success`,
+          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4001'}/payment/cancel`,
         },
       });
 

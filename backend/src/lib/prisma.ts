@@ -14,6 +14,7 @@ const globalForPrisma = globalThis as unknown as {
 const databaseUrl = process.env.DATABASE_URL || '';
 
 if (!databaseUrl) {
+  // Use console.error here since logger might not be initialized yet
   console.error('❌ DATABASE_URL is not set in environment variables!');
   console.error('Please add DATABASE_URL to your .env file');
   console.error('Example: DATABASE_URL="postgresql://user:password@localhost:5432/dreamlust?schema=public"');

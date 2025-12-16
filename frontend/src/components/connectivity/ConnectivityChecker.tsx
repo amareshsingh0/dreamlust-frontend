@@ -131,7 +131,7 @@ const ConnectivityChecker = () => {
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-2">Frontend (Your Browser)</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    Running at: <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">http://localhost:4000</code>
+                    Running at: <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">http://localhost:4001</code>
                   </p>
                   <StatusBadge status="online" label="✅ Frontend is Working (you can see this page)" />
                 </div>
@@ -270,7 +270,7 @@ const ConnectivityChecker = () => {
               <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">1</div>
               <div className="flex-1">
                 <p className="font-semibold text-gray-800 dark:text-gray-200">Frontend (Browser)</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">localhost:4000 → Makes API request</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">localhost:4001 → Makes API request</p>
               </div>
             </div>
 

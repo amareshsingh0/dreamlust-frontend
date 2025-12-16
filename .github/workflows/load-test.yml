@@ -1,0 +1,58 @@
+name: Load Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target endpoint to test'
+        required: true
+        default: 'search'
+        type: choice
+        options:
+          - search
+          - api
+          - auth
+  schedule:
+    # Run load tests weekly on Sunday at 02:00 UTC
+    - cron: '0 2 * * 0'
+
+jobs:
+  load-test:
+    name: Load Test - ${{ github.event.inputs.target || 'search' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: k6io/setup-k6@v1
+        with:
+          k6-version: latest
+
+      - name: Run load test
+        working-directory: ./backend
+        run: |
+          TARGET="${{ github.event.inputs.target || 'search' }}"
+          API_URL="${{ secrets.API_URL || 'https://api.example.com' }}"
+          
+          case $TARGET in
+            search)
+              k6 run tests/load/search-load.js --env API_URL=$API_URL
+              ;;
+            api)
+              k6 run tests/load/api-load.js --env API_URL=$API_URL
+              ;;
+            auth)
+              k6 run tests/load/auth-load.js --env API_URL=$API_URL
+              ;;
+          esac
+
+      - name: Upload k6 results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-results-${{ github.event.inputs.target || 'search' }}
+          path: backend/k6-report/
+          retention-days: 30
+
+

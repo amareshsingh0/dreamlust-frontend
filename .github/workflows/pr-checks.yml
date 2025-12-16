@@ -1,0 +1,65 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  # Validate PR title and description
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            ci
+            build
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the required pattern: {pattern}
+            Please ensure that the subject doesn't start with an uppercase character.
+
+  # Check for breaking changes
+  breaking-changes:
+    name: Check Breaking Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for breaking changes
+        run: |
+          if git log --oneline ${{ github.base_ref }}..${{ github.head_ref }} | grep -iE "(breaking|BREAKING|!feat|!fix)"; then
+            echo "⚠️ Breaking changes detected!"
+            echo "Please ensure BREAKING CHANGE: is documented in the PR description"
+            exit 0
+          fi
+
+  # Auto-assign reviewers
+  auto-assign:
+    name: Auto Assign Reviewers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto assign
+        uses: kentaro-m/auto-assign-action@v1.2.1
+        with:
+          configuration-path: .github/auto-assign.yml
+        continue-on-error: true
+
+

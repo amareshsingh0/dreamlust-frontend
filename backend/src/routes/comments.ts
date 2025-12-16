@@ -4,6 +4,7 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { commentsRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { validateBody, validateQuery } from '../middleware/validation';
+import { awardPoints } from '../lib/loyalty/points';
 import {
   createCommentSchema,
   updateCommentSchema,
@@ -254,6 +255,16 @@ router.post(
         },
       },
     });
+
+    // Award points for commenting (only for top-level comments, not replies)
+    if (!parentId) {
+      awardPoints(userId, 'COMMENT', {
+        contentId,
+        commentId: comment.id,
+      }).catch((error) => {
+        console.error('Failed to award comment points:', error);
+      });
+    }
 
     res.status(201).json({
       success: true,

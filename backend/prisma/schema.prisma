@@ -26,6 +26,7 @@ model User {
   role                  user_role?       @default(USER)
   status                user_status?     @default(ACTIVE)
   is_creator            Boolean?         @default(false)
+  balance               Decimal?         @default(0) @db.Decimal(10, 2)
   created_at            DateTime?        @default(now()) @db.Timestamp(6)
   updated_at            DateTime?        @default(now()) @db.Timestamp(6)
   deleted_at            DateTime?        @db.Timestamp(6)
@@ -33,6 +34,14 @@ model User {
   account_deletions     AccountDeletion?
   user_preferences      UserPreferences?
   user_subscriptions    UserSubscription[]
+  loyalty               UserLoyalty?
+  loyaltyTransactions   LoyaltyTransaction[]
+  analyticsEvents       AnalyticsEvent[]
+  affiliate             Affiliate?
+  referrals             Referral[]
+  notificationPreferences NotificationPreferences?
+  pushSubscriptions     PushSubscription[]
+  feedback              Feedback[]
 
   @@index([created_at], map: "idx_users_created_at")
   @@index([deleted_at], map: "idx_users_deleted_at")
@@ -602,6 +611,7 @@ enum notification_type {
   NEW_COMMENT
   NEW_LIKE
   NEW_SUBSCRIBER
+  NEW_UPLOAD
   CONTENT_APPROVED
   CONTENT_REJECTED
   PAYMENT_RECEIVED
@@ -749,4 +759,222 @@ model CreatorEarnings {
 
   @@index([creator_id], map: "idx_creator_earnings_creator")
   @@map("creator_earnings")
+}
+
+model GiftCard {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  amount      Decimal   @db.Decimal(10, 2)
+  currency    String    @default("USD")
+  purchasedBy String?   @map("purchased_by") @db.Uuid
+  redeemedBy  String?   @map("redeemed_by") @db.Uuid
+  status      String    @default("active") // active, redeemed, expired
+  expiresAt   DateTime  @map("expires_at") @db.Timestamp(6)
+  redeemedAt  DateTime? @map("redeemed_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  recipientEmail String? @map("recipient_email")
+  personalMessage String? @map("personal_message") @db.Text
+  sendDate    DateTime? @map("send_date") @db.Timestamp(6)
+
+  @@index([code], map: "idx_gift_cards_code")
+  @@index([status], map: "idx_gift_cards_status")
+  @@index([purchasedBy], map: "idx_gift_cards_purchased_by")
+  @@index([redeemedBy], map: "idx_gift_cards_redeemed_by")
+  @@map("gift_cards")
+}
+
+model UserLoyalty {
+  userId        String   @unique @map("user_id") @db.Uuid
+  points        Int      @default(0)
+  tier          String   @default("bronze") // bronze, silver, gold, platinum
+  lifetimePoints Int     @default(0) @map("lifetime_points")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamp(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tier], map: "idx_user_loyalty_tier")
+  @@index([points], map: "idx_user_loyalty_points")
+  @@map("user_loyalty")
+}
+
+model LoyaltyTransaction {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id") @db.Uuid
+  type       String    // earned, redeemed
+  points     Int
+  reason     String    // watch_time, referral, daily_login, purchase, reward_redemption, etc.
+  metadata   Json?
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "idx_loyalty_transactions_user_created")
+  @@index([type], map: "idx_loyalty_transactions_type")
+  @@index([reason], map: "idx_loyalty_transactions_reason")
+  @@map("loyalty_transactions")
+}
+
+model Reward {
+  id          String    @id @default(cuid())
+  title       String
+  description String    @db.Text
+  pointsCost  Int       @map("points_cost")
+  type        String    // discount, badge, feature_unlock, content_access
+  value       Json      // Discount percentage, badge image, feature name, content ID, etc.
+  isActive    Boolean   @default(true) @map("is_active")
+  stock       Int?      // Null = unlimited
+  imageUrl    String?   @map("image_url")
+  category    String?   // discount, badge, feature, content
+  expiresAt   DateTime? @map("expires_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([isActive, pointsCost], map: "idx_rewards_active_cost")
+  @@index([type], map: "idx_rewards_type")
+  @@index([category], map: "idx_rewards_category")
+  @@map("rewards")
+}
+
+model AnalyticsEvent {
+  id        String    @id @default(cuid())
+  userId    String?   @map("user_id") @db.Uuid
+  sessionId String    @map("session_id")
+  eventType String    @map("event_type") // page_view, video_play, search, click, purchase, etc.
+  eventData Json      @map("event_data")
+  device    String
+  browser   String
+  os        String
+  country   String?
+  city      String?
+  referrer  String?
+  timestamp DateTime  @default(now()) @db.Timestamp(6)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, timestamp], map: "idx_analytics_events_user_timestamp")
+  @@index([eventType, timestamp], map: "idx_analytics_events_type_timestamp")
+  @@index([sessionId], map: "idx_analytics_events_session")
+  @@index([timestamp], map: "idx_analytics_events_timestamp")
+  @@map("analytics_events")
+}
+
+model DailyStats {
+  date              DateTime  @unique @db.Date
+  totalUsers        Int       @default(0) @map("total_users")
+  activeUsers       Int       @default(0) @map("active_users")
+  newUsers          Int       @default(0) @map("new_users")
+  totalViews        Int       @default(0) @map("total_views")
+  totalWatchTime    Int       @default(0) @map("total_watch_time") // seconds
+  avgSessionDuration Int      @default(0) @map("avg_session_duration") // seconds
+  topContent        Json?     @map("top_content") // [{contentId, views, watchTime}]
+  topCategories     Json?     @map("top_categories")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([date], map: "idx_daily_stats_date")
+  @@map("daily_stats")
+}
+
+model Affiliate {
+  id              String    @id @default(cuid())
+  userId          String    @unique @map("user_id") @db.Uuid
+  code            String    @unique
+  status          String    @default("pending") // pending, approved, suspended
+  commissionRate  Decimal   @default(10) @map("commission_rate") @db.Decimal(5, 2) // percentage
+  totalReferrals  Int       @default(0) @map("total_referrals")
+  totalEarnings   Decimal   @default(0) @map("total_earnings") @db.Decimal(10, 2)
+  pendingPayout   Decimal   @default(0) @map("pending_payout") @db.Decimal(10, 2)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referrals       Referral[]
+
+  @@index([code], map: "idx_affiliates_code")
+  @@index([status], map: "idx_affiliates_status")
+  @@map("affiliates")
+}
+
+model Referral {
+  id              String    @id @default(cuid())
+  affiliateId     String    @map("affiliate_id")
+  referredUserId  String    @map("referred_user_id") @db.Uuid
+  status          String    @default("pending") // pending, converted, paid
+  commissionAmount Decimal? @map("commission_amount") @db.Decimal(10, 2)
+  conversionDate  DateTime? @map("conversion_date") @db.Timestamp(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  affiliate       Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referredUser    User      @relation(fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId, status], map: "idx_referrals_affiliate_status")
+  @@index([referredUserId], map: "idx_referrals_referred_user")
+  @@index([status], map: "idx_referrals_status")
+  @@map("referrals")
+}
+
+model EmailQueue {
+  id        String    @id @default(cuid())
+  to        String
+  subject   String
+  template  String
+  data      Json
+  status    String    @default("pending") // pending, sent, failed
+  sentAt    DateTime? @map("sent_at") @db.Timestamp(6)
+  error     String?
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([status, createdAt], map: "idx_email_queue_status_created")
+  @@index([to], map: "idx_email_queue_to")
+  @@map("email_queue")
+}
+
+model NotificationPreferences {
+  userId          String   @unique @map("user_id") @db.Uuid
+  email           Json     @default("{\"newUpload\": true, \"likes\": true, \"comments\": true, \"tips\": true, \"milestones\": true, \"system\": true}")
+  push            Json     @default("{\"newUpload\": true, \"likes\": true, \"comments\": true, \"tips\": true, \"milestones\": true, \"system\": true}")
+  inApp           Json     @default("{\"newUpload\": true, \"likes\": true, \"comments\": true, \"tips\": true, \"milestones\": true, \"system\": true}")
+  frequency       String   @default("instant") // instant, daily, weekly, never
+  unsubscribedAll Boolean  @default(false) @map("unsubscribed_all")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model PushSubscription {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id") @db.Uuid
+  endpoint     String
+  keys         Json      // { p256dh, auth }
+  userAgent    String?   @map("user_agent")
+  device       String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint], map: "push_subscriptions_user_endpoint")
+  @@index([userId], map: "idx_push_subscriptions_user")
+  @@map("push_subscriptions")
+}
+
+model Feedback {
+  id        String    @id @default(cuid())
+  userId    String?   @map("user_id") @db.Uuid
+  type      String    // bug_report, feature_request, general_feedback
+  message   String    @db.Text
+  screenshot String?  // URL to uploaded screenshot
+  url       String?   // URL where feedback was submitted
+  userAgent String?   @map("user_agent")
+  status    String    @default("new") // new, in_progress, resolved, won't_fix
+  metadata  Json?     // Additional context (browser, device, etc.)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt], map: "idx_feedback_user_created")
+  @@index([status, createdAt], map: "idx_feedback_status_created")
+  @@index([type, createdAt], map: "idx_feedback_type_created")
+  @@map("feedback")
 }

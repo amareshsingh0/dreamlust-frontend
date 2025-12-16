@@ -1,0 +1,218 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Determine deployment environment
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+  # Deploy backend
+  deploy-backend:
+    name: Deploy Backend
+    needs: determine-environment
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.determine-environment.outputs.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: bunx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run database migrations
+        working-directory: ./backend
+        run: bunx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # Railway deployment
+      - name: Deploy to Railway
+        id: deploy
+        if: contains(github.repository, 'railway') || env.RAILWAY_TOKEN != ''
+        uses: bervProject/railway-deploy@v0.2.0
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: backend
+          detach: false
+
+      # Render deployment (alternative)
+      - name: Deploy to Render
+        if: env.RENDER_SERVICE_ID != ''
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+
+      # Health check
+      - name: Health check
+        run: |
+          sleep 30
+          API_URL="${{ secrets.API_URL || 'https://api.example.com' }}"
+          response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+          if [ "$response" != "200" ]; then
+            echo "❌ Health check failed with status $response"
+            exit 1
+          fi
+          echo "✅ Health check passed"
+
+  # Deploy frontend
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: determine-environment
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.determine-environment.outputs.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: bun run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_CDN_URL: ${{ secrets.VITE_CDN_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+
+      # Vercel deployment
+      - name: Deploy to Vercel
+        id: deploy
+        if: env.VERCEL_TOKEN != ''
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./frontend
+
+      # Netlify deployment (alternative)
+      - name: Deploy to Netlify
+        if: env.NETLIFY_AUTH_TOKEN != ''
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=frontend/dist --prod
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      # Cloudflare Pages deployment (alternative)
+      - name: Deploy to Cloudflare Pages
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: dreamlust-frontend
+          directory: frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  # Post-deployment smoke tests
+  smoke-tests:
+    name: Smoke Tests
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: |
+          API_URL="${{ secrets.API_URL || 'https://api.example.com' }}"
+          FRONTEND_URL="${{ secrets.FRONTEND_URL || 'https://example.com' }}"
+          
+          echo "Testing API health endpoint..."
+          api_status=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+          if [ "$api_status" != "200" ]; then
+            echo "❌ API health check failed"
+            exit 1
+          fi
+          
+          echo "Testing frontend..."
+          frontend_status=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL")
+          if [ "$frontend_status" != "200" ]; then
+            echo "❌ Frontend check failed"
+            exit 1
+          fi
+          
+          echo "✅ All smoke tests passed"
+
+  # Notify deployment
+  notify:
+    name: Notify Deployment
+    needs: [deploy-backend, deploy-frontend, smoke-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deployment to ${{ needs.determine-environment.outputs.environment }} completed
+            Backend: ${{ needs.deploy-backend.result }}
+            Frontend: ${{ needs.deploy-frontend.result }}
+            Smoke Tests: ${{ needs.smoke-tests.result }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+        continue-on-error: true
+
+

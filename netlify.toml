@@ -1,0 +1,63 @@
+# Netlify Configuration for Dreamlust Platform
+
+[build]
+  # Build command for frontend
+  command = "cd frontend && bun run build"
+  # Output directory
+  publish = "frontend/dist"
+  # Base directory
+  base = "."
+
+[build.environment]
+  NODE_VERSION = "20"
+  BUN_VERSION = "latest"
+
+# Frontend redirects (SPA routing)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# API proxy to backend (if backend is on separate service)
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://api.yourplatform.com/api/:splat"
+#   status = 200
+#   force = true
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache images
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Environment variables (set in Netlify dashboard)
+# [context.production.environment]
+#   VITE_API_URL = "https://api.yourplatform.com"
+#   VITE_CDN_URL = "https://cdn.yourplatform.com"
+
+

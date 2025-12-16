@@ -93,9 +93,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -341,9 +341,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -374,10 +374,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.displayName,
+            name: item.creator.display_name,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.isVerified,
+            isVerified: item.creator.is_verified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -414,9 +414,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -447,10 +447,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.displayName,
+            name: item.creator.display_name,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.isVerified,
+            isVerified: item.creator.is_verified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -488,9 +488,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              displayName: true,
+              display_name: true,
               avatar: true,
-              isVerified: true,
+              is_verified: true,
             },
           },
           categories: {
@@ -606,9 +606,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -709,11 +709,11 @@ router.get(
     // Get creators user follows
     const followedCreators = await prisma.subscription.findMany({
       where: {
-        subscriberId: userId,
+        subscriber_id: userId,
         status: 'ACTIVE',
       },
       select: {
-        creatorId: true,
+        creator_id: true,
       },
     });
 
@@ -724,14 +724,14 @@ router.get(
       });
     }
 
-    const creatorIds = followedCreators.map(s => s.creatorId);
+    const creatorIds = followedCreators.map(s => s.creator_id);
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - daysSince);
 
     // Get new content from followed creators
     const newContent = await prisma.content.findMany({
       where: {
-        creatorId: { in: creatorIds },
+        creator_id: { in: creatorIds },
         status: 'PUBLISHED',
         isPublic: true,
         deletedAt: null,
@@ -744,9 +744,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -870,9 +870,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -973,9 +973,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              displayName: true,
+              display_name: true,
               avatar: true,
-              isVerified: true,
+              is_verified: true,
             },
           },
           categories: {
@@ -1060,9 +1060,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {
@@ -1152,9 +1152,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              displayName: true,
+              display_name: true,
               avatar: true,
-              isVerified: true,
+              is_verified: true,
             },
           },
           categories: {
@@ -1232,9 +1232,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                displayName: true,
+                display_name: true,
                 avatar: true,
-                isVerified: true,
+                is_verified: true,
               },
             },
             categories: {
@@ -1265,10 +1265,10 @@ router.get(
           createdAt: item.createdAt.toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.displayName,
+            name: item.creator.display_name,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.isVerified,
+            isVerified: item.creator.is_verified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -1320,9 +1320,9 @@ router.get(
                 select: {
                   id: true,
                   handle: true,
-                  displayName: true,
+                  display_name: true,
                   avatar: true,
-                  isVerified: true,
+                  is_verified: true,
                 },
               },
               categories: {
@@ -1353,10 +1353,10 @@ router.get(
             createdAt: item.createdAt.toISOString(),
             creator: {
               id: item.creator.id,
-              name: item.creator.displayName,
+              name: item.creator.display_name,
               username: item.creator.handle,
               avatar: item.creator.avatar || '',
-              isVerified: item.creator.isVerified,
+              isVerified: item.creator.is_verified,
               followers: 0,
               views: 0,
               contentCount: 0,
@@ -1476,9 +1476,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            displayName: true,
+            display_name: true,
             avatar: true,
-            isVerified: true,
+            is_verified: true,
           },
         },
         categories: {

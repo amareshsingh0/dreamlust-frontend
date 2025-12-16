@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '@/lib/api';
+import { setDatadogUser, clearDatadogUser } from '@/lib/monitoring/datadog';
 
 interface User {
   id: string;
@@ -77,6 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken');
     sessionStorage.clear();
     setUser(null);
+    
+    // Clear user in Datadog
+    clearDatadogUser();
   };
 
   const login = async (email: string, password: string, rememberMe: boolean = false) => {
@@ -102,6 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
+        
+        // Set user in Datadog
+        setDatadogUser({
+          id: userData.id,
+          email: userData.email,
+          username: userData.username,
+        });
       } else {
         const errorMsg = response.error?.message || 'Login failed';
         console.error('Login failed:', response.error);
@@ -137,6 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
+        
+        // Set user in Datadog
+        setDatadogUser({
+          id: userData.id,
+          email: userData.email,
+          username: userData.username,
+        });
       } else {
         const errorMsg = response.error?.message || 'Registration failed';
         console.error('Registration failed:', response.error);

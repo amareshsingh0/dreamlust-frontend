@@ -1,247 +1,450 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuth } from '../middleware/auth';
-import { validateBody } from '../middleware/validation';
 import { userRateLimiter } from '../middleware/rateLimit';
-import { trackViewEventSchema, trackInteractionSchema } from '../schemas/analytics';
-import { NotFoundError } from '../lib/errors';
-import { generateSessionId } from '../lib/auth/session';
-import cookieParser from 'cookie-parser';
-
-// Extend Express Request to include sessionId
-declare module 'express-serve-static-core' {
-  interface Request {
-    sessionId?: string;
-  }
-}
+import { asyncHandler } from '../middleware/asyncHandler';
+import { validateBody } from '../middleware/validation';
+import { NotFoundError, UnauthorizedError } from '../lib/errors';
+import { z } from 'zod';
+import { trackEvent, getOrCreateSessionId, EventTypes } from '../lib/analytics/tracker';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
 
-// Use cookie parser for session ID
-router.use(cookieParser());
+const trackEventSchema = z.object({
+  eventType: z.string().min(1),
+  eventData: z.record(z.unknown()).optional(),
+});
+
+const getAnalyticsQuerySchema = z.object({
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  eventType: z.string().optional(),
+  userId: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(1000).default(100),
+  page: z.coerce.number().int().min(1).default(1),
+});
 
 /**
- * Helper function to detect device type from user agent
- */
-function detectDevice(userAgent: string | undefined): 'mobile' | 'tablet' | 'desktop' {
-  if (!userAgent) return 'desktop';
-  
-  const ua = userAgent.toLowerCase();
-  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
-    return 'mobile';
-  }
-  if (/tablet|ipad|playbook|silk/i.test(ua)) {
-    return 'tablet';
-  }
-  return 'desktop';
-}
-
-/**
- * Helper function to get or create session ID
- */
-function getSessionId(req: Request): { sessionId: string; isNew: boolean } {
-  // Try to get from cookie
-  let sessionId = req.cookies?.sessionId;
-  const isNew = !sessionId;
-  
-  if (!sessionId) {
-    // Generate new session ID
-    sessionId = generateSessionId();
-  }
-  
-  return { sessionId, isNew };
-}
-
-/**
- * POST /api/analytics/view-event
- * Track detailed view event for recommendation engine
+ * POST /api/analytics/track
+ * Track an analytics event
  */
 router.post(
-  '/view-event',
+  '/track',
   optionalAuth,
   userRateLimiter,
-  validateBody(trackViewEventSchema),
-  async (req: Request, res: Response) => {
+  validateBody(trackEventSchema),
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
-    const { contentId, watchDuration, completionRate, device, region } = req.body;
-    
+    const { eventType, eventData } = req.body;
+
     // Get or create session ID
-    const { sessionId, isNew } = getSessionId(req);
-    
-    // Check if content exists
-    const content = await prisma.content.findUnique({
-      where: { id: contentId },
-      select: { id: true, duration: true },
-    });
+    const sessionId = getOrCreateSessionId(req, res);
 
-    if (!content) {
-      throw new NotFoundError('Content not found');
-    }
-
-    // Check user preferences if authenticated
-    let shouldTrack = true;
-    if (userId) {
-      const preferences = await prisma.userPreferences.findUnique({
-        where: { userId },
-      });
-      if (preferences?.anonymousMode) {
-        shouldTrack = false;
-      }
-    }
-
-    if (shouldTrack) {
-      // Detect device if not provided
-      const detectedDevice = device || detectDevice(req.get('user-agent'));
-      
-      // Get region from preferences or request
-      let userRegion = region;
-      if (!userRegion && userId) {
-        const preferences = await prisma.userPreferences.findUnique({
-          where: { userId },
-          select: { region: true },
-        });
-        userRegion = preferences?.region || undefined;
-      }
-
-      // Create view event
-      await prisma.viewEvent.create({
-        data: {
-          userId: userId || undefined,
-          contentId,
-          sessionId,
-          watchDuration,
-          completionRate,
-          device: detectedDevice,
-          region: userRegion,
-        },
-      });
-    }
-
-    // Set session cookie if new
-    if (isNew) {
-      res.cookie('sessionId', sessionId, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
-    }
+    // Track the event
+    await trackEvent(req, eventType, eventData, userId);
 
     res.json({
       success: true,
-      message: 'View event tracked',
+      message: 'Event tracked',
     });
-  }
+  })
 );
 
 /**
- * POST /api/analytics/interaction
- * Track user interaction (like, save, share, skip, etc.)
- */
-router.post(
-  '/interaction',
-  optionalAuth,
-  userRateLimiter,
-  validateBody(trackInteractionSchema),
-  async (req: Request, res: Response) => {
-    const userId = req.user?.userId;
-    const { contentId, type } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required to track interactions',
-          timestamp: new Date().toISOString(),
-        },
-      });
-    }
-
-    // Check if content exists
-    const content = await prisma.content.findUnique({
-      where: { id: contentId },
-    });
-
-    if (!content) {
-      throw new NotFoundError('Content not found');
-    }
-
-    // Check if interaction already exists
-    const existing = await prisma.interaction.findUnique({
-      where: {
-        userId_contentId_type: {
-          userId,
-          contentId,
-          type,
-        },
-      },
-    });
-
-    if (existing) {
-      // Update timestamp if interaction already exists
-      await prisma.interaction.update({
-        where: { id: existing.id },
-        data: { timestamp: new Date() },
-      });
-    } else {
-      // Create new interaction
-      await prisma.interaction.create({
-        data: {
-          userId,
-          contentId,
-          type,
-        },
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Interaction tracked',
-    });
-  }
-);
-
-/**
- * GET /api/analytics/stats
- * Get analytics stats for a user (if authenticated) or session
+ * GET /api/analytics/events
+ * Get analytics events (admin or own events)
  */
 router.get(
-  '/stats',
-  optionalAuth,
+  '/events',
+  authenticate,
   userRateLimiter,
-  async (req: Request, res: Response) => {
-    const userId = req.user?.userId;
-    const sessionId = req.cookies?.sessionId;
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+    const isAdmin = userRole === 'ADMIN' || userRole === 'MODERATOR';
 
-    if (!userId && !sessionId) {
-      return res.json({
-        success: true,
-        data: {
-          viewEvents: 0,
-          interactions: 0,
-        },
-      });
+    // Parse query parameters
+    const {
+      startDate,
+      endDate,
+      eventType,
+      userId: queryUserId,
+      limit,
+      page,
+    } = req.query as any;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: Prisma.AnalyticsEventWhereInput = {};
+
+    // Non-admins can only see their own events
+    if (!isAdmin) {
+      where.userId = userId;
+    } else if (queryUserId) {
+      where.userId = queryUserId;
     }
 
-    const [viewEventCount, interactionCount] = await Promise.all([
-      userId
-        ? prisma.viewEvent.count({ where: { userId } })
-        : prisma.viewEvent.count({ where: { sessionId: sessionId || '' } }),
-      userId
-        ? prisma.interaction.count({ where: { userId } })
-        : Promise.resolve(0), // Interactions require authentication
+    if (startDate || endDate) {
+      where.timestamp = {};
+      if (startDate) {
+        where.timestamp.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.timestamp.lte = new Date(endDate);
+      }
+    }
+
+    if (eventType) {
+      where.eventType = eventType;
+    }
+
+    const [events, total] = await Promise.all([
+      prisma.analyticsEvent.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          userId: true,
+          sessionId: true,
+          eventType: true,
+          eventData: true,
+          device: true,
+          browser: true,
+          os: true,
+          country: true,
+          city: true,
+          referrer: true,
+          timestamp: true,
+        },
+      }),
+      prisma.analyticsEvent.count({ where }),
     ]);
 
     res.json({
       success: true,
       data: {
-        viewEvents: viewEventCount,
-        interactions: interactionCount,
+        events: events.map((e) => ({
+          ...e,
+          timestamp: e.timestamp.toISOString(),
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       },
     });
-  }
+  })
+);
+
+/**
+ * GET /api/analytics/stats
+ * Get aggregated analytics statistics
+ */
+router.get(
+  '/stats',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userRole = req.user!.role;
+    const isAdmin = userRole === 'ADMIN' || userRole === 'MODERATOR';
+
+    if (!isAdmin) {
+      throw new UnauthorizedError('Admin access required');
+    }
+
+    const { startDate, endDate } = req.query as any;
+
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default 30 days
+    const end = endDate ? new Date(endDate) : new Date();
+
+    // Get daily stats for the period
+    const dailyStats = await prisma.dailyStats.findMany({
+      where: {
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    // Get event type counts
+    const eventTypeCounts = await prisma.analyticsEvent.groupBy({
+      by: ['eventType'],
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Get device breakdown
+    const deviceBreakdown = await prisma.analyticsEvent.groupBy({
+      by: ['device'],
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Get browser breakdown
+    const browserBreakdown = await prisma.analyticsEvent.groupBy({
+      by: ['browser'],
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _count: {
+        id: true,
+      },
+      orderBy: {
+        _count: {
+          id: 'desc',
+        },
+      },
+      take: 10,
+    });
+
+    // Get country breakdown
+    const countryBreakdown = await prisma.analyticsEvent.groupBy({
+      by: ['country'],
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+        country: {
+          not: null,
+        },
+      },
+      _count: {
+        id: true,
+      },
+      orderBy: {
+        _count: {
+          id: 'desc',
+        },
+      },
+      take: 10,
+    });
+
+    // Calculate totals
+    const totalEvents = await prisma.analyticsEvent.count({
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    const uniqueUsers = await prisma.analyticsEvent.groupBy({
+      by: ['userId'],
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+        userId: {
+          not: null,
+        },
+      },
+    });
+
+    const uniqueSessions = await prisma.analyticsEvent.groupBy({
+      by: ['sessionId'],
+      where: {
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        period: {
+          start: start.toISOString(),
+          end: end.toISOString(),
+        },
+        totals: {
+          events: totalEvents,
+          uniqueUsers: uniqueUsers.length,
+          uniqueSessions: uniqueSessions.length,
+        },
+        dailyStats: dailyStats.map((stat) => ({
+          date: stat.date.toISOString().split('T')[0],
+          totalUsers: stat.totalUsers,
+          activeUsers: stat.activeUsers,
+          newUsers: stat.newUsers,
+          totalViews: stat.totalViews,
+          totalWatchTime: stat.totalWatchTime,
+          avgSessionDuration: stat.avgSessionDuration,
+          topContent: stat.topContent,
+          topCategories: stat.topCategories,
+        })),
+        eventTypeCounts: eventTypeCounts.map((e) => ({
+          eventType: e.eventType,
+          count: e._count.id,
+        })),
+        deviceBreakdown: deviceBreakdown.map((d) => ({
+          device: d.device,
+          count: d._count.id,
+        })),
+        browserBreakdown: browserBreakdown.map((b) => ({
+          browser: b.browser,
+          count: b._count.id,
+        })),
+        countryBreakdown: countryBreakdown.map((c) => ({
+          country: c.country,
+          count: c._count.id,
+        })),
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/analytics/daily-stats
+ * Get daily statistics
+ */
+router.get(
+  '/daily-stats',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userRole = req.user!.role;
+    const isAdmin = userRole === 'ADMIN' || userRole === 'MODERATOR';
+
+    if (!isAdmin) {
+      throw new UnauthorizedError('Admin access required');
+    }
+
+    const { startDate, endDate, limit = 30 } = req.query as any;
+
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - Number(limit) * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    const stats = await prisma.dailyStats.findMany({
+      where: {
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        stats: stats.map((stat) => ({
+          date: stat.date.toISOString().split('T')[0],
+          totalUsers: stat.totalUsers,
+          activeUsers: stat.activeUsers,
+          newUsers: stat.newUsers,
+          totalViews: stat.totalViews,
+          totalWatchTime: stat.totalWatchTime,
+          avgSessionDuration: stat.avgSessionDuration,
+          topContent: stat.topContent,
+          topCategories: stat.topCategories,
+        })),
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/analytics/user-stats
+ * Get user-specific analytics
+ */
+router.get(
+  '/user-stats',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { startDate, endDate } = req.query as any;
+
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    // Get user events
+    const events = await prisma.analyticsEvent.findMany({
+      where: {
+        userId,
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    // Group by event type
+    const eventTypeCounts = await prisma.analyticsEvent.groupBy({
+      by: ['eventType'],
+      where: {
+        userId,
+        timestamp: {
+          gte: start,
+          lte: end,
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Calculate watch time from video events
+    const videoEvents = events.filter(
+      (e) => e.eventType === EventTypes.VIDEO_PLAY || e.eventType === EventTypes.VIDEO_COMPLETE
+    );
+    const totalWatchTime = videoEvents.reduce((total, event) => {
+      const duration = (event.eventData as any)?.duration || 0;
+      return total + duration;
+    }, 0);
+
+    res.json({
+      success: true,
+      data: {
+        period: {
+          start: start.toISOString(),
+          end: end.toISOString(),
+        },
+        totalEvents: events.length,
+        totalWatchTime,
+        eventTypeCounts: eventTypeCounts.map((e) => ({
+          eventType: e.eventType,
+          count: e._count.id,
+        })),
+        recentEvents: events.slice(0, 20).map((e) => ({
+          id: e.id,
+          eventType: e.eventType,
+          eventData: e.eventData,
+          timestamp: e.timestamp.toISOString(),
+        })),
+      },
+    });
+  })
 );
 
 export default router;
-

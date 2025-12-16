@@ -17,6 +17,7 @@ import {
 import { ConflictError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { UserRole } from '../config/constants';
 import cookieParser from 'cookie-parser';
+import { awardDailyLogin } from '../lib/loyalty/points';
 // Session caching is now handled in sessionStore
 
 const router = Router();
@@ -80,6 +81,51 @@ router.post(
         created_at: true,
       },
     });
+
+    // Track referral if affiliate code provided
+    const affiliateCode = req.body.affiliateCode || req.query.affiliateCode;
+    if (affiliateCode) {
+      try {
+        // Track referral directly (non-blocking)
+        const affiliate = await prisma.affiliate.findUnique({
+          where: { code: affiliateCode },
+        });
+
+        if (affiliate && affiliate.status === 'approved') {
+          // Check if referral already exists
+          const existing = await prisma.referral.findFirst({
+            where: { referredUserId: user.id },
+          });
+
+          if (!existing) {
+            // Create referral
+            await prisma.referral.create({
+              data: {
+                affiliateId: affiliate.id,
+                referredUserId: user.id,
+                status: 'pending',
+              },
+            });
+
+            // Update affiliate total referrals
+            await prisma.affiliate.update({
+              where: { id: affiliate.id },
+              data: {
+                totalReferrals: { increment: 1 },
+              },
+            });
+          }
+        }
+      } catch (error) {
+        // Don't fail registration if referral tracking fails
+        // Log error but don't throw
+        const logger = (await import('../lib/logger')).default;
+        logger.warn('Referral tracking failed', {
+          error: error instanceof Error ? error.message : String(error),
+          affiliateCode,
+        });
+      }
+    }
 
     // Generate tokens
     const tokens = generateTokenPair({
@@ -188,6 +234,11 @@ router.post(
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: expiresIn,
+    });
+
+    // Award daily login bonus (async, don't wait)
+    awardDailyLogin(user.id).catch((error) => {
+      console.error('Failed to award daily login bonus:', error);
     });
 
     res.json({

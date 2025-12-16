@@ -6,6 +6,7 @@ import { NotFoundError } from '../lib/errors';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validation';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { awardPoints } from '../lib/loyalty/points';
 
 const router = Router();
 
@@ -84,6 +85,21 @@ router.post(
       },
     });
 
+    // Award points for watch time (if authenticated and duration provided)
+    if (userId && duration && duration > 0) {
+      const minutes = Math.floor(duration / 60);
+      if (minutes > 0) {
+        // Award points asynchronously (don't wait for it)
+        awardPoints(userId, 'WATCH_MINUTE', {
+          contentId: id,
+          minutes,
+          duration,
+        }).catch((error) => {
+          console.error('Failed to award watch time points:', error);
+        });
+      }
+    }
+
     res.json({
       success: true,
       message: 'View tracked',
@@ -160,6 +176,13 @@ router.post(
         data: {
           likeCount: { increment: 1 },
         },
+      });
+
+      // Award points for liking content
+      awardPoints(userId, 'LIKE_CONTENT', {
+        contentId: id,
+      }).catch((error) => {
+        console.error('Failed to award like points:', error);
       });
 
       res.json({

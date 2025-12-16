@@ -27,7 +27,7 @@ const envSchema = z.object({
   TWITTER_CLIENT_SECRET: z.string().optional(),
   
   // App URLs
-  FRONTEND_URL: z.string().url().default('http://localhost:4000'),
+  FRONTEND_URL: z.string().url().default('http://localhost:4001'),
   API_URL: z.string().url().default('http://localhost:3001'),
   
   // Rate Limiting
@@ -38,6 +38,11 @@ const envSchema = z.object({
   // AWS Rekognition (optional, for image classification)
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  
+  // Web Push / VAPID (optional, for push notifications)
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().url().optional(),
   AWS_REGION: z.string().optional(),
   
   // Google Cloud Vision API (optional, for image classification)
@@ -93,6 +98,32 @@ const envSchema = z.object({
   // PayPal (for payments - alternative)
   PAYPAL_CLIENT_ID: z.string().optional(),
   PAYPAL_CLIENT_SECRET: z.string().optional(),
+  
+  // Monitoring & Error Tracking
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_SERVER_NAME: z.string().optional(),
+  
+  // Datadog (APM & Logging)
+  DATADOG_API_KEY: z.string().optional(),
+  DATADOG_APP_KEY: z.string().optional(),
+  DD_SITE: z.string().optional(),
+  DD_ENV: z.string().optional(),
+  DD_SERVICE: z.string().optional(),
+  DD_VERSION: z.string().optional(),
+  
+  // Encryption (for sensitive data)
+  ENCRYPTION_KEY: z.string().optional(),
+  
+  // Logging
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).optional(),
+  
+  // Alerting & Incident Response
+  PAGERDUTY_INTEGRATION_KEY: z.string().optional(),
+  SLACK_WEBHOOK_URL: z.string().url().optional(),
+  OPSGENIE_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

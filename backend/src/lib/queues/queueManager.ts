@@ -74,6 +74,16 @@ export const cleanupQueue = isQueueEnabled && defaultQueueOptions
   ? new Queue('cleanup', defaultQueueOptions) 
   : null;
 
+// Analytics aggregation queue (optional)
+export const analyticsQueue = isQueueEnabled && defaultQueueOptions 
+  ? new Queue('analytics', defaultQueueOptions) 
+  : null;
+
+// Email queue (optional)
+export const emailQueue = isQueueEnabled && defaultQueueOptions 
+  ? new Queue('email', defaultQueueOptions) 
+  : null;
+
 /**
  * Add job to video processing queue
  */
@@ -184,6 +194,48 @@ export async function queueCleanup(data?: {
 }
 
 /**
+ * Add job to analytics aggregation queue
+ */
+export async function queueAnalyticsAggregation(data?: {
+  timestamp?: Date;
+  type?: 'hourly' | 'daily';
+}) {
+  if (!analyticsQueue) {
+    console.warn('⚠️  Analytics queue not available. Skipping job.');
+    return null;
+  }
+  return analyticsQueue.add('aggregate-hourly', data || { timestamp: new Date(), type: 'hourly' }, {
+    priority: 5,
+    repeat: {
+      pattern: '0 * * * *', // Every hour
+    },
+  });
+}
+
+/**
+ * Add email to queue
+ */
+export async function queueEmail(data: {
+  to: string;
+  template: string;
+  data: any;
+  subject: string;
+}) {
+  if (!emailQueue) {
+    console.warn('⚠️  Email queue not available. Skipping job.');
+    return null;
+  }
+  return emailQueue.add('send', data, {
+    priority: 3,
+  });
+}
+
+/**
+ * Alias for queueEmail (for backward compatibility)
+ */
+export const queueEmailJob = queueEmail;
+
+/**
  * Get queue status
  */
 export async function getQueueStatus(queueName: string) {
@@ -194,6 +246,8 @@ export async function getQueueStatus(queueName: string) {
     'trending-scores': trendingQueue,
     'recommendations': recommendationsQueue,
     'cleanup': cleanupQueue,
+    'analytics': analyticsQueue,
+    'email': emailQueue,
   };
 
   const queue = queues[queueName as keyof typeof queues];
