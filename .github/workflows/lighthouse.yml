@@ -31,7 +31,7 @@ jobs:
         env:
           NODE_ENV: production
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.example.com' }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'https://example.supabase.co' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'test_key' }}
 
       - name: Install Lighthouse CI
