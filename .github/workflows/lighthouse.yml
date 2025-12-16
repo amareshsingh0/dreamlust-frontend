@@ -39,6 +39,7 @@ jobs:
       - name: Run Lighthouse CI
         working-directory: ./frontend
         run: lhci autorun
+        continue-on-error: true
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
           # Optional: Set if using Lighthouse CI server

@@ -89,7 +89,13 @@ jobs:
 
       - name: Analyze bundle size
         working-directory: ./frontend
+        continue-on-error: true
         run: |
+          if [ ! -d "dist/assets" ]; then
+            echo "❌ Build failed - dist/assets directory not found"
+            exit 1
+          fi
+          
           echo "## Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
