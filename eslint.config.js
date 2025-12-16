@@ -21,8 +21,8 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/no-explicit-any": "off", // Disabled - too many false positives
+      "@typescript-eslint/no-require-imports": "off", // Disabled - needed for tailwind plugins
       "react-hooks/exhaustive-deps": "warn",
     },
   },
