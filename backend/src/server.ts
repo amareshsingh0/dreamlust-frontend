@@ -48,7 +48,6 @@ import plansRoutes from './routes/plans';
 import razorpayRoutes from './routes/razorpay';
 import giftcardsRoutes from './routes/giftcards';
 import loyaltyRoutes from './routes/loyalty';
-import analyticsRoutes from './routes/analytics';
 import creatorAnalyticsRoutes from './routes/creator-analytics';
 import affiliatesRoutes from './routes/affiliates';
 import notificationsRoutes from './routes/notifications';

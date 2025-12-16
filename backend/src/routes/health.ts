@@ -172,8 +172,9 @@ async function checkSupabase(): Promise<{ status: 'healthy' | 'unhealthy' | 'not
 
   const startTime = Date.now();
   try {
-    const { supabaseAdmin } = await import('../lib/supabaseAdmin');
+    const { getSupabaseAdmin } = await import('../lib/supabaseAdmin');
     // Simple health check - try to connect
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin.from('_health_check').select('1').limit(1);
     
     // If error is "relation does not exist", that's OK - it means we can connect
