@@ -4,7 +4,9 @@
  */
 
 import winston from 'winston';
+import 'winston-daily-rotate-file';
 import path from 'path';
+import fs from 'fs';
 import { env } from '@/config/env';
 
 // Define log directory
