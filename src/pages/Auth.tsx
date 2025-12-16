@@ -269,7 +269,7 @@ const Auth = () => {
                 }}
                 className={`flex-1 py-3 text-center font-medium transition-colors ${
                   mode === "signup"
-                    ? "text-primary-foreground bg-primary border-b-2 border-primary-foreground"
+                    ? "text-white bg-primary/90 border-b-2 border-white"
                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 }`}
               >
