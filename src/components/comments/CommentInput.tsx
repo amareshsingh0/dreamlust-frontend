@@ -39,7 +39,7 @@ export function CommentInput({
   return (
     <form onSubmit={handleSubmit} className="flex gap-3">
       <Avatar className="h-10 w-10 flex-shrink-0">
-        <AvatarImage src={avatar} />
+        <AvatarImage src={avatar} alt="Your avatar" />
         <AvatarFallback>U</AvatarFallback>
       </Avatar>
       <div className="flex-1 space-y-2">

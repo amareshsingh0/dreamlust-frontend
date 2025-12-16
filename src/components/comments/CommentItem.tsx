@@ -110,7 +110,10 @@ export function CommentItem({
     <div className={cn('space-y-3', comment.isPinned && 'bg-muted/50 p-3 rounded-lg')}>
       <div className="flex gap-3">
         <Avatar className="h-10 w-10 flex-shrink-0">
-          <AvatarImage src={comment.user.avatar || undefined} />
+          <AvatarImage 
+            src={comment.user.avatar || undefined} 
+            alt={comment.user.displayName || comment.user.username ? `${comment.user.displayName || comment.user.username} avatar` : 'User avatar'} 
+          />
           <AvatarFallback>
             {comment.user.displayName?.[0] || comment.user.username[0]}
           </AvatarFallback>

@@ -498,7 +498,7 @@ export default function Watch() {
                   {/* Creator */}
                   <Link to={`/creator/${content.creator.username}`} className="flex items-center gap-3 group">
                     <Avatar className="h-12 w-12 border-2 border-primary/50">
-                      <AvatarImage src={content.creator.avatar} />
+                      <AvatarImage src={content.creator.avatar} alt={`${content.creator.name} avatar`} />
                       <AvatarFallback>{content.creator.name[0]}</AvatarFallback>
                     </Avatar>
                     <div>
