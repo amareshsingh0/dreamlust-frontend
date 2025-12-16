@@ -97,5 +97,9 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // @ts-ignore - tailwindcss-animate requires CommonJS require
+    require("tailwindcss-animate"),
+  ],
 } satisfies Config;
