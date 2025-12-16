@@ -5,7 +5,7 @@
 
 import * as Sentry from '@sentry/node';
 import { Express } from 'express';
-import { env } from '@/config/env';
+import { env } from '../../config/env';
 
 let appInstance: Express | undefined;
 

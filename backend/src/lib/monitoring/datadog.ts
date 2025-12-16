@@ -3,7 +3,7 @@
  * Backend performance monitoring and tracing
  */
 
-import { env } from '@/config/env';
+import { env } from '../../config/env';
 import logger from '../logger';
 
 let datadogInitialized = false;

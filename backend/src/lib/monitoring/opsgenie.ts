@@ -6,7 +6,7 @@
 
 import { AlertConfig, AlertSeverity } from './alerts';
 import logger from '../logger';
-import { env } from '@/config/env';
+import { env } from '../../config/env';
 
 interface OpsgenieAlert {
   message: string;

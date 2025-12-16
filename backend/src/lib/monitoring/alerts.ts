@@ -6,7 +6,7 @@
  */
 
 import logger from '../logger';
-import { env } from '@/config/env';
+import { env } from '../../config/env';
 
 /**
  * Alert Severity Levels
