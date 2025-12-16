@@ -99,6 +99,7 @@ export function ImageUpload({
                     size="icon"
                     onClick={handleRemove}
                     className="h-8 w-8"
+                    aria-label="Remove image"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -109,6 +110,16 @@ export function ImageUpload({
         ) : (
           <div
             onClick={handleClick}
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
+                e.preventDefault();
+                handleClick();
+              }
+            }}
+            aria-label={label || "Upload image"}
+            aria-disabled={disabled}
             className={cn(
               'relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md cursor-pointer transition-colors',
               disabled
