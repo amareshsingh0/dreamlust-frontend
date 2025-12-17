@@ -8,7 +8,8 @@ import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
+// Lazy load FeedbackWidget to reduce initial bundle size
+const FeedbackWidget = lazy(() => import("@/components/feedback/FeedbackWidget").then(module => ({ default: module.FeedbackWidget })));
 
 // Eagerly loaded pages (above the fold, critical)
 import Index from "./pages/Index";
@@ -58,7 +59,17 @@ const ModerationDashboard = lazy(() => import("./pages/admin/ModerationDashboard
 const LiveDashboard = lazy(() => import("./pages/creator/LiveDashboard"));
 const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage"));
 
-const queryClient = new QueryClient();
+// Optimize QueryClient for better performance - reduce unnecessary refetches
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Don't refetch on window focus
+      refetchOnReconnect: false, // Don't refetch on reconnect
+      retry: 1, // Reduce retries
+      staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+    },
+  },
+});
 
 // Loading fallback component
 const PageSkeleton = () => (
@@ -423,7 +434,9 @@ const App = () => (
           </Routes>
         </BrowserRouter>
         </TooltipProvider>
-        <FeedbackWidget />
+        <Suspense fallback={null}>
+          <FeedbackWidget />
+        </Suspense>
         </AuthProvider>
     </QueryClientProvider>
     </ThemeProvider>
