@@ -72,8 +72,6 @@ export function BundleCreator({ myContent = [], onBundleCreated }: BundleCreator
     setIsCreating(true);
 
     try {
-      // TODO: Replace with actual API call when bundle endpoint is available
-      // For now, we'll simulate the API call
       const bundleData = {
         title: title.trim(),
         description: description.trim(),
@@ -83,14 +81,10 @@ export function BundleCreator({ myContent = [], onBundleCreated }: BundleCreator
         expiresAt: expiresAt?.toISOString() || null,
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Uncomment when API is ready:
-      // const response = await api.bundles.create(bundleData);
-      // if (!response.success) {
-      //   throw new Error(response.error?.message || 'Failed to create bundle');
-      // }
+      const response = await api.bundles.create(bundleData);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create bundle');
+      }
 
       toast.success('Bundle created successfully!');
       

@@ -15,6 +15,22 @@ import { z } from 'zod';
 
 const router = Router();
 
+// Configure multer for screenshot uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only images
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new ValidationError('Invalid file type. Only images are allowed.'));
+    }
+  },
+});
+
 /**
  * Feedback submission schema
  */
@@ -25,6 +41,48 @@ const feedbackSchema = z.object({
   url: z.string().url().optional(),
   metadata: z.record(z.any()).optional(),
 });
+
+/**
+ * POST /api/feedback/screenshot
+ * Upload screenshot for feedback (returns URL to use in feedback submission)
+ */
+router.post(
+  '/screenshot',
+  optionalAuth,
+  userRateLimiter,
+  upload.single('screenshot'),
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) {
+      throw new ValidationError('Screenshot file is required');
+    }
+
+    try {
+      // Upload screenshot to S3/R2
+      const result = await s3Storage.uploadImage(
+        req.file.buffer,
+        req.file.originalname,
+        'feedback' // Store in feedback folder
+      );
+
+      logger.info('Feedback screenshot uploaded', {
+        url: result.url,
+        userId: req.user?.userId || 'anonymous',
+      });
+
+      res.json({
+        success: true,
+        data: {
+          url: result.cdnUrl || result.url,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to upload feedback screenshot', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new ValidationError('Failed to upload screenshot. Please try again.');
+    }
+  })
+);
 
 /**
  * POST /api/feedback

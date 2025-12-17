@@ -104,7 +104,7 @@ const LiveStreamPage = () => {
 
           // Connect to WebSocket and join stream if live
           if (streamData.status === 'live' && !viewerTrackedRef.current) {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('accessToken');
             const socket = getSocket(token || undefined);
             socketRef.current = socket;
 

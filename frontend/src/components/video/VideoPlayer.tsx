@@ -88,12 +88,55 @@ export function VideoPlayer({
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
 
-    if (!isFullscreen) {
-      containerRef.current.requestFullscreen();
-    } else {
-      document.exitFullscreen();
+    // Check if fullscreen is supported
+    const doc = document as any;
+    const isFullscreenSupported = !!(
+      doc.fullscreenEnabled ||
+      doc.webkitFullscreenEnabled ||
+      doc.mozFullScreenEnabled ||
+      doc.msFullscreenEnabled
+    );
+
+    if (!isFullscreenSupported) {
+      toast.error('Fullscreen is not supported in your browser');
+      return;
     }
-    setIsFullscreen(!isFullscreen);
+
+    try {
+      if (!isFullscreen) {
+        // Try standard API first
+        if (containerRef.current.requestFullscreen) {
+          containerRef.current.requestFullscreen();
+        } else if (containerRef.current.webkitRequestFullscreen) {
+          // Safari
+          containerRef.current.webkitRequestFullscreen();
+        } else if (containerRef.current.mozRequestFullScreen) {
+          // Firefox
+          containerRef.current.mozRequestFullScreen();
+        } else if (containerRef.current.msRequestFullscreen) {
+          // IE/Edge
+          containerRef.current.msRequestFullscreen();
+        } else {
+          toast.error('Fullscreen is not available');
+          return;
+        }
+      } else {
+        // Exit fullscreen
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          doc.msExitFullscreen();
+        }
+      }
+      setIsFullscreen(!isFullscreen);
+    } catch (error) {
+      console.error('Fullscreen error:', error);
+      toast.error('Failed to toggle fullscreen');
+    }
   };
 
   // Use HLS if available

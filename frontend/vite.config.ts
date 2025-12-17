@@ -108,18 +108,7 @@ export default defineConfig(({ mode }) => ({
     },
     chunkSizeWarningLimit: 1000, // 1MB
     // Enable minification and source maps
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production', // Remove console.log in production
-        drop_debugger: mode === 'production',
-        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : [],
-        passes: 2, // Multiple passes for better minification
-      },
-      mangle: {
-        safari10: true, // Fix Safari 10 issues
-      },
-    },
+    minify: 'esbuild',
     // Optimize chunk loading
     target: 'esnext',
     cssCodeSplit: true, // Split CSS into separate files

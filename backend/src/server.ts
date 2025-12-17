@@ -55,9 +55,11 @@ import notificationsRoutes from './routes/notifications';
 import pushRoutes from './routes/push';
 import feedbackRoutes from './routes/feedback';
 import funnelAnalyticsRoutes from './routes/funnel-analytics';
-import healthRoutes from './routes/health';
+import healthRoutes, { simpleHealthCheck } from './routes/health';
 import { createServer } from 'http';
 import { initializeSocketServer } from './socket/socketServer';
+// Initialize monitoring service (will auto-start in production)
+import './lib/monitoring/monitoringService';
 
 const app = express();
 
@@ -133,6 +135,13 @@ app.use(ipRateLimiter);
 
 // Health check routes (before other routes for fast response)
 app.use('/health', healthRoutes);
+
+// Simple health check endpoint at /api/health (matching standard format)
+app.get('/api/health', async (req, res) => {
+  const result = await simpleHealthCheck();
+  const allHealthy = Object.values(result.checks).every((v) => v);
+  res.status(allHealthy ? 200 : 503).json(result);
+});
 
 // Root route - API information
 app.get('/', (req, res) => {

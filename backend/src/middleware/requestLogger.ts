@@ -1,10 +1,11 @@
 /**
  * Request Logging Middleware
- * Logs all incoming HTTP requests with Winston
+ * Logs all incoming HTTP requests with Winston and collects metrics
  */
 
 import { Request, Response, NextFunction } from 'express';
 import logger from '../lib/logger';
+import { metricsCollector } from '../lib/monitoring/metricsCollector';
 
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const startTime = Date.now();
@@ -29,6 +30,9 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
       ip: req.ip,
       userId: req.user?.userId,
     };
+
+    // Collect metrics for monitoring
+    metricsCollector.recordRequest(res.statusCode, duration);
 
     // Log level based on status code
     if (res.statusCode >= 500) {

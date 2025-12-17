@@ -120,11 +120,12 @@ const envSchema = z.object({
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).optional(),
   
-  // Alerting & Incident Response
-  PAGERDUTY_INTEGRATION_KEY: z.string().optional(),
-  SLACK_WEBHOOK_URL: z.string().url().optional(), // Note: Used for Discord webhook
-  DISCORD_WEBHOOK_URL: z.string().url().optional(),
-  OPSGENIE_API_KEY: z.string().optional(),
+  // Alerting & Incident Response (Discord Webhooks)
+  DISCORD_WEBHOOK_URL: z.string().url().optional(), // Discord webhook for all alerts (replaces PagerDuty, Opsgenie, Slack)
+  // Legacy support (deprecated - use DISCORD_WEBHOOK_URL instead)
+  PAGERDUTY_INTEGRATION_KEY: z.string().optional(), // Deprecated - use DISCORD_WEBHOOK_URL
+  SLACK_WEBHOOK_URL: z.string().url().optional(), // Deprecated - use DISCORD_WEBHOOK_URL
+  OPSGENIE_API_KEY: z.string().optional(), // Deprecated - use DISCORD_WEBHOOK_URL
 });
 
 export type Env = z.infer<typeof envSchema>;

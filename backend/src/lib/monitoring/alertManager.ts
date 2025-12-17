@@ -5,9 +5,7 @@
  */
 
 import { AlertConfig, checkAlert, logAlert, getEnabledAlerts } from './alerts';
-import { sendPagerDutyAlert } from './pagerduty';
-import { sendSlackAlert } from './slack';
-import { sendOpsgenieAlert } from './opsgenie';
+import { sendDiscordCriticalAlert, sendDiscordAlert } from './discord';
 import logger from '../logger';
 
 interface AlertContext {
@@ -37,16 +35,18 @@ export async function processAlert(
   // Route to notification channels
   const promises: Promise<void>[] = [];
 
-  if (alert.notificationChannels.includes('pagerduty')) {
-    promises.push(sendPagerDutyAlert(alert, metricValue, context));
-  }
-
-  if (alert.notificationChannels.includes('opsgenie')) {
-    promises.push(sendOpsgenieAlert(alert, metricValue, context));
-  }
-
-  if (alert.notificationChannels.includes('slack')) {
-    promises.push(sendSlackAlert(alert, metricValue, context));
+  // Discord replaces PagerDuty, Opsgenie, and Slack
+  if (alert.notificationChannels.includes('discord') || 
+      alert.notificationChannels.includes('pagerduty') || 
+      alert.notificationChannels.includes('opsgenie') || 
+      alert.notificationChannels.includes('slack')) {
+    // Send critical alerts with special formatting (replaces PagerDuty)
+    if (alert.threshold.severity === AlertSeverity.CRITICAL) {
+      promises.push(sendDiscordCriticalAlert(alert, metricValue, context));
+    } else {
+      // Send all other alerts (replaces Slack)
+      promises.push(sendDiscordAlert(alert, metricValue, context));
+    }
   }
 
   // Wait for all notifications to be sent (don't block on failures)

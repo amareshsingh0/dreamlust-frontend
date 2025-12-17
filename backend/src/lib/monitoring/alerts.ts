@@ -55,7 +55,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Error rate exceeds 5% over 5 minutes',
     },
-    notificationChannels: ['pagerduty', 'slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/high-error-rate',
   },
 
@@ -69,7 +69,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Error rate exceeds 2% over 5 minutes',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/elevated-error-rate',
   },
 
@@ -85,7 +85,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'P95 response time exceeds 1 second over 5 minutes',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/high-response-time',
   },
 
@@ -100,7 +100,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'P99 response time exceeds 2 seconds over 5 minutes',
     },
-    notificationChannels: ['pagerduty', 'slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/high-response-time',
   },
 
@@ -114,7 +114,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Database connection pool usage exceeds 80%',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/database-connections',
   },
 
@@ -127,7 +127,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Database connection pool usage exceeds 95%',
     },
-    notificationChannels: ['pagerduty', 'slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/database-connections',
   },
 
@@ -142,7 +142,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'P95 database query time exceeds 5 seconds',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/slow-database-queries',
   },
 
@@ -156,7 +156,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Disk usage exceeds 85%',
     },
-    notificationChannels: ['pagerduty', 'slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/disk-usage',
   },
 
@@ -169,7 +169,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Memory usage exceeds 90%',
     },
-    notificationChannels: ['pagerduty', 'slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/memory-usage',
   },
 
@@ -183,7 +183,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'CPU usage exceeds 90% over 5 minutes',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/cpu-usage',
   },
 
@@ -197,7 +197,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Redis connection failed',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/redis-connection-failure',
   },
 
@@ -210,7 +210,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Redis memory usage exceeds 80%',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/redis-memory-usage',
   },
 
@@ -224,7 +224,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Health check endpoint returned unhealthy status',
     },
-    notificationChannels: ['pagerduty', 'slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/health-check-failure',
   },
 
@@ -238,7 +238,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Queue size exceeds 10,000 jobs',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/queue-size',
   },
 
@@ -253,7 +253,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'P95 queue processing time exceeds 5 minutes',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/queue-processing-time',
   },
 
@@ -268,7 +268,7 @@ export const ALERTS: Record<string, AlertConfig> = {
       enabled: true,
       description: 'Rate limit exceeded more than 100 times in 1 minute',
     },
-    notificationChannels: ['slack'],
+    notificationChannels: ['discord'],
     runbookUrl: '/runbooks/rate-limit-exceeded',
   },
 };

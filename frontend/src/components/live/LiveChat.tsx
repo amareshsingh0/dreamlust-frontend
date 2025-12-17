@@ -48,7 +48,7 @@ export function LiveChat({ streamId, chatEnabled = true, className }: LiveChatPr
     }
 
     // Get token from localStorage
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     const socket = getSocket(token || undefined);
     socketRef.current = socket;
 

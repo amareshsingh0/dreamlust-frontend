@@ -13,7 +13,7 @@ export function getSocket(token?: string): Socket {
   socket = io(backendUrl, {
     transports: ['websocket', 'polling'],
     auth: {
-      token: token || localStorage.getItem('token') || undefined,
+      token: token || localStorage.getItem('accessToken') || undefined,
     },
     reconnection: true,
     reconnectionDelay: 1000,

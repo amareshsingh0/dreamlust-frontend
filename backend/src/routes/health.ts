@@ -337,5 +337,75 @@ router.get('/detailed', async (req: Request, res: Response) => {
   res.status(statusCode).json(result);
 });
 
+/**
+ * Simple health check helper function
+ * Returns health check results in simple format
+ */
+export async function simpleHealthCheck() {
+  const checks = {
+    database: false,
+    redis: false,
+    s3: false,
+  };
+
+  // Check database
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = true;
+  } catch (error) {
+    logger.error('Database health check failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Check Redis
+  try {
+    if (env.REDIS_URL && redis && isRedisAvailable()) {
+      await redis.ping();
+      checks.redis = true;
+    }
+  } catch (error) {
+    logger.error('Redis health check failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Check S3
+  try {
+    const s3Bucket = env.S3_BUCKET_NAME || env.R2_BUCKET_NAME;
+    const s3Endpoint = env.S3_ENDPOINT;
+    const s3AccessKey = env.S3_ACCESS_KEY_ID || env.R2_ACCESS_KEY_ID;
+    const s3SecretKey = env.S3_SECRET_ACCESS_KEY || env.R2_SECRET_ACCESS_KEY;
+
+    if (s3Bucket && s3Endpoint && s3AccessKey && s3SecretKey) {
+      const { S3Client, HeadBucketCommand } = await import('@aws-sdk/client-s3');
+      
+      const s3Client = new S3Client({
+        endpoint: s3Endpoint,
+        region: env.S3_REGION || 'us-east-1',
+        credentials: {
+          accessKeyId: s3AccessKey,
+          secretAccessKey: s3SecretKey,
+        },
+      });
+
+      await s3Client.send(new HeadBucketCommand({ Bucket: s3Bucket }));
+      checks.s3 = true;
+    }
+  } catch (error) {
+    logger.error('S3 health check failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const allHealthy = Object.values(checks).every((v) => v);
+
+  return {
+    status: allHealthy ? 'healthy' : 'unhealthy',
+    checks,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 export default router;
 
