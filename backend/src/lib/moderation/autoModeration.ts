@@ -4,7 +4,8 @@
  */
 
 import { prisma } from '../prisma';
-import { scanThumbnail } from './imageClassification';
+// Image classification disabled - not used in this project
+// import { scanThumbnail } from './imageClassification';
 
 // Banned words list (in production, store in database)
 const BANNED_WORDS: string[] = [
@@ -200,34 +201,34 @@ export async function autoFlagContent(contentId: string, creatorId: string): Pro
   }
 
   // Check thumbnail/image classification (DISABLED - Not used)
-  // Image classification service is not configured/used
-  const content = await prisma.content.findUnique({
-    where: { id: contentId },
-    select: { thumbnail: true },
-  });
-
-  if (content?.thumbnail) {
-    const imageCheck = await scanThumbnail(content.thumbnail);
-    if (imageCheck.flagged) {
-      // Determine severity based on confidence and categories
-      let severity: 'low' | 'medium' | 'high' | 'critical' = 'medium';
-      if (imageCheck.confidence >= 90) {
-        severity = 'critical';
-      } else if (imageCheck.confidence >= 75) {
-        severity = 'high';
-      } else if (imageCheck.confidence >= 50) {
-        severity = 'medium';
-      } else {
-        severity = 'low';
-      }
-
-      flags.push({
-        type: 'auto',
-        reason: `inappropriate_image:${imageCheck.categories.join(',')}`,
-        severity,
-      });
-    }
-  }
+  // Image classification service is not configured/used in this project
+  // const content = await prisma.content.findUnique({
+  //   where: { id: contentId },
+  //   select: { thumbnail: true },
+  // });
+  // 
+  // if (content?.thumbnail) {
+  //   const imageCheck = await scanThumbnail(content.thumbnail);
+  //   if (imageCheck.flagged) {
+  //     // Determine severity based on confidence and categories
+  //     let severity: 'low' | 'medium' | 'high' | 'critical' = 'medium';
+  //     if (imageCheck.confidence >= 90) {
+  //       severity = 'critical';
+  //     } else if (imageCheck.confidence >= 75) {
+  //       severity = 'high';
+  //     } else if (imageCheck.confidence >= 50) {
+  //       severity = 'medium';
+  //     } else {
+  //       severity = 'low';
+  //     }
+  // 
+  //     flags.push({
+  //       type: 'auto',
+  //       reason: `inappropriate_image:${imageCheck.categories.join(',')}`,
+  //       severity,
+  //     });
+  //   }
+  // }
 
   // Create flags in database
   if (flags.length > 0) {
@@ -255,7 +256,8 @@ export async function autoFlagContent(contentId: string, creatorId: string): Pro
 
 /**
  * Image classification using AWS Rekognition or Google Vision API
- * Re-exported from imageClassification module
+ * DISABLED - Not used in this project
+ * Re-exported from imageClassification module (for reference only)
  */
-export { scanThumbnail } from './imageClassification';
+// export { scanThumbnail } from './imageClassification'; // Disabled - not used
 
