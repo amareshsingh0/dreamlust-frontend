@@ -567,7 +567,7 @@ model ContentFlag {
 
 model ScheduledContent {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  contentId           String    @map("content_id") @db.Uuid
+  contentId           String    @unique @map("content_id") @db.Uuid
   publishAt           DateTime  @map("publish_at") @db.Timestamp(6)
   status              String    @default("scheduled") // scheduled, published, failed
   notifyFollowers     Boolean?  @default(true) @map("notify_followers")

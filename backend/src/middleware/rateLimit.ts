@@ -129,3 +129,25 @@ export const loginRateLimiter = rateLimit({
   },
 });
 
+/**
+ * Tip endpoint rate limiter: 10 tips per hour per user
+ * More restrictive for financial transactions
+ */
+export const tipRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  message: 'Too many tip requests. You can send up to 10 tips per hour.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    // Use user ID for authenticated users, otherwise IP
+    if (req.user?.userId) {
+      return `tip:${req.user.userId}`;
+    }
+    return `tip:${req.ip || 'unknown'}`;
+  },
+  handler: (req: Request, res: Response) => {
+    throw new RateLimitError('Tip rate limit exceeded. You can send up to 10 tips per hour. Please try again later.');
+  },
+});
+

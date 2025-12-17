@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuth } from '../middleware/auth';
-import { userRateLimiter } from '../middleware/rateLimit';
+import { userRateLimiter, tipRateLimiter } from '../middleware/rateLimit';
 import { validateBody, validateQuery, validateParams } from '../middleware/validation';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { createTipSchema, tipQuerySchema, confirmPaymentSchema } from '../schemas/tip';
@@ -22,7 +22,7 @@ const router = Router();
 router.post(
   '/',
   authenticate,
-  userRateLimiter,
+  tipRateLimiter,
   validateBody(createTipSchema),
   async (req: Request, res: Response) => {
     const userId = req.user!.userId;
@@ -360,7 +360,7 @@ router.get(
 router.post(
   '/:id/confirm-payment',
   authenticate,
-  userRateLimiter,
+  tipRateLimiter,
   validateParams(z.object({ id: z.string() })),
   validateBody(confirmPaymentSchema),
   async (req: Request, res: Response) => {
