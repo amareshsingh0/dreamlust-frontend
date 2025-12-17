@@ -49,6 +49,7 @@ model User {
   following               Follow[]       @relation("Following")
   activityFeed            ActivityFeed[]
   collections             Collection[]
+  tips_given              Tip[]          @relation("TipsGiven")
 
   @@index([created_at], map: "idx_users_created_at")
   @@index([deleted_at], map: "idx_users_deleted_at")
@@ -92,6 +93,7 @@ model Creator {
   live_streams            LiveStream[]
   subscriptions           Subscription[]
   creator_earnings        CreatorEarnings?
+  tips_received           Tip[]
 
   @@index([created_at], map: "idx_creators_created_at")
   @@index([deleted_at], map: "idx_creators_deleted_at")
@@ -1192,4 +1194,27 @@ model SearchHistory {
   @@index([query], map: "idx_search_history_query")
   @@index([createdAt], map: "idx_search_history_created")
   @@map("search_history")
+}
+
+model Tip {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  from_user_id  String   @db.Uuid
+  to_creator_id String   @db.Uuid
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("INR")
+  message       String?
+  is_anonymous  Boolean  @default(false)
+  status        String   @default("pending") // pending, completed, failed, refunded
+  transaction_id String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  from_user    User     @relation("TipsGiven", fields: [from_user_id], references: [id], onDelete: Cascade)
+  to_creator   Creator  @relation(fields: [to_creator_id], references: [id], onDelete: Cascade)
+
+  @@index([from_user_id], map: "idx_tips_from_user")
+  @@index([to_creator_id], map: "idx_tips_to_creator")
+  @@index([status], map: "idx_tips_status")
+  @@index([createdAt], map: "idx_tips_created")
+  @@map("tips")
 }

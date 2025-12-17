@@ -305,9 +305,9 @@ export const authStorage = {
 ### Immediate Actions
 1. ✅ **COMPLETED**: Add Razorpay key to frontend
 2. ✅ **COMPLETED**: Create auth guard utility
-3. ⚠️ **TODO**: Update Stripe publishable key (placeholder currently)
-4. ⚠️ **TODO**: Add E2E tests for payment flow
-5. ⚠️ **TODO**: Implement rate limiting on tip API
+3. ✅ **DONE**: Using Razorpay (no Stripe needed) - `VITE_RAZORPAY_KEY_ID` configured
+4. ⚠️ **TODO**: Add E2E tests for payment flow (deferred)
+5. ✅ **DONE**: Rate limiting implemented via `tipRateLimiter` middleware
 
 ### Future Enhancements
 1. Add 2FA support for sensitive actions

@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -76,9 +75,9 @@ export function ShareModal({
           url: shareUrl,
         });
         await trackShare();
-      } catch (error: any) {
-        if (error.name !== 'AbortError') {
-          console.error('Share failed:', error);
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          // Share was cancelled or failed
         }
       }
     }
@@ -91,15 +90,15 @@ export function ShareModal({
         window.open(response.data.data.url, '_blank', 'noopener,noreferrer');
         await trackShare(platform);
       }
-    } catch (error) {
-      console.error(`Failed to share on ${platform}:`, error);
+    } catch {
+      // Failed to share on platform
     }
   };
 
   const trackShare = async (platform?: string) => {
     try {
       await api.post(`/social/share/${contentId}/track`, { platform });
-    } catch (error) {
+    } catch {
       // Silent fail
     }
   };

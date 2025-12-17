@@ -4,15 +4,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { FolderOpen, Users, Eye, Heart } from 'lucide-react';
+import { FolderOpen, Users, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
-import { ContentGrid } from '@/components/content/ContentGrid';
 
 interface Collection {
   id: string;
@@ -53,8 +51,8 @@ export function DiscoverCollections() {
         if (trendingRes.data.success) {
           setTrendingCollections(trendingRes.data.data);
         }
-      } catch (error) {
-        console.error('Failed to fetch collections:', error);
+      } catch {
+        // Failed to fetch collections
       } finally {
         setLoading(false);
       }

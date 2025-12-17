@@ -15,7 +15,8 @@
       "Bash(bun --version:*)",
       "Bash(bunx prisma generate:*)",
       "Bash(bun run lint)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(timeout 30 bunx prisma:*)"
     ]
   }
 }
