@@ -57,6 +57,7 @@ import { Helmet } from 'react-helmet-async';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserPreferences {
   theme: string;
@@ -88,8 +89,9 @@ export default function Watch() {
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
-  // Get current user ID from localStorage (in a real app, use auth context)
-  const currentUserId = localStorage.getItem('userId') || undefined;
+  // Get current user from auth context (proper way)
+  const { user } = useAuth();
+  const currentUserId = user?.id;
   const [selectedQuality, setSelectedQuality] = useState<string>('auto');
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -197,40 +199,58 @@ export default function Watch() {
 
   // Track view on mount
   useEffect(() => {
+    let isMounted = true;
+    
     if (id) {
       const trackView = async () => {
         try {
-          await api.content.trackView(id, {});
+          if (isMounted) {
+            await api.content.trackView(id, {});
+          }
         } catch (error) {
-          console.error('Failed to track view:', error);
+          if (isMounted) {
+            console.error('Failed to track view:', error);
+          }
         }
       };
       trackView();
       
       // Set watch start time
-      watchStartTimeRef.current = Date.now();
+      if (isMounted) {
+        watchStartTimeRef.current = Date.now();
+      }
     }
     
     // Cleanup: Track view event when component unmounts or content changes
     return () => {
-      if (id && watchStartTimeRef.current && content) {
+      isMounted = false;
+      
+      if (id && watchStartTimeRef.current) {
         const duration = Math.floor((Date.now() - watchStartTimeRef.current) / 1000);
-        const contentDuration = parseDurationToSeconds(content.duration);
-        const completionRate = contentDuration > 0 ? Math.min(duration / contentDuration, 1) : 0;
         
-        // Track detailed view event
-        api.analytics.trackViewEvent({
-          contentId: id,
-          watchDuration: duration,
-          completionRate,
-          device: detectDevice(),
-          region: preferences?.region || undefined,
-        }).catch(error => {
-          console.error('Failed to track view event:', error);
-        });
+        // Only track if we have content data (avoid stale refs)
+        const currentContent = content;
+        if (currentContent) {
+          const contentDuration = parseDurationToSeconds(currentContent.duration);
+          const completionRate = contentDuration > 0 ? Math.min(duration / contentDuration, 1) : 0;
+          
+          // Track detailed view event (fire and forget, no state updates)
+          api.analytics.trackViewEvent({
+            contentId: id,
+            watchDuration: duration,
+            completionRate,
+            device: detectDevice(),
+            region: preferences?.region || undefined,
+          }).catch(error => {
+            // Silently fail - component is unmounting
+            if (import.meta.env.DEV) {
+              console.error('Failed to track view event:', error);
+            }
+          });
+        }
       }
     };
-  }, [id, content, preferences]);
+  }, [id]); // Only depend on id, not content or preferences to avoid stale closures
 
   // Update watch duration periodically when playing
   useEffect(() => {

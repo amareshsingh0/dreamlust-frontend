@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '@/lib/api';
+import { authStorage, getObject, setObject } from '@/lib/storage';
 // Datadog removed - using Sentry instead
 // import { setDatadogUser, clearDatadogUser } from '@/lib/monitoring/datadog';
 
@@ -32,12 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const storedUser = localStorage.getItem('user');
-        const token = localStorage.getItem('accessToken');
+        const storedUser = getObject<User>('user');
+        const token = authStorage.getAccessToken();
         
         if (storedUser && token) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
+          setUser(storedUser);
           
           // Verify token is still valid by checking with backend
           try {
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userData = response.data.user || response.data;
               if (userData && userData.id) {
                 setUser(userData);
-                localStorage.setItem('user', JSON.stringify(userData));
+                setObject('user', userData);
               } else {
                 // Invalid user data, clear everything
                 clearAuth();
@@ -74,9 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearAuth = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('refreshToken');
+    authStorage.clearTokens();
+    // Note: sessionStorage.clear() is safe and doesn't need wrapper
     sessionStorage.clear();
     setUser(null);
     
@@ -164,8 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Store tokens and user atomically
       try {
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('user', JSON.stringify(userData));
+        authStorage.setAccessToken(accessToken);
+        setObject('user', userData);
         setUser(userData);
         
         console.log('✅ Login successful for user:', userData.email);
@@ -216,8 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Store tokens and user
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('user', JSON.stringify(userData));
+        authStorage.setAccessToken(accessToken);
+        setObject('user', userData);
         setUser(userData);
         
         // Datadog removed - using Sentry instead
@@ -236,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     // Get token before clearing
-    const token = localStorage.getItem('accessToken');
+    const token = authStorage.getAccessToken();
     
     // Clear local state immediately (don't wait for API)
     clearAuth();
@@ -245,11 +244,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         // Fire and forget - don't wait for response
-        api.auth.logout().catch((error) => {
-          console.warn('Logout API call failed (non-blocking):', error);
-        });
+        api.auth.logout()
+          .then(() => {
+            if (import.meta.env.DEV) {
+              console.log('✅ Logout successful');
+            }
+          })
+          .catch((error) => {
+            if (import.meta.env.DEV) {
+              console.warn('Logout API call failed (non-blocking):', error);
+            }
+          });
       } catch (error) {
-        console.warn('Logout API error:', error);
+        if (import.meta.env.DEV) {
+          console.warn('Logout API error:', error);
+        }
       }
     }
   };
@@ -262,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = response.data.user || response.data;
         if (userData && userData.id) {
           setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
+          setObject('user', userData);
         } else {
           clearAuth();
         }

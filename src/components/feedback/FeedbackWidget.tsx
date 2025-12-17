@@ -116,18 +116,21 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
 
   const uploadScreenshot = async (file: File): Promise<string | undefined> => {
     try {
-      // In a real app, you'd upload to S3/R2 and get a URL
-      // For now, we'll convert to base64 data URL
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          resolve(reader.result as string);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Upload screenshot to S3/R2 via API
+      const response = await api.feedback.uploadScreenshot<{ success: boolean; data: { url: string } }>(file);
+      
+      if (response.success && response.data?.url) {
+        return response.data.url;
+      }
+      
+      throw new Error('Failed to upload screenshot');
     } catch (error) {
       console.error('Failed to upload screenshot:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'Failed to upload screenshot. You can still submit feedback without it.',
+        variant: 'destructive',
+      });
       return undefined;
     }
   };

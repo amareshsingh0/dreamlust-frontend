@@ -20,10 +20,16 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "off", // Disabled - too many false positives
-      "@typescript-eslint/no-require-imports": "off", // Disabled - needed for tailwind plugins
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_"
+      }],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-require-imports": "off", // Needed for tailwind plugins
       "react-hooks/exhaustive-deps": "warn",
+      "no-console": ["warn", { 
+        allow: ["warn", "error"] 
+      }],
     },
   },
 );

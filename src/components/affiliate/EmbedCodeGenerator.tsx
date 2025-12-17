@@ -84,10 +84,41 @@ export function EmbedCodeGenerator({ affiliateLink, affiliateCode }: EmbedCodeGe
 
         <div className="text-xs text-muted-foreground">
           <p>Preview:</p>
-          <div
-            className="mt-2 p-4 border rounded-lg bg-muted/50"
-            dangerouslySetInnerHTML={{ __html: embedCode }}
-          />
+          <div className="mt-2 p-4 border rounded-lg bg-muted/50">
+            {embedType === 'link' && (
+              <a 
+                href={affiliateLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Join with my referral code: {affiliateCode}
+              </a>
+            )}
+            {embedType === 'button' && (
+              <a 
+                href={affiliateLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block px-5 py-2.5 bg-primary text-primary-foreground rounded-md no-underline hover:opacity-90"
+              >
+                Join Now
+              </a>
+            )}
+            {embedType === 'banner' && (
+              <a 
+                href={affiliateLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <img 
+                  src={`${window.location.origin}/api/affiliates/banner/728x90?code=${encodeURIComponent(affiliateCode)}`} 
+                  alt="Join Now" 
+                  className="max-w-full h-auto"
+                />
+              </a>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

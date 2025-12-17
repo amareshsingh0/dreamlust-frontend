@@ -22,18 +22,30 @@ export async function apiRequest<T>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     
+    // Don't set Content-Type for FormData - browser will set it with boundary
+    const isFormData = options.body instanceof FormData;
+    const defaultHeaders: Record<string, string> = isFormData
+      ? {}
+      : { 'Content-Type': 'application/json' };
+    
     const fetchOptions: RequestInit = {
       ...options,
       signal: options.signal || controller.signal, // Use provided signal or create new one
       credentials: options.credentials || 'include', // Include cookies for auth
       headers: {
-        'Content-Type': 'application/json',
+        ...defaultHeaders,
         ...options.headers,
       },
     };
     
-    const response = await fetch(url, fetchOptions);
-    clearTimeout(timeoutId);
+    let response: Response;
+    try {
+      response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
 
     // Handle network errors
     if (!response.ok && response.status === 0) {
@@ -119,8 +131,8 @@ export async function apiRequest<T>(
 
 // Helper to get auth token from localStorage or cookie
 function getAuthToken(): string | null {
-  // In a real app, you'd get this from your auth context/store
-  return localStorage.getItem('accessToken');
+  // Use safe storage wrapper to handle private browsing mode
+  return authStorage.getAccessToken();
 }
 
 // Helper to add auth headers
@@ -1280,6 +1292,23 @@ export const api = {
       }),
   },
   feedback: {
+    uploadScreenshot: <T>(file: File) => {
+      const formData = new FormData();
+      formData.append('screenshot', file);
+      
+      // Get auth token for Authorization header
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      return apiRequest<T>('/api/feedback/screenshot', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+    },
     submit: <T>(data: {
       type: 'bug_report' | 'feature_request' | 'general_feedback';
       message: string;
@@ -1370,6 +1399,42 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
+      }),
+  },
+  bundles: {
+    create: <T>(data: {
+      title: string;
+      description: string;
+      thumbnail?: string;
+      contentIds: string[];
+      price: number;
+      expiresAt?: string | null;
+    }) =>
+      apiRequest<T>('/api/bundles', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getAll: <T>(params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return apiRequest<T>(`/api/bundles${query ? `?${query}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/bundles/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    purchase: <T>(id: string, data?: { paymentMethodId?: string }) =>
+      apiRequest<T>(`/api/bundles/${id}/purchase`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data || {}),
       }),
   },
 };
