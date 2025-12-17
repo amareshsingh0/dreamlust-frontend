@@ -317,14 +317,14 @@ const Auth = () => {
                   )}
                 </div>
 
-                <div className="flex items-center">
+                <div className="flex items-center gap-2">
                   <input
                     id="remember-me"
                     type="checkbox"
                     {...signInForm.register("rememberMe")}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 w-5 h-5 min-w-[20px] min-h-[20px]"
                   />
-                  <label htmlFor="remember-me" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                  <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer min-h-[44px] flex items-center">
                     Remember me
                   </label>
                 </div>
