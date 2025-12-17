@@ -11,7 +11,7 @@ import { X } from 'lucide-react/dist/esm/icons/x';
 import { Upload } from 'lucide-react/dist/esm/icons/upload';
 import { Loader2 } from 'lucide-react/dist/esm/icons/loader-2';
 import { Sparkles } from 'lucide-react/dist/esm/icons/sparkles';
-import { Bug } from 'lucide-react/dist/esm/icons/bug';
+import { AlertCircle } from 'lucide-react/dist/esm/icons/alert-circle';
 import { Lightbulb } from 'lucide-react/dist/esm/icons/lightbulb';
 import { MessageCircle } from 'lucide-react/dist/esm/icons/message-circle';
 import {
@@ -57,7 +57,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
     {
       value: 'bug_report' as const,
       label: 'Bug Report',
-      icon: Bug,
+      icon: AlertCircle,
       description: 'Report an issue or error',
       color: 'text-red-500',
     },
