@@ -51,7 +51,8 @@ const Auth = () => {
     }
   }, [location.pathname]);
 
-  // Check backend connectivity on mount (silent check, don't show error immediately)
+  // Check backend connectivity - DEFERRED to avoid blocking initial render
+  // Use requestIdleCallback to check after page is interactive
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout;
@@ -59,7 +60,7 @@ const Auth = () => {
     const checkBackend = async () => {
       try {
         const controller = new AbortController();
-        timeoutId = setTimeout(() => controller.abort(), 1500); // Quick check
+        timeoutId = setTimeout(() => controller.abort(), 1000); // Reduced timeout
         
         const response = await fetch(`${API_BASE_URL}/health`, {
           method: 'GET',
@@ -73,33 +74,35 @@ const Auth = () => {
         if (isMounted && response.ok) {
           setBackendConnected(true);
         } else if (isMounted) {
-          // Only set to false if we get a response but it's not ok
           setBackendConnected(false);
         }
       } catch (error: any) {
         clearTimeout(timeoutId);
-        
-        // Only show error after user tries to interact (not on initial load)
-        // This prevents the annoying error message when server is just starting
         if (isMounted) {
-          // Don't set to false immediately - wait for user action
-          // The error will show when they try to submit the form
           setBackendConnected(null); // null = unknown/not checked yet
         }
       }
     };
     
-    // Delay the check slightly to avoid race conditions
-    const checkTimeout = setTimeout(() => {
-      if (isMounted) {
-        checkBackend();
-      }
-    }, 500);
+    // Defer health check until after page is interactive (non-blocking)
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        if (isMounted) {
+          checkBackend();
+        }
+      }, { timeout: 3000 }); // Check after 3s max
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(() => {
+        if (isMounted) {
+          checkBackend();
+        }
+      }, 2000); // Check after 2s
+    }
     
     // Cleanup
     return () => {
       isMounted = false;
-      clearTimeout(checkTimeout);
       clearTimeout(timeoutId);
     };
   }, []);
@@ -127,22 +130,8 @@ const Auth = () => {
   const onSignIn = async (data: SignInFormData) => {
     setLoading(true);
     
-    // Check backend connection before attempting login
-    try {
-      const healthCheck = await fetch(`${API_BASE_URL}/health`, {
-        method: 'GET',
-        credentials: 'include',
-        cache: 'no-cache',
-      });
-      
-      if (!healthCheck.ok) {
-        setBackendConnected(false);
-      } else {
-        setBackendConnected(true);
-      }
-    } catch {
-      setBackendConnected(false);
-    }
+    // Skip health check - let login attempt handle connection errors
+    // This avoids blocking the critical path
     
     try {
       await login(data.email, data.password, data.rememberMe);
@@ -253,10 +242,10 @@ const Auth = () => {
                   setMode("signin");
                   navigate("/auth");
                 }}
-                className={`flex-1 py-3 text-center font-medium transition-colors ${
+                className={`flex-1 py-3 text-center font-medium transition-colors min-h-[44px] ${
                   mode === "signin"
                     ? "text-primary-foreground bg-primary border-b-2 border-primary-foreground"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                 }`}
               >
                 Sign In
@@ -267,10 +256,10 @@ const Auth = () => {
                   setMode("signup");
                   navigate("/signup");
                 }}
-                className={`flex-1 py-3 text-center font-medium transition-colors ${
+                className={`flex-1 py-3 text-center font-medium transition-colors min-h-[44px] ${
                   mode === "signup"
-                    ? "text-white bg-primary/90 border-b-2 border-white"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    ? "text-primary-foreground bg-primary border-b-2 border-primary-foreground"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                 }`}
               >
                 Sign Up
@@ -315,7 +304,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -407,7 +396,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
