@@ -21,11 +21,9 @@
     <!-- Performance: Preconnect to CDN and external resources -->
     <link rel="dns-prefetch" href="//cdn.example.com" />
     <!-- Font loading optimization: preconnect with proper crossorigin -->
+    <!-- Note: Don't preload specific font files - let Google Fonts CSS handle it -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-    <!-- Preload critical fonts to reduce layout shift -->
-    <link rel="preload" href="https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-    <link rel="preload" href="https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQjDYq5WmmszN3N4MfNvNfM4ch5d.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     <!-- Razorpay Payment Gateway - Loaded on demand, not on every page -->
     <!-- Preconnect only, script loaded dynamically when needed -->
     <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
