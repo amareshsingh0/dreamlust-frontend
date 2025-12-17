@@ -73,18 +73,36 @@ const Auth = () => {
   });
 
   const onSignIn = async (data: SignInFormData) => {
+    // Prevent multiple simultaneous login attempts
+    if (loading) {
+      console.warn('⚠️ Login already in progress, ignoring duplicate request');
+      return;
+    }
+    
     setLoading(true);
     
     console.log('🚀 Sign in attempt started for:', data.email);
     
     try {
-      await login(data.email, data.password, data.rememberMe);
+      // Validate inputs before making request
+      if (!data.email || !data.email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
+      if (!data.password || data.password.length === 0) {
+        throw new Error('Please enter your password');
+      }
+      
+      await login(data.email, data.password, data.rememberMe || false);
       
       console.log('✅ Sign in successful, redirecting...');
       toast.success("Welcome back!");
+      
+      // Small delay to ensure state is updated before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Redirect to home or previous page
       const returnTo = new URLSearchParams(location.search).get("returnTo") || "/";
-      navigate(returnTo);
+      navigate(returnTo, { replace: true }); // Use replace to prevent back button issues
     } catch (error: any) {
       console.error("❌ Sign in exception:", error);
       console.error("Error details:", {
@@ -96,12 +114,16 @@ const Auth = () => {
       // Provide more specific error messages
       let errorMessage = "Failed to sign in. ";
       
-      if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError") || error.message?.includes("NETWORK_ERROR")) {
+      if (error.message?.includes("timeout") || error.message?.includes("Timeout")) {
+        errorMessage = "Request timed out. Please check your connection and try again.";
+      } else if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError") || error.message?.includes("NETWORK_ERROR")) {
         errorMessage = `Cannot connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`;
       } else if (error.message?.includes("Invalid email or password") || error.message?.includes("Invalid credentials") || error.message?.includes("UNAUTHORIZED")) {
         errorMessage = "Invalid email or password. Please check your credentials and try again.";
       } else if (error.message?.includes("Account is not active") || error.message?.includes("INACTIVE")) {
         errorMessage = "Your account is not active. Please contact support.";
+      } else if (error.message?.includes("Invalid response format") || error.message?.includes("Missing")) {
+        errorMessage = error.message; // Use the specific error message
       } else if (error.message) {
         errorMessage = error.message;
       } else {

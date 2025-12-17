@@ -87,44 +87,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       console.log('🔐 Attempting login for:', email);
-      const response = await api.auth.login<{
-        user: User;
-        tokens: {
-          accessToken: string;
-        };
-      }>({ email, password, rememberMe });
-
-      console.log('📥 Login response:', { success: response.success, hasData: !!response.data, error: response.error });
-
-      if (response.success && response.data) {
-        // Handle response structure: { user: {...}, tokens: {...} }
-        const userData = response.data.user;
-        const accessToken = response.data.tokens?.accessToken;
-        
-        if (!userData || !accessToken) {
-          console.error('❌ Invalid response structure:', response.data);
-          throw new Error('Invalid response format from server');
+      
+      // Make API request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      let response;
+      try {
+        response = await api.auth.login<{
+          user: User;
+          tokens: {
+            accessToken: string;
+          };
+        }>({ email, password, rememberMe });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timeout. Please check your connection and try again.');
         }
-        
-        // Store tokens and user
+        throw fetchError;
+      }
+
+      console.log('📥 Login response:', { 
+        success: response.success, 
+        hasData: !!response.data, 
+        error: response.error,
+        dataKeys: response.data ? Object.keys(response.data) : []
+      });
+
+      // Check if response is successful
+      if (!response.success) {
+        const errorMsg = response.error?.message || response.error?.code || 'Login failed';
+        console.error('❌ Login failed:', response.error);
+        throw new Error(errorMsg);
+      }
+
+      // Validate response data exists
+      if (!response.data) {
+        console.error('❌ No data in response:', response);
+        throw new Error('Invalid response from server: No data received');
+      }
+
+      // Handle different response structures
+      // Backend returns: { success: true, data: { user: {...}, tokens: { accessToken: ... } } }
+      // apiRequest extracts: data.data, so we get: { user: {...}, tokens: { accessToken: ... } }
+      let userData: User | null = null;
+      let accessToken: string | null = null;
+
+      // Try to extract user and token from response
+      if (response.data.user && response.data.tokens?.accessToken) {
+        // Standard structure: { user: {...}, tokens: { accessToken: ... } }
+        userData = response.data.user;
+        accessToken = response.data.tokens.accessToken;
+      } else if (response.data.id && response.data.email) {
+        // Direct user object with token
+        userData = response.data as User;
+        accessToken = (response.data as any).accessToken || (response.data as any).token;
+      } else {
+        // Fallback: check if data itself is the user object
+        console.warn('⚠️ Unexpected response structure, attempting to parse:', response.data);
+        userData = (response.data as any).user || response.data as User;
+        accessToken = (response.data as any).tokens?.accessToken || (response.data as any).accessToken;
+      }
+      
+      // Validate we have both user and token
+      if (!userData || !userData.id || !userData.email) {
+        console.error('❌ Invalid user data in response:', response.data);
+        throw new Error('Invalid response format: Missing user information');
+      }
+      
+      if (!accessToken) {
+        console.error('❌ Missing access token in response:', response.data);
+        throw new Error('Invalid response format: Missing access token');
+      }
+      
+      // Store tokens and user atomically
+      try {
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         
         console.log('✅ Login successful for user:', userData.email);
-        
-        // Datadog removed - using Sentry instead
-        // User tracking is handled by Sentry automatically
-      } else {
-        const errorMsg = response.error?.message || response.error?.code || 'Login failed';
-        console.error('❌ Login failed:', response.error);
-        throw new Error(errorMsg);
+      } catch (storageError) {
+        console.error('❌ Failed to store auth data:', storageError);
+        throw new Error('Failed to save login information. Please try again.');
       }
+      
+      // Datadog removed - using Sentry instead
+      // User tracking is handled by Sentry automatically
     } catch (error: any) {
       console.error('❌ Login exception:', error);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
+      
       // Don't clear auth on error - let the user try again
       // clearAuth();
-      throw error;
+      
+      // Re-throw with a user-friendly message
+      if (error.message) {
+        throw error;
+      } else {
+        throw new Error('Login failed. Please check your credentials and try again.');
+      }
     }
   };
 

@@ -65,9 +65,20 @@ export async function apiRequest<T>(
     // Success response - extract data
     // Backend returns: { success: true, data: {...} }
     // So we return: { success: true, data: data.data || data }
+    const extractedData = data.data !== undefined ? data.data : data;
+    
+    // Log response structure for debugging
+    if (import.meta.env.DEV) {
+      console.log('✅ API Success:', {
+        endpoint,
+        hasData: !!extractedData,
+        dataKeys: extractedData ? Object.keys(extractedData) : [],
+      });
+    }
+    
     return {
       success: true,
-      data: data.data !== undefined ? data.data : data,
+      data: extractedData,
     };
   } catch (error: any) {
     // Handle fetch errors (network failures, CORS, etc.)
