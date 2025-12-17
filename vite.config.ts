@@ -48,21 +48,61 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunks - split for better caching
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast',
-          ],
-          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          // Feature chunks - lazy load heavy components
-          'video': ['./src/components/video/VideoPlayer'],
-          'comments': ['./src/components/comments/CommentSection'],
-          'admin': ['./src/pages/admin/ModerationDashboard'],
+        manualChunks: (id) => {
+          // Split node_modules into smaller chunks
+          if (id.includes('node_modules')) {
+            // React core - critical, load first
+            if (id.includes('react') && !id.includes('react-dom')) {
+              return 'react-core';
+            }
+            if (id.includes('react-dom')) {
+              return 'react-dom';
+            }
+            // React Router - critical for routing
+            if (id.includes('react-router')) {
+              return 'react-router';
+            }
+            // TanStack Query - used for data fetching
+            if (id.includes('@tanstack')) {
+              return 'tanstack-query';
+            }
+            // Radix UI components - split by usage
+            if (id.includes('@radix-ui')) {
+              if (id.includes('dialog') || id.includes('dropdown') || id.includes('select')) {
+                return 'radix-ui-core';
+              }
+              return 'radix-ui-other';
+            }
+            // Lucide React - large icon library, tree-shake unused icons
+            if (id.includes('lucide-react')) {
+              return 'lucide-icons';
+            }
+            // Form libraries
+            if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
+              return 'form-vendor';
+            }
+            // Sentry - lazy loaded, separate chunk
+            if (id.includes('@sentry')) {
+              return 'sentry';
+            }
+            // Other vendor libraries
+            return 'vendor-other';
+          }
+          // Split app code by feature
+          if (id.includes('/src/components/feedback/')) {
+            return 'feedback';
+          }
+          if (id.includes('/src/components/video/')) {
+            return 'video';
+          }
+          if (id.includes('/src/components/comments/')) {
+            return 'comments';
+          }
+          if (id.includes('/src/pages/admin/')) {
+            return 'admin';
+          }
+          // Keep main app code together
+          return null;
         },
       },
     },
@@ -72,8 +112,18 @@ export default defineConfig(({ mode }) => ({
     terserOptions: {
       compress: {
         drop_console: mode === 'production', // Remove console.log in production
+        drop_debugger: mode === 'production',
+        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : [],
+        passes: 2, // Multiple passes for better minification
+      },
+      mangle: {
+        safari10: true, // Fix Safari 10 issues
       },
     },
+    // Optimize chunk loading
+    target: 'esnext',
+    cssCodeSplit: true, // Split CSS into separate files
+    sourcemap: mode === 'development', // Only generate sourcemaps in dev
   },
   plugins: [
     react(),
@@ -96,6 +146,15 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+    ],
+    exclude: ['@sentry/react'], // Exclude Sentry from pre-bundling (lazy loaded)
   },
   // Expose environment variables to client
   // Only VITE_* variables are exposed to frontend
