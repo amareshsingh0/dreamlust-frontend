@@ -1538,7 +1538,7 @@ export const api = {
         headers: getHeaders(),
       }),
     // Assign by experiment name (for useExperiment hook)
-    assign: <T>(experimentName: string) =>
+    assignByName: <T>(experimentName: string) =>
       apiRequest<T>('/api/experiments/assign', {
         method: 'POST',
         headers: getHeaders(),
@@ -1633,6 +1633,146 @@ export const api = {
       apiRequest<T>(`/api/saved-searches/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
+      }),
+  },
+  social: {
+    // Follow a user
+    follow: <T>(followingId: string, followingType?: 'user' | 'creator') =>
+      apiRequest<T>('/api/social/follow', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ followingId, followingType }),
+      }),
+    // Unfollow a user
+    unfollow: <T>(followingId: string) =>
+      apiRequest<T>(`/api/social/follow/${followingId}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    // Check if following
+    isFollowing: <T>(followingId: string) =>
+      apiRequest<T>(`/api/social/follow/${followingId}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Get followers
+    getFollowers: <T>(userId: string, limit?: number, offset?: number) => {
+      const params = new URLSearchParams();
+      if (limit) params.append('limit', limit.toString());
+      if (offset) params.append('offset', offset.toString());
+      return apiRequest<T>(`/api/social/followers/${userId}?${params}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Get following
+    getFollowing: <T>(userId: string, limit?: number, offset?: number) => {
+      const params = new URLSearchParams();
+      if (limit) params.append('limit', limit.toString());
+      if (offset) params.append('offset', offset.toString());
+      return apiRequest<T>(`/api/social/following/${userId}?${params}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Get activity feed
+    getActivityFeed: <T>(type?: string, limit?: number, offset?: number) => {
+      const params = new URLSearchParams();
+      if (type) params.append('type', type);
+      if (limit) params.append('limit', limit.toString());
+      if (offset) params.append('offset', offset.toString());
+      return apiRequest<T>(`/api/social/activity-feed?${params}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Get OG tags
+    getOGTags: <T>(contentId: string) =>
+      apiRequest<T>(`/api/social/share/${contentId}/og-tags`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Get share URL
+    getShareUrl: <T>(contentId: string, platform?: string) => {
+      const url = platform
+        ? `/api/social/share/${contentId}/url?platform=${platform}`
+        : `/api/social/share/${contentId}/url`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Get embed code
+    getEmbedCode: <T>(contentId: string) =>
+      apiRequest<T>(`/api/social/share/${contentId}/embed`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Track share
+    trackShare: <T>(contentId: string, platform?: string) =>
+      apiRequest<T>(`/api/social/share/${contentId}/track`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ platform }),
+      }),
+    // Collections
+    createCollection: <T>(data: {
+      name: string;
+      description?: string;
+      isPublic?: boolean;
+      isCollaborative?: boolean;
+      contributors?: string[];
+      thumbnailUrl?: string;
+    }) =>
+      apiRequest<T>('/api/social/collections', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getCollection: <T>(id: string) =>
+      apiRequest<T>(`/api/social/collections/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    addToCollection: <T>(collectionId: string, contentId: string, note?: string) =>
+      apiRequest<T>(`/api/social/collections/${collectionId}/items`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ contentId, note }),
+      }),
+    removeFromCollection: <T>(collectionId: string, contentId: string) =>
+      apiRequest<T>(`/api/social/collections/${collectionId}/items/${contentId}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    getFeaturedCollections: <T>(limit?: number) => {
+      const url = limit
+        ? `/api/social/collections/featured?limit=${limit}`
+        : '/api/social/collections/featured';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getTrendingCollections: <T>(limit?: number) => {
+      const url = limit
+        ? `/api/social/collections/trending?limit=${limit}`
+        : '/api/social/collections/trending';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    followCollection: <T>(collectionId: string) =>
+      apiRequest<T>(`/api/social/collections/${collectionId}/follow`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    addContributor: <T>(collectionId: string, contributorId: string) =>
+      apiRequest<T>(`/api/social/collections/${collectionId}/contributors`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ contributorId }),
       }),
   },
 };

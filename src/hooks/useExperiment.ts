@@ -26,7 +26,7 @@ export function useExperiment(experimentName: string): string {
 
     async function assignVariant() {
       try {
-        const response = await api.experiments.assign(experimentName);
+        const response = await api.experiments.assignByName(experimentName);
         if (response.success && response.data?.variant) {
           setVariant(response.data.variant);
         }
