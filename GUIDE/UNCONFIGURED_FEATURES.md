@@ -341,7 +341,9 @@ ENCRYPTION_KEY=35870d54320df4e30de01f785b712ac610bc289da780f63550486ed34fa0f093 
 - [x] Push notifications (VAPID) ✅
 - [x] OAuth providers (Google) ✅
 - [x] Redis for caching ✅
-- [ ] Image classification (Not used - Removed)
+- [x] Encryption key generated ✅
+- [x] Discord webhooks configured ✅
+- [x] Image classification (Not used - Removed) ✅
 
 ---
 
