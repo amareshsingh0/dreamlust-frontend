@@ -199,7 +199,8 @@ export async function autoFlagContent(contentId: string, creatorId: string): Pro
     });
   }
 
-  // Check thumbnail/image classification
+  // Check thumbnail/image classification (DISABLED - Not used)
+  // Image classification service is not configured/used
   const content = await prisma.content.findUnique({
     where: { id: contentId },
     select: { thumbnail: true },

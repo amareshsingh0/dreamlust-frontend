@@ -266,8 +266,8 @@ GOOGLE_CLIENT_SECRET=your-client-secret done
 4. Get client ID and secret
 
 ### 11. **Image Classification Services**
-**Status:** ❌ Not Used - Removed from requirements
-**Note:** Image classification services (AWS Rekognition, Google Cloud Vision API) are not required for this project. The code exists but is not configured or used.
+**Status:** ❌ Not Used - Disabled
+**Note:** Image classification services (AWS Rekognition, Google Cloud Vision API) are not required for this project. The code exists but is disabled and not used.
 
 ---
 
@@ -277,18 +277,20 @@ GOOGLE_CLIENT_SECRET=your-client-secret done
 **Status:** ✅ Configured
 **Files:**
 - `backend/src/lib/monitoring/slack.ts` (uses Discord webhook)
+- `backend/src/config/env.ts` (supports both DISCORD_WEBHOOK_URL and SLACK_WEBHOOK_URL)
 
 **Required Environment Variables:**
 ```env
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxx/xxx
-# Note: Code still references SLACK_WEBHOOK_URL but uses Discord webhook
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxx/xxx ✅ DONE
+# Note: Code supports both DISCORD_WEBHOOK_URL (preferred) and SLACK_WEBHOOK_URL (fallback)
+# Discord webhooks are compatible with Slack webhook format
 ```
 
 **Setup Steps:**
-1. Create Discord webhook in your Discord server
-2. Copy webhook URL
-3. Add to environment variables as `DISCORD_WEBHOOK_URL` or `SLACK_WEBHOOK_URL`
-4. The monitoring system will use Discord for notifications
+1. ✅ Create Discord webhook in your Discord server - Done
+2. ✅ Copy webhook URL - Done
+3. ✅ Add to environment variables as `DISCORD_WEBHOOK_URL` - Done
+4. ✅ The monitoring system will use Discord for notifications - Configured
 
 
 ### 13. **Encryption Key**
