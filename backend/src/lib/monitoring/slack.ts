@@ -61,7 +61,7 @@ export async function sendSlackAlert(
   metricValue: number,
   context?: Record<string, any>
 ): Promise<void> {
-  const webhookUrl = env.SLACK_WEBHOOK_URL;
+  const webhookUrl = env.DISCORD_WEBHOOK_URL || env.SLACK_WEBHOOK_URL; // Support both Discord and Slack
   if (!webhookUrl) {
     logger.warn('Slack webhook URL not configured. Skipping alert.');
     return;
@@ -153,7 +153,7 @@ export async function sendSlackMessage(
   channel?: string,
   severity: AlertSeverity = AlertSeverity.INFO
 ): Promise<void> {
-  const webhookUrl = env.SLACK_WEBHOOK_URL;
+  const webhookUrl = env.DISCORD_WEBHOOK_URL || env.SLACK_WEBHOOK_URL; // Support both Discord and Slack
   if (!webhookUrl) {
     return;
   }

@@ -122,7 +122,8 @@ const envSchema = z.object({
   
   // Alerting & Incident Response
   PAGERDUTY_INTEGRATION_KEY: z.string().optional(),
-  SLACK_WEBHOOK_URL: z.string().url().optional(),
+  SLACK_WEBHOOK_URL: z.string().url().optional(), // Note: Used for Discord webhook
+  DISCORD_WEBHOOK_URL: z.string().url().optional(),
   OPSGENIE_API_KEY: z.string().optional(),
 });
 
