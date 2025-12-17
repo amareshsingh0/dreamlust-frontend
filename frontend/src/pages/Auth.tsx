@@ -75,27 +75,32 @@ const Auth = () => {
   const onSignIn = async (data: SignInFormData) => {
     setLoading(true);
     
-    // Skip health check - let login attempt handle connection errors
-    // This avoids blocking the critical path
+    console.log('🚀 Sign in attempt started for:', data.email);
     
     try {
       await login(data.email, data.password, data.rememberMe);
       
+      console.log('✅ Sign in successful, redirecting...');
       toast.success("Welcome back!");
       // Redirect to home or previous page
       const returnTo = new URLSearchParams(location.search).get("returnTo") || "/";
       navigate(returnTo);
     } catch (error: any) {
-      console.error("Login exception:", error);
+      console.error("❌ Sign in exception:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
       
       // Provide more specific error messages
       let errorMessage = "Failed to sign in. ";
       
-      if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
-        errorMessage += "Cannot connect to backend server. Please ensure the backend is running at " + API_BASE_URL;
-      } else if (error.message?.includes("Invalid email or password") || error.message?.includes("Invalid credentials")) {
+      if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError") || error.message?.includes("NETWORK_ERROR")) {
+        errorMessage = `Cannot connect to backend server at ${API_BASE_URL}. Please ensure the backend is running.`;
+      } else if (error.message?.includes("Invalid email or password") || error.message?.includes("Invalid credentials") || error.message?.includes("UNAUTHORIZED")) {
         errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message?.includes("Account is not active")) {
+      } else if (error.message?.includes("Account is not active") || error.message?.includes("INACTIVE")) {
         errorMessage = "Your account is not active. Please contact support.";
       } else if (error.message) {
         errorMessage = error.message;
@@ -103,6 +108,7 @@ const Auth = () => {
         errorMessage += "Please check your credentials and try again.";
       }
       
+      console.error("Displaying error to user:", errorMessage);
       toast.error(errorMessage);
       signInForm.setError("root", { message: errorMessage });
     } finally {

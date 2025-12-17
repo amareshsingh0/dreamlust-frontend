@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
+      console.log('🔐 Attempting login for:', email);
       const response = await api.auth.login<{
         user: User;
         tokens: {
@@ -93,13 +94,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }>({ email, password, rememberMe });
 
+      console.log('📥 Login response:', { success: response.success, hasData: !!response.data, error: response.error });
+
       if (response.success && response.data) {
         // Handle response structure: { user: {...}, tokens: {...} }
         const userData = response.data.user;
         const accessToken = response.data.tokens?.accessToken;
         
         if (!userData || !accessToken) {
-          console.error('Invalid response structure:', response.data);
+          console.error('❌ Invalid response structure:', response.data);
           throw new Error('Invalid response format from server');
         }
         
@@ -108,16 +111,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         
+        console.log('✅ Login successful for user:', userData.email);
+        
         // Datadog removed - using Sentry instead
         // User tracking is handled by Sentry automatically
       } else {
-        const errorMsg = response.error?.message || 'Login failed';
-        console.error('Login failed:', response.error);
+        const errorMsg = response.error?.message || response.error?.code || 'Login failed';
+        console.error('❌ Login failed:', response.error);
         throw new Error(errorMsg);
       }
     } catch (error: any) {
-      console.error('Login error:', error);
-      clearAuth();
+      console.error('❌ Login exception:', error);
+      // Don't clear auth on error - let the user try again
+      // clearAuth();
       throw error;
     }
   };
