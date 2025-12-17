@@ -43,12 +43,13 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Array<{
+    id: string;
+    username: string;
+    display_name: string;
+    avatar?: string;
+  }>>([]);
   const [isOwner, setIsOwner] = useState(false);
-
-  useEffect(() => {
-    fetchCollaboration();
-  }, [contentId]);
 
   const fetchCollaboration = async () => {
     try {
@@ -57,14 +58,23 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
         setCollaboration(response.data.data);
         setIsOwner(response.data.data?.ownerId === user?.id);
       }
-    } catch (error) {
-      console.error('Failed to fetch collaboration:', error);
+    } catch {
+      // Failed to fetch collaboration
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddCollaborator = async (selectedUser: any) => {
+  useEffect(() => {
+    fetchCollaboration();
+  }, [contentId, user?.id]);
+
+  const handleAddCollaborator = async (selectedUser: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar?: string;
+  }) => {
     if (!collaboration) {
       // Create new collaboration
       try {
@@ -83,8 +93,11 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
           toast.success('Collaborator added');
           fetchCollaboration();
         }
-      } catch (error: any) {
-        toast.error(error.response?.data?.error || 'Failed to add collaborator');
+      } catch (error: unknown) {
+        const apiError = error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+          : undefined;
+        toast.error(apiError || 'Failed to add collaborator');
       }
     } else {
       try {
@@ -98,8 +111,11 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
           toast.success('Collaborator added');
           fetchCollaboration();
         }
-      } catch (error: any) {
-        toast.error(error.response?.data?.error || 'Failed to add collaborator');
+      } catch (error: unknown) {
+        const apiError = error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+          : undefined;
+        toast.error(apiError || 'Failed to add collaborator');
       }
     }
     setSearchQuery('');
@@ -117,8 +133,11 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
         toast.success('Collaborator role updated');
         fetchCollaboration();
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update role');
+    } catch (error: unknown) {
+      const apiError = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+      toast.error(apiError || 'Failed to update role');
     }
   };
 
@@ -130,8 +149,11 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
         toast.success('Collaborator removed');
         fetchCollaboration();
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to remove collaborator');
+    } catch (error: unknown) {
+      const apiError = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+      toast.error(apiError || 'Failed to remove collaborator');
     }
   };
 
@@ -148,8 +170,8 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
       if (response.data.success) {
         setSearchResults(response.data.data || []);
       }
-    } catch (error) {
-      console.error('Failed to search users:', error);
+    } catch {
+      // Failed to search users
     }
   };
 

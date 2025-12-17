@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Upload, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -42,29 +42,6 @@ export function BulkUploadManager({ onUploadComplete }: BulkUploadManagerProps) 
     category: '',
     tags: [] as string[],
   });
-
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const files = Array.from(e.dataTransfer.files).filter(
-      file => file.type.startsWith('video/')
-    );
-
-    if (files.length === 0) {
-      toast.error('Please drop video files only');
-      return;
-    }
-
-    await handleFiles(files);
-  }, []);
-
-  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      await handleFiles(Array.from(files));
-    }
-  }, []);
 
   const handleFiles = async (files: File[]) => {
     const formData = new FormData();
@@ -112,18 +89,48 @@ export function BulkUploadManager({ onUploadComplete }: BulkUploadManagerProps) 
         toast.success(`Successfully uploaded ${updatedUploads.filter(u => u.status === 'uploaded').length} videos`);
         onUploadComplete?.(updatedUploads);
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to upload videos');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to upload videos';
+      const apiError = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+      
+      toast.error(apiError || errorMessage);
       setUploads(prev => prev.map(upload => {
         if (newUploads.some(nu => nu.id === upload.id)) {
-          return { ...upload, status: 'error', error: error.message };
+          return { ...upload, status: 'error', error: errorMessage };
         }
         return upload;
       }));
     }
   };
 
-  const updateUpload = (id: string, field: keyof UploadItem, value: any) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(
+      file => file.type.startsWith('video/')
+    );
+
+    if (files.length === 0) {
+      toast.error('Please drop video files only');
+      return;
+    }
+
+    await handleFiles(files);
+  }, [handleFiles]);
+
+  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      await handleFiles(Array.from(files));
+    }
+  }, [handleFiles]);
+
+  const updateUpload = (id: string, field: keyof UploadItem, value: string | string[] | number) => {
     setUploads(prev => prev.map(upload =>
       upload.id === id ? { ...upload, [field]: value } : upload
     ));

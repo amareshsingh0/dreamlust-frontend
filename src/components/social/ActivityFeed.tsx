@@ -6,9 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, Upload, Heart, MessageCircle, UserPlus, ListPlus, FolderPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { Link } from 'react-router-dom';
