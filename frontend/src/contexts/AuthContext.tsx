@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '@/lib/api';
-import { setDatadogUser, clearDatadogUser } from '@/lib/monitoring/datadog';
+// Datadog removed - using Sentry instead
+// import { setDatadogUser, clearDatadogUser } from '@/lib/monitoring/datadog';
 
 interface User {
   id: string;
@@ -79,8 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.clear();
     setUser(null);
     
-    // Clear user in Datadog
-    clearDatadogUser();
+    // Datadog removed - using Sentry instead
+    // clearDatadogUser();
   };
 
   const login = async (email: string, password: string, rememberMe: boolean = false) => {
@@ -107,12 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         
-        // Set user in Datadog
-        setDatadogUser({
-          id: userData.id,
-          email: userData.email,
-          username: userData.username,
-        });
+        // Datadog removed - using Sentry instead
+        // User tracking is handled by Sentry automatically
       } else {
         const errorMsg = response.error?.message || 'Login failed';
         console.error('Login failed:', response.error);
@@ -149,12 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         
-        // Set user in Datadog
-        setDatadogUser({
-          id: userData.id,
-          email: userData.email,
-          username: userData.username,
-        });
+        // Datadog removed - using Sentry instead
+        // User tracking is handled by Sentry automatically
       } else {
         const errorMsg = response.error?.message || 'Registration failed';
         console.error('Registration failed:', response.error);
