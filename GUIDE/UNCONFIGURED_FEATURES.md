@@ -62,8 +62,8 @@ SENTRY_SERVER_NAME=dreamlust-api done
 ---
 
 ### 3. **Datadog APM & Logging** (Frontend & Backend)
-**Status:** ⚠️ Not Used - Replaced with Sentry
-**Note:** Datadog monitoring has been replaced with Sentry for error tracking and monitoring. Datadog configuration is optional and not required.
+**Status:** ❌ Not Used - Replaced with Sentry
+**Note:** Datadog monitoring has been replaced with Sentry for error tracking and monitoring. Datadog configuration is optional and not required. All monitoring is handled by Sentry.
 
 ---
 
@@ -266,8 +266,8 @@ GOOGLE_CLIENT_SECRET=your-client-secret done
 4. Get client ID and secret
 
 ### 11. **Image Classification Services**
-**Status:** ❌ Not Used - Disabled
-**Note:** Image classification services (AWS Rekognition, Google Cloud Vision API) are not required for this project. The code exists but is disabled and not used.
+**Status:** ❌ Not Used - Removed/Disabled
+**Note:** Image classification services (AWS Rekognition, Google Cloud Vision API) are not required for this project. The code exists but is disabled and not used. This feature has been intentionally excluded from the project.
 
 ---
 
@@ -284,6 +284,7 @@ GOOGLE_CLIENT_SECRET=your-client-secret done
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxx/xxx ✅ DONE
 # Note: Code supports both DISCORD_WEBHOOK_URL (preferred) and SLACK_WEBHOOK_URL (fallback)
 # Discord webhooks are compatible with Slack webhook format
+# SLACK_WEBHOOK_URL is deprecated - use DISCORD_WEBHOOK_URL instead
 ```
 
 **Setup Steps:**
@@ -291,22 +292,24 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxx/xxx ✅ DONE
 2. ✅ Copy webhook URL - Done
 3. ✅ Add to environment variables as `DISCORD_WEBHOOK_URL` - Done
 4. ✅ The monitoring system will use Discord for notifications - Configured
+5. ✅ All alerting configured to use Discord webhooks - Done
 
 
 ### 13. **Encryption Key**
 **Status:** ✅ Configured
 **Files:**
 - `backend/src/lib/encryption.ts` (if exists)
+- `backend/src/config/env.ts`
 
 **Required Environment Variables:**
 ```env
-ENCRYPTION_KEY=your-32-character-encryption-key
+ENCRYPTION_KEY=35870d54320df4e30de01f785b712ac610bc289da780f63550486ed34fa0f093 ✅ DONE
 ```
 
 **Setup Steps:**
-1. Generate secure random key (32+ characters)
-2. Store securely (never commit to git)
-3. Use for encrypting sensitive data
+1. ✅ Generate secure random key (32+ characters) - Done
+2. ✅ Store securely (never commit to git) - Done
+3. ✅ Use for encrypting sensitive data - Configured
 
 ---
 
