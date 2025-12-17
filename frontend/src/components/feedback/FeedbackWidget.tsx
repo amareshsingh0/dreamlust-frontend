@@ -5,15 +5,17 @@
  */
 
 import { useState } from 'react';
-// Tree-shake lucide-react icons - only import what we need
-import { MessageSquare } from 'lucide-react/dist/esm/icons/message-square';
-import { X } from 'lucide-react/dist/esm/icons/x';
-import { Upload } from 'lucide-react/dist/esm/icons/upload';
-import { Loader2 } from 'lucide-react/dist/esm/icons/loader-2';
-import { Sparkles } from 'lucide-react/dist/esm/icons/sparkles';
-import { AlertCircle } from 'lucide-react/dist/esm/icons/alert-circle';
-import { Lightbulb } from 'lucide-react/dist/esm/icons/lightbulb';
-import { MessageCircle } from 'lucide-react/dist/esm/icons/message-circle';
+// Import lucide-react icons - Vite will tree-shake automatically
+import { 
+  MessageSquare, 
+  X, 
+  Upload, 
+  Loader2, 
+  Sparkles, 
+  AlertCircle, 
+  Lightbulb, 
+  MessageCircle 
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
