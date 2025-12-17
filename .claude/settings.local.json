@@ -13,7 +13,9 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nFix: Use standard lucide-react imports instead of ESM paths\n\n- Update socket.ts to use safe authStorage wrapper\n- All identified bugs already fixed by linter/auto-formatting:\n  * Abort controller cleanup in api.ts ✓\n  * Race condition prevention in Watch.tsx ✓  \n  * XSS vulnerability prevention in EmbedCodeGenerator ✓\n  * Fullscreen API feature detection in VideoPlayer ✓\n  * Console statements cleaned by ESLint ✓\n\nBuild Status: ✓ Successful\nReact 18 compatibility: ✓ Confirmed\nAll critical runtime bugs: ✓ Fixed\n\n🤖 Generated with Claude Code\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit:*)",
       "Bash(bun --version:*)",
-      "Bash(bunx prisma generate:*)"
+      "Bash(bunx prisma generate:*)",
+      "Bash(bun run lint)",
+      "Bash(git add:*)"
     ]
   }
 }
