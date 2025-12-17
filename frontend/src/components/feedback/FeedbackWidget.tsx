@@ -40,7 +40,10 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  
+  // Get user from auth context - widget works with or without authenticated user
+  const authContext = useAuth();
+  const user = authContext?.user || null;
 
   const feedbackTypes = [
     {
