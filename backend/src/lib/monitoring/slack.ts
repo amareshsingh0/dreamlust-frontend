@@ -1,7 +1,8 @@
 /**
- * Slack Integration
+ * Slack/Discord Integration
  * 
- * Sends alerts to Slack channels for monitoring and incident response
+ * Sends alerts to Slack or Discord channels for monitoring and incident response
+ * Supports both SLACK_WEBHOOK_URL and DISCORD_WEBHOOK_URL (Discord webhooks are compatible)
  */
 
 import { AlertConfig, AlertSeverity } from './alerts';
@@ -63,7 +64,7 @@ export async function sendSlackAlert(
 ): Promise<void> {
   const webhookUrl = env.DISCORD_WEBHOOK_URL || env.SLACK_WEBHOOK_URL; // Support both Discord and Slack
   if (!webhookUrl) {
-    logger.warn('Slack webhook URL not configured. Skipping alert.');
+    logger.warn('Slack/Discord webhook URL not configured. Skipping alert.');
     return;
   }
 
@@ -136,9 +137,9 @@ export async function sendSlackAlert(
       throw new Error(`Slack API error: ${response.status} - ${errorText}`);
     }
 
-    logger.info('Slack alert sent successfully', { alert: alert.name });
+    logger.info('Slack/Discord alert sent successfully', { alert: alert.name });
   } catch (error) {
-    logger.error('Failed to send Slack alert', {
+    logger.error('Failed to send Slack/Discord alert', {
       alert: alert.name,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -186,7 +187,7 @@ export async function sendSlackMessage(
       body: JSON.stringify(message),
     });
   } catch (error) {
-    logger.error('Failed to send Slack message', {
+    logger.error('Failed to send Slack/Discord message', {
       error: error instanceof Error ? error.message : String(error),
     });
   }
