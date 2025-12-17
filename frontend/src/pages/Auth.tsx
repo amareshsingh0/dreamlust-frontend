@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,7 +40,8 @@ const Auth = () => {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [backendConnected, setBackendConnected] = useState<boolean | null>(null); // null = not checked yet, true = connected, false = not connected
+  // Removed backendConnected state - health check removed to prevent blocking render
+  // Backend connectivity will be checked during actual login/register attempts
 
   // Set mode based on route
   useEffect(() => {
@@ -50,62 +51,6 @@ const Auth = () => {
       setMode("signin");
     }
   }, [location.pathname]);
-
-  // Check backend connectivity - DEFERRED to avoid blocking initial render
-  // Use requestIdleCallback to check after page is interactive
-  useEffect(() => {
-    let isMounted = true;
-    let timeoutId: NodeJS.Timeout;
-    
-    const checkBackend = async () => {
-      try {
-        const controller = new AbortController();
-        timeoutId = setTimeout(() => controller.abort(), 1000); // Reduced timeout
-        
-        const response = await fetch(`${API_BASE_URL}/health`, {
-          method: 'GET',
-          credentials: 'include',
-          signal: controller.signal,
-          cache: 'no-cache',
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (isMounted && response.ok) {
-          setBackendConnected(true);
-        } else if (isMounted) {
-          setBackendConnected(false);
-        }
-      } catch (error: any) {
-        clearTimeout(timeoutId);
-        if (isMounted) {
-          setBackendConnected(null); // null = unknown/not checked yet
-        }
-      }
-    };
-    
-    // Defer health check until after page is interactive (non-blocking)
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        if (isMounted) {
-          checkBackend();
-        }
-      }, { timeout: 3000 }); // Check after 3s max
-    } else {
-      // Fallback for browsers without requestIdleCallback
-      setTimeout(() => {
-        if (isMounted) {
-          checkBackend();
-        }
-      }, 2000); // Check after 2s
-    }
-    
-    // Cleanup
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    };
-  }, []);
 
   // Sign In Form
   const signInForm = useForm<SignInFormData>({
@@ -206,33 +151,7 @@ const Auth = () => {
               </p>
             </header>
 
-            {/* Backend Connection Warning - Only show if explicitly failed (not on initial load) */}
-            {backendConnected === false && (
-              <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md flex items-start gap-2 text-sm text-yellow-700 dark:text-yellow-400">
-                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-medium mb-1">Backend connection issue</p>
-                  <p className="text-xs opacity-90 mb-2">
-                    Cannot reach the backend server. You can still try to sign in - it might work if the server just started.
-                  </p>
-                  <div className="flex gap-3 mt-2">
-                    <Link 
-                      to="/connectivity" 
-                      className="text-xs underline opacity-75 hover:opacity-100 inline-block"
-                    >
-                      🔍 Check Connectivity
-                    </Link>
-                    <span className="text-xs opacity-50">|</span>
-                    <Link 
-                      to="/troubleshooting" 
-                      className="text-xs underline opacity-75 hover:opacity-100 inline-block"
-                    >
-                      📋 Troubleshooting Guide
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Backend connectivity check removed - errors will be shown during login/register attempts */}
 
             {/* Mode Tabs */}
             <div className="flex mb-6 border-b border-gray-200 dark:border-gray-700">

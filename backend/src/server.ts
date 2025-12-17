@@ -24,6 +24,7 @@ import logger from './lib/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { ipRateLimiter } from './middleware/rateLimit';
 import { securityMiddleware } from './middleware/security';
+import { requestLogger } from './middleware/requestLogger';
 import authRoutes from './routes/auth';
 import oauthRoutes from './routes/oauth';
 import searchRoutes from './routes/search';

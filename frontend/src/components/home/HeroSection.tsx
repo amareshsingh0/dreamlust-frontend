@@ -91,4 +91,4 @@ export const HeroSection = React.memo(function HeroSection() {
       <div className="absolute bottom-1/4 right-1/3 w-48 h-48 bg-accent/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
     </section>
   );
-}
+});
