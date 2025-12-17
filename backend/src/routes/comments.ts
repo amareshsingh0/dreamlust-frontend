@@ -265,6 +265,31 @@ router.post(
       }).catch((error) => {
         console.error('Failed to award comment points:', error);
       });
+
+      // Track comment activity
+      const contentForActivity = await prisma.content.findUnique({
+        where: { id: contentId },
+        select: { creatorId: true },
+      });
+
+      if (contentForActivity) {
+        const creator = await prisma.creator.findUnique({
+          where: { id: contentForActivity.creatorId },
+          select: { user_id: true },
+        });
+
+        if (creator) {
+          createActivity({
+            userId: creator.user_id,
+            actorId: userId,
+            type: 'comment',
+            targetType: 'content',
+            targetId: contentId,
+          }).catch((error) => {
+            console.error('Failed to track comment activity:', error);
+          });
+        }
+      }
     }
 
     res.status(201).json({
