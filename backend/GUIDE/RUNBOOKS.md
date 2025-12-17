@@ -85,13 +85,14 @@ This document contains runbooks for common incidents and alerts.
    # - Check if traffic spike is legitimate or attack
    ```
 
-6. **Post in #incidents Slack Channel**
+6. **Post in #incidents Discord Channel**
    ```bash
-   # Notify team immediately:
+   # Notify team immediately in Discord #incidents channel:
    # - Alert severity and impact
    # - Current investigation status
    # - Estimated time to resolution
    # - Request help if needed
+   # - Mention @on-call-primary for critical alerts
    ```
 
 ### Investigation Steps

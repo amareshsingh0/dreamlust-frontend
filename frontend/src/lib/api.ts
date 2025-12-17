@@ -1,3 +1,5 @@
+import { authStorage } from './storage';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export interface ApiResponse<T> {
@@ -42,8 +44,12 @@ export async function apiRequest<T>(
     try {
       response = await fetch(url, fetchOptions);
       clearTimeout(timeoutId);
-    } catch (fetchError) {
+    } catch (fetchError: any) {
       clearTimeout(timeoutId);
+      // Check if it's an abort error
+      if (fetchError.name === 'AbortError' || fetchError.message?.includes('aborted')) {
+        throw new Error('Request timeout. Please check your connection and try again.');
+      }
       throw fetchError;
     }
 
@@ -87,15 +93,6 @@ export async function apiRequest<T>(
     // So we return: { success: true, data: data.data || data }
     const extractedData = data.data !== undefined ? data.data : data;
     
-    // Log response structure for debugging
-    if (import.meta.env.DEV) {
-      console.log('✅ API Success:', {
-        endpoint,
-        hasData: !!extractedData,
-        dataKeys: extractedData ? Object.keys(extractedData) : [],
-      });
-    }
-    
     return {
       success: true,
       data: extractedData,
@@ -104,7 +101,10 @@ export async function apiRequest<T>(
     // Handle fetch errors (network failures, CORS, etc.)
     let errorMessage = 'Failed to fetch. ';
     
-    if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+    // Check for abort/timeout errors
+    if (error.message?.includes('aborted') || error.message?.includes('timeout') || error.name === 'AbortError') {
+      errorMessage = 'Request timeout. Please check your connection and ensure the backend server is running at ' + API_BASE_URL;
+    } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
       errorMessage += 'Please ensure the backend server is running at ' + API_BASE_URL;
     } else if (error.message?.includes('CORS')) {
       errorMessage += 'CORS error. Please check server configuration.';
@@ -153,6 +153,34 @@ function getHeaders(customHeaders: Record<string, string> = {}): Record<string, 
 
 export const api = {
   search: {
+    // Autocomplete suggestions
+    autocomplete: <T>(query: string, limit?: number) => {
+      const searchParams = new URLSearchParams();
+      searchParams.append('q', query);
+      if (limit) searchParams.append('limit', limit.toString());
+      return apiRequest<T>(`/api/search/autocomplete?${searchParams.toString()}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Get trending searches
+    getTrending: <T>(params?: { limit?: number; days?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.days) searchParams.append('days', params.days.toString());
+      const query = searchParams.toString();
+      return apiRequest<T>(`/api/search/trending${query ? `?${query}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Track search result click
+    trackClick: <T>(data: { query: string; resultId: string; timeToClick?: number }) =>
+      apiRequest<T>('/api/search/track-click', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
     post: <T>(body: unknown) =>
       apiRequest<T>('/api/search', {
         method: 'POST',
@@ -1435,6 +1463,176 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data || {}),
+      }),
+  },
+  experiments: {
+    // Get all active experiments
+    getActive: <T>() =>
+      apiRequest<T>('/api/experiments/active', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Get experiment by ID
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/experiments/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Get user's assigned variant for an experiment
+    getVariant: <T>(id: string) =>
+      apiRequest<T>(`/api/experiments/${id}/variant`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Assign user to experiment variant (or get existing assignment)
+    assign: <T>(id: string) =>
+      apiRequest<T>(`/api/experiments/${id}/assign`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    // Admin endpoints
+    create: <T>(data: {
+      name: string;
+      description?: string;
+      hypothesis: string;
+      variants: Array<{ name: string; weight: number }>;
+      metrics: string[];
+      startDate?: string;
+      endDate?: string;
+    }) =>
+      apiRequest<T>('/api/experiments', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getAll: <T>(params?: { status?: string; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return apiRequest<T>(`/api/experiments${query ? `?${query}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    start: <T>(id: string) =>
+      apiRequest<T>(`/api/experiments/${id}/start`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    pause: <T>(id: string) =>
+      apiRequest<T>(`/api/experiments/${id}/pause`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    complete: <T>(id: string, analyzeResults?: boolean) =>
+      apiRequest<T>(`/api/experiments/${id}/complete`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ analyzeResults }),
+      }),
+    getResults: <T>(id: string) =>
+      apiRequest<T>(`/api/experiments/${id}/results`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Assign by experiment name (for useExperiment hook)
+    assign: <T>(experimentName: string) =>
+      apiRequest<T>('/api/experiments/assign', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ experiment: experimentName }),
+      }),
+    // Track experiment metric
+    track: <T>(experimentName: string, metric: string, value: number) =>
+      apiRequest<T>('/api/experiments/track', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ experiment: experimentName, metric, value }),
+      }),
+  },
+  features: {
+    // Get feature flag by key
+    get: <T>(key: string) =>
+      apiRequest<T>(`/api/features/${key}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Get all feature flags (admin only)
+    getAll: <T>(params?: { enabledOnly?: boolean }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.enabledOnly) searchParams.append('enabledOnly', 'true');
+      const query = searchParams.toString();
+      return apiRequest<T>(`/api/features${query ? `?${query}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Create or update feature flag (admin only)
+    upsert: <T>(data: {
+      key: string;
+      name: string;
+      description?: string;
+      enabled: boolean;
+      rolloutPercentage?: number;
+      targetUsers?: string[];
+      targetRoles?: string[];
+    }) =>
+      apiRequest<T>('/api/features', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    // Toggle feature flag (admin only)
+    toggle: <T>(key: string, enabled: boolean) =>
+      apiRequest<T>(`/api/features/${key}/toggle`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify({ enabled }),
+      }),
+    // Delete feature flag (admin only)
+    delete: <T>(key: string) =>
+      apiRequest<T>(`/api/features/${key}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+  },
+  savedSearches: {
+    // Get all saved searches
+    getAll: <T>() =>
+      apiRequest<T>('/api/saved-searches', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    // Create saved search
+    create: <T>(data: {
+      query: string;
+      filters?: Record<string, unknown>;
+      name?: string;
+      notifyOnNew?: boolean;
+    }) =>
+      apiRequest<T>('/api/saved-searches', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    // Update saved search
+    update: <T>(id: string, data: {
+      name?: string;
+      notifyOnNew?: boolean;
+      filters?: Record<string, unknown>;
+    }) =>
+      apiRequest<T>(`/api/saved-searches/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    // Delete saved search
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/saved-searches/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
       }),
   },
 };

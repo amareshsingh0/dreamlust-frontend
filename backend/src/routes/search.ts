@@ -6,6 +6,9 @@ import { searchSchema, SearchRequest } from '../schemas/search';
 import { Prisma } from '@prisma/client';
 import { searchRateLimiter } from '../middleware/rateLimit';
 import { getCachedSearchResults, invalidateSearchCache } from '../lib/cache/contentCache';
+import { optionalAuth } from '../middleware/auth';
+import { z } from 'zod';
+import logger from '../lib/logger';
 
 const router = Router();
 
@@ -383,6 +386,34 @@ router.post(
         tags: tagFacets,
       };
 
+      // Track search history (non-blocking)
+      const trackSearchHistory = async () => {
+        try {
+          const userId = (req as any).user?.userId || null;
+          const sessionId = req.cookies?.sessionId || req.headers['x-session-id'] || `session_${Date.now()}`;
+
+          await prisma.searchHistory.create({
+            data: {
+              userId,
+              sessionId,
+              query: query.trim() || '',
+              resultsCount: total,
+              filters: filters as any,
+            },
+          });
+        } catch (error) {
+          // Don't fail search if tracking fails
+          logger.warn('Failed to track search history', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      };
+
+      // Track search asynchronously (don't block response)
+      trackSearchHistory().catch(() => {
+        // Silently fail - tracking is non-critical
+      });
+
       res.json({
         success: true,
         data: {
@@ -394,6 +425,66 @@ router.post(
           facets,
         },
       });
+  })
+);
+
+/**
+ * POST /api/search/track-click
+ * Track when user clicks on a search result
+ */
+router.post(
+  '/track-click',
+  optionalAuth,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const schema = z.object({
+      query: z.string(),
+      resultId: z.string().uuid(),
+      timeToClick: z.number().optional(), // milliseconds
+    });
+
+    const validationResult = schema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request',
+          details: validationResult.error.errors,
+        },
+      });
+    }
+
+    const userId = (req as any).user?.userId || null;
+    const sessionId = req.cookies?.sessionId || req.headers['x-session-id'] || `session_${Date.now()}`;
+
+    // Find the most recent search history entry for this query
+    const searchHistory = await prisma.searchHistory.findFirst({
+      where: {
+        query: validationResult.data.query,
+        userId: userId || undefined,
+        sessionId: userId ? undefined : sessionId,
+        clickedResult: null, // Only update if not already clicked
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (searchHistory) {
+      await prisma.searchHistory.update({
+        where: { id: searchHistory.id },
+        data: {
+          clickedResult: validationResult.data.resultId,
+          timeToClick: validationResult.data.timeToClick,
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Click tracked',
+    });
   })
 );
 

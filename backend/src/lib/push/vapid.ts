@@ -19,9 +19,14 @@ export function initializeVAPID() {
     return null;
   }
 
-  webpush.setVapidDetails(subject, publicKey, privateKey);
-  console.log('✅ VAPID keys initialized');
-  return { publicKey, privateKey };
+  try {
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+    console.log('✅ VAPID keys initialized');
+    return { publicKey, privateKey };
+  } catch (error) {
+    console.error('❌ Failed to set VAPID details:', error);
+    return null;
+  }
 }
 
 /**

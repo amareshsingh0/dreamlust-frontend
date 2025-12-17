@@ -1,8 +1,9 @@
 // Initialize Datadog APM first (must be before other imports)
 import { env } from './config/env';
 if (env.NODE_ENV === 'production' && env.DATADOG_API_KEY) {
-  try {
-    require('dd-trace').init({
+  // Use dynamic import for dd-trace (ES modules)
+  import('dd-trace').then((ddTrace) => {
+    ddTrace.default.init({
       service: 'dreamlust-api',
       env: env.DD_ENV || env.NODE_ENV,
       version: process.env.APP_VERSION || '1.0.0',
@@ -11,15 +12,16 @@ if (env.NODE_ENV === 'production' && env.DATADOG_API_KEY) {
       runtimeMetrics: true,
       profiling: true,
     });
-  } catch (error) {
+  }).catch((error) => {
     console.warn('⚠️  Failed to initialize Datadog APM:', error);
-  }
+  });
 }
 
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { initSentry } from './lib/monitoring/sentry';
+import * as Sentry from '@sentry/node';
 import logger from './lib/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { ipRateLimiter } from './middleware/rateLimit';
@@ -54,30 +56,36 @@ import affiliatesRoutes from './routes/affiliates';
 import notificationsRoutes from './routes/notifications';
 import pushRoutes from './routes/push';
 import feedbackRoutes from './routes/feedback';
+import experimentsRoutes from './routes/experiments';
 import funnelAnalyticsRoutes from './routes/funnel-analytics';
+import featuresRoutes from './routes/features';
+import searchAutocompleteRoutes from './routes/search-autocomplete';
+import savedSearchesRoutes from './routes/saved-searches';
 import healthRoutes, { simpleHealthCheck } from './routes/health';
 import { createServer } from 'http';
 import { initializeSocketServer } from './socket/socketServer';
 // Initialize monitoring service (will auto-start in production)
+// Import monitoring service to ensure it's loaded and auto-starts
 import './lib/monitoring/monitoringService';
 
+console.log('📦 Creating Express app...');
 const app = express();
+console.log('✅ Express app created');
 
 // Initialize Sentry before other middleware (only in production)
 if (env.NODE_ENV === 'production') {
   try {
     initSentry(app);
     logger.info('Sentry initialized successfully');
+    
+    // Add Sentry request handlers after initialization
+    if (env.SENTRY_DSN) {
+      app.use(Sentry.Handlers.requestHandler());
+      app.use(Sentry.Handlers.tracingHandler());
+    }
   } catch (error) {
     logger.warn('Failed to initialize Sentry', { error });
   }
-}
-
-// Sentry request handler (must be before other middleware)
-if (env.NODE_ENV === 'production' && env.SENTRY_DSN) {
-  const Sentry = require('@sentry/node');
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.tracingHandler());
 }
 
 // Security middleware - comprehensive security headers
@@ -200,10 +208,13 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/funnel-analytics', funnelAnalyticsRoutes);
+app.use('/api/experiments', experimentsRoutes);
+app.use('/api/features', featuresRoutes);
+app.use('/api/search', searchAutocompleteRoutes);
+app.use('/api/saved-searches', savedSearchesRoutes);
 
 // Sentry error handler (must be before other error handlers)
 if (env.NODE_ENV === 'production' && env.SENTRY_DSN) {
-  const Sentry = require('@sentry/node');
   app.use(Sentry.Handlers.errorHandler());
 }
 
@@ -213,49 +224,95 @@ app.use(notFoundHandler);
 // Error handler (must be last)
 app.use(errorHandler);
 
+console.log('🔧 Setting up server...');
 const PORT = parseInt(env.PORT, 10);
+console.log(`📡 Server will listen on port ${PORT}`);
 
 // Create HTTP server for Socket.io
+console.log('🌐 Creating HTTP server...');
 const httpServer = createServer(app);
+console.log('✅ HTTP server created');
 
 // Initialize Socket.io
-const io = initializeSocketServer(httpServer);
-
-const server = httpServer.listen(PORT, () => {
-  logger.info('Server started successfully', {
-    port: PORT,
-    environment: env.NODE_ENV,
-    frontendUrl: env.FRONTEND_URL,
-    apiUrl: env.API_URL,
+console.log('🔌 Initializing Socket.io...');
+let io;
+try {
+  io = initializeSocketServer(httpServer);
+  logger.info('Socket.io server initialized');
+  console.log('✅ Socket.io initialized');
+} catch (error) {
+  logger.error('Failed to initialize Socket.io', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
   });
-});
+  console.error('❌ Failed to initialize Socket.io:', error);
+  process.exit(1);
+}
 
-// Handle server errors
-server.on('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE') {
-    logger.error('Port already in use', {
+let server;
+try {
+  server = httpServer.listen(PORT, () => {
+    logger.info('Server started successfully', {
       port: PORT,
-      message: 'Please free the port or change PORT in .env',
+      environment: env.NODE_ENV,
+      frontendUrl: env.FRONTEND_URL,
+      apiUrl: env.API_URL,
     });
-    process.exit(1);
-  } else {
-    logger.error('Server error', {
-      error: error.message,
-      stack: error.stack,
-      code: error.code,
-    });
-    process.exit(1);
-  }
-});
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+  });
+  
+  // Handle server errors
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      logger.error('Port already in use', {
+        port: PORT,
+        message: 'Please free the port or change PORT in .env',
+      });
+      console.error(`❌ Port ${PORT} is already in use. Please free the port or change PORT in .env`);
+      process.exit(1);
+    } else {
+      logger.error('Server error', {
+        error: error.message,
+        stack: error.stack,
+        code: error.code,
+      });
+      console.error('Server error:', error);
+      process.exit(1);
+    }
+  });
+} catch (error) {
+  logger.error('Failed to start server', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+  console.error('Failed to start server:', error);
+  process.exit(1);
+}
 
-// Handle unhandled promise rejections (prevents server crashes)
+// Server error handling moved inside try-catch block above
+
+// Handle unhandled promise rejections
 process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
+  // Check if it's a Redis error - these are expected and handled gracefully
+  const errorMessage = reason instanceof Error ? reason.message : String(reason);
+  if (errorMessage.includes('Redis') || errorMessage.includes('maxRetriesPerRequest')) {
+    // Redis errors are handled gracefully - server continues without Redis
+    logger.warn('Redis connection error (handled gracefully)', {
+      reason: errorMessage,
+    });
+    return; // Don't log as error or exit
+  }
+  
   logger.error('Unhandled Rejection', {
-    reason: reason instanceof Error ? reason.message : String(reason),
+    reason: errorMessage,
     stack: reason instanceof Error ? reason.stack : undefined,
   });
-  // Don't exit - let the error handler middleware handle it
-  // This prevents the server from crashing on async errors
+  console.error('Unhandled rejection:', reason);
+  // In development, exit to catch errors early
+  if (env.NODE_ENV === 'development') {
+    process.exit(1);
+  }
+  // In production, don't exit - let the error handler middleware handle it
 });
 
 // Handle uncaught exceptions

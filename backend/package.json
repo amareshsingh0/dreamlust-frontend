@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bun run src/server.ts",
+    "dev": "bun run start-server.ts",
     "start": "NODE_ENV=production bun run src/server.ts",
     "start:script": "powershell -ExecutionPolicy Bypass -File ./start-server.ps1",
     "start:monitor": "powershell -ExecutionPolicy Bypass -File ./keep-server-running.ps1",

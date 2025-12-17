@@ -14,13 +14,14 @@ const globalForRedis = globalThis as unknown as {
 export const redis: Redis | null = env.REDIS_URL
   ? (globalForRedis.redis ??
     new Redis(env.REDIS_URL, {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null, // Disable automatic retries to prevent unhandled rejections
       lazyConnect: true, // Don't connect immediately
+      enableOfflineQueue: false, // Don't queue commands when disconnected
       retryStrategy: (times) => {
         // Stop retrying after 3 attempts
         if (times > 3) {
           console.warn('⚠️  Redis connection failed after 3 attempts. Running without Redis cache.');
-          return null;
+          return null; // Return null to stop retrying
         }
         const delay = Math.min(times * 50, 2000);
         return delay;
@@ -30,7 +31,7 @@ export const redis: Redis | null = env.REDIS_URL
         if (err.message.includes(targetError)) {
           return true; // Reconnect on READONLY error
         }
-        return false;
+        return false; // Don't reconnect on other errors
       },
     }))
   : null;
@@ -41,15 +42,22 @@ if (env.REDIS_URL && process.env.NODE_ENV !== 'production') {
 
 // Graceful shutdown and connection handling
 if (redis) {
+  let errorLogged = false;
+  
   // Suppress error logging to avoid spam
   redis.on('error', (err) => {
     // Only log once, not repeatedly
-    if (!redis.listenerCount('error')) {
+    if (!errorLogged) {
+      errorLogged = true;
       console.warn('⚠️  Redis connection error. Running without cache.');
+      console.warn('   To use Redis caching, ensure Redis is running on the configured URL.');
     }
+    // Prevent error from crashing the process
+    // Errors are handled gracefully - server continues without Redis
   });
 
   redis.on('connect', () => {
+    errorLogged = false; // Reset on successful connection
     console.log('✅ Redis connected');
   });
 
@@ -57,16 +65,28 @@ if (redis) {
     console.log('✅ Redis ready');
   });
 
+  redis.on('close', () => {
+    // Connection closed - this is normal, don't log as error
+  });
+
+  redis.on('end', () => {
+    // Connection ended - this is normal, don't log as error
+  });
+
   // Attempt to connect, but don't crash if it fails
   redis.connect().catch((err) => {
-    console.warn('⚠️  Could not connect to Redis. Running without cache.');
-    console.warn('   To use Redis caching, ensure Redis is running on the configured URL.');
+    // Error already handled by 'error' event handler
+    // This catch is just to prevent unhandled promise rejection
   });
 
   process.on('SIGINT', async () => {
     if (redis && redis.status === 'ready') {
-      await redis.quit();
-      console.log('Redis connection closed');
+      try {
+        await redis.quit();
+        console.log('Redis connection closed');
+      } catch (err) {
+        // Ignore errors during shutdown
+      }
     }
   });
 }
@@ -164,6 +184,7 @@ export const CacheKeys = {
   categories: () => 'categories:all',
   homepage: (section: string) => `homepage:${section}`,
   session: (sessionId: string) => `session:${sessionId}`,
+  sessionBehavior: (sessionId: string) => `session:behavior:${sessionId}`,
   user: (userId: string) => `user:${userId}`,
 };
 

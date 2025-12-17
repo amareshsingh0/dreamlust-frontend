@@ -5,6 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { userRateLimiter } from '../middleware/rateLimit';
@@ -12,6 +13,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { ValidationError } from '../lib/errors';
 import logger from '../lib/logger';
 import { z } from 'zod';
+import { s3Storage } from '../lib/storage/s3Storage';
 
 const router = Router();
 

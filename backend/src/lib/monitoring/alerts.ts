@@ -74,6 +74,22 @@ export const ALERTS: Record<string, AlertConfig> = {
   },
 
   // Response Time Alerts
+  // Alias for simpler naming (matches requirement)
+  response_time: {
+    name: 'High Response Time',
+    metric: 'http.response_time',
+    threshold: {
+      threshold: 1000, // 1 second
+      percentile: 95,
+      window: '5m',
+      severity: AlertSeverity.WARNING,
+      enabled: true,
+      description: 'P95 response time exceeds 1 second over 5 minutes',
+    },
+    notificationChannels: ['discord'],
+    runbookUrl: '/runbooks/high-response-time',
+  },
+
   response_time_p95: {
     name: 'High P95 Response Time',
     metric: 'http.response_time',

@@ -84,6 +84,11 @@ export const emailQueue = isQueueEnabled && defaultQueueOptions
   ? new Queue('email', defaultQueueOptions) 
   : null;
 
+// Scheduler queue (optional)
+export const schedulerQueue = isQueueEnabled && defaultQueueOptions 
+  ? new Queue('scheduler', defaultQueueOptions) 
+  : null;
+
 /**
  * Add job to video processing queue
  */
@@ -236,6 +241,22 @@ export async function queueEmail(data: {
 export const queueEmailJob = queueEmail;
 
 /**
+ * Add job to scheduler queue
+ */
+export async function queueScheduledContentProcessing() {
+  if (!schedulerQueue) {
+    console.warn('⚠️  Scheduler queue not available. Skipping job.');
+    return null;
+  }
+  return schedulerQueue.add('process-scheduled', { type: 'process-scheduled' }, {
+    priority: 1,
+    repeat: {
+      pattern: '*/5 * * * *', // Every 5 minutes
+    },
+  });
+}
+
+/**
  * Get queue status
  */
 export async function getQueueStatus(queueName: string) {
@@ -248,6 +269,7 @@ export async function getQueueStatus(queueName: string) {
     'cleanup': cleanupQueue,
     'analytics': analyticsQueue,
     'email': emailQueue,
+    'scheduler': schedulerQueue,
   };
 
   const queue = queues[queueName as keyof typeof queues];

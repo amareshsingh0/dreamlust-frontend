@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { env } from './env';
+import { authStorage } from './storage';
 
 let socket: Socket | null = null;
 
@@ -13,7 +14,7 @@ export function getSocket(token?: string): Socket {
   socket = io(backendUrl, {
     transports: ['websocket', 'polling'],
     auth: {
-      token: token || localStorage.getItem('accessToken') || undefined,
+      token: token || authStorage.getAccessToken() || undefined,
     },
     reconnection: true,
     reconnectionDelay: 1000,
@@ -22,11 +23,11 @@ export function getSocket(token?: string): Socket {
   });
 
   socket.on('connect', () => {
-    console.log('🔌 WebSocket connected:', socket?.id);
+    // WebSocket connected
   });
 
   socket.on('disconnect', (reason) => {
-    console.log('🔌 WebSocket disconnected:', reason);
+    // WebSocket disconnected
   });
 
   socket.on('connect_error', (error) => {

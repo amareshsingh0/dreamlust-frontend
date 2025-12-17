@@ -5,6 +5,18 @@ import { userRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError } from '../lib/errors';
 import { getCachedTrendingContent, invalidateHomepageCache } from '../lib/cache/contentCache';
 import { asyncHandler } from '../middleware/asyncHandler';
+import {
+  getRecommendations,
+  balanceRecommendations,
+  handleNewUser,
+  rerankByContext,
+  type UserContext,
+} from '../lib/recommendations/recommendationService';
+import {
+  trackContentView,
+  trackContentLike,
+  getSessionBehavior,
+} from '../lib/recommendations/sessionTracking';
 
 const router = Router();
 
@@ -1553,6 +1565,335 @@ function calculateTrendingScore(content: {
   
   return viewVelocity * (1 + engagementScore) * timeDecay;
 }
+
+/**
+ * GET /api/recommendations/v2
+ * Content Recommendations v2 - Hybrid recommendation engine
+ * Combines collaborative filtering (40%), content-based (30%), trending (20%), diversity (10%)
+ */
+router.get(
+  '/v2',
+  optionalAuth,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId || null;
+    const sessionId = req.headers['x-session-id'] as string || null;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // Get device and time context from headers
+    const device = (req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 
+                   req.headers['user-agent']?.includes('Tablet') ? 'tablet' : 'desktop') as 'mobile' | 'tablet' | 'desktop';
+    
+    const hour = new Date().getHours();
+    const timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night' = 
+      hour >= 5 && hour < 12 ? 'morning' :
+      hour >= 12 && hour < 17 ? 'afternoon' :
+      hour >= 17 && hour < 22 ? 'evening' : 'night';
+
+    // Get recommendations
+    let recommendations = await getRecommendations(userId, sessionId, limit);
+
+    // Get user context for re-ranking
+    let recentCategories: string[] = [];
+    let recentCreators: string[] = [];
+
+    if (userId) {
+      const recentViews = await prisma.view.findMany({
+        where: { userId },
+        include: {
+          content: {
+            include: {
+              categories: { include: { category: true } },
+            },
+          },
+        },
+        orderBy: { watchedAt: 'desc' },
+        take: 10,
+      });
+
+      recentCategories = recentViews.flatMap(v => 
+        v.content.categories.map(c => c.categoryId)
+      );
+      recentCreators = recentViews.map(v => v.content.creatorId);
+    } else if (sessionId) {
+      const sessionBehavior = await getSessionBehavior(sessionId);
+      recentCategories = sessionBehavior.categories;
+      recentCreators = sessionBehavior.creators;
+    }
+
+    const context: UserContext = {
+      timeOfDay,
+      device,
+      recentCategories,
+      recentCreators,
+    };
+
+    // Re-rank by context
+    recommendations = rerankByContext(recommendations, context);
+
+    // Apply explore vs exploit balance (80% personalized, 20% discovery)
+    const exploreContent = await prisma.content.findMany({
+      where: {
+        status: 'PUBLISHED',
+        isPublic: true,
+        deletedAt: null,
+        id: { notIn: recommendations.map(r => r.id) },
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            handle: true,
+            display_name: true,
+            avatar: true,
+            is_verified: true,
+          },
+        },
+        categories: { include: { category: true } },
+        tags: { include: { tag: true } },
+      },
+      orderBy: { viewCount: 'desc' },
+      take: Math.ceil(limit * 0.2),
+    });
+
+    const exploreTransformed = exploreContent.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description || undefined,
+      thumbnail: item.thumbnail || undefined,
+      duration: item.duration || undefined,
+      views: item.viewCount || 0,
+      likes: item.likeCount || 0,
+      createdAt: item.createdAt,
+      creator: {
+        id: item.creator.id,
+        name: item.creator.display_name,
+        username: item.creator.handle,
+        avatar: item.creator.avatar || undefined,
+        isVerified: item.creator.is_verified || false,
+      },
+      type: mapContentType(item.type),
+      quality: item.resolution ? [item.resolution] : [],
+      tags: item.tags.map(t => t.tag.name),
+      category: item.categories[0]?.category.name || 'Uncategorized',
+      isPremium: item.isPremium || false,
+      baseScore: item.viewCount || 0,
+    }));
+
+    const balanced = balanceRecommendations(recommendations, exploreTransformed, limit);
+
+    // Transform to match frontend format
+    const transformedResults = balanced.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration ? formatDuration(item.duration) : '0:00',
+      views: item.views,
+      likes: item.likes,
+      createdAt: item.createdAt.toISOString(),
+      creator: {
+        id: item.creator.id,
+        name: item.creator.name,
+        username: item.creator.username,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: item.type,
+      quality: item.quality,
+      tags: item.tags,
+      category: item.category,
+      isPremium: item.isPremium,
+    }));
+
+    res.json({
+      success: true,
+      data: transformedResults,
+    });
+  })
+);
+
+/**
+ * POST /api/recommendations/track-view
+ * Track content view for session-based recommendations (no login required)
+ */
+router.post(
+  '/track-view',
+  optionalAuth,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { contentId, sessionId } = req.body;
+
+    if (!contentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content ID is required',
+      });
+    }
+
+    // Get content details
+    const content = await prisma.content.findUnique({
+      where: { id: contentId },
+      include: {
+        categories: { include: { category: true } },
+        tags: { include: { tag: true } },
+      },
+    });
+
+    if (!content) {
+      throw new NotFoundError('Content not found');
+    }
+
+    // Track in session if sessionId provided
+    if (sessionId) {
+      const categoryIds = content.categories.map(c => c.categoryId);
+      const tagIds = content.tags.map(t => t.tagId);
+      
+      await trackContentView(
+        sessionId,
+        contentId,
+        categoryIds,
+        tagIds,
+        content.creatorId
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'View tracked',
+    });
+  })
+);
+
+/**
+ * POST /api/recommendations/track-like
+ * Track content like for session-based recommendations
+ */
+router.post(
+  '/track-like',
+  optionalAuth,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { contentId, sessionId } = req.body;
+
+    if (!contentId || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content ID and session ID are required',
+      });
+    }
+
+    await trackContentLike(sessionId, contentId);
+
+    res.json({
+      success: true,
+      message: 'Like tracked',
+    });
+  })
+);
+
+/**
+ * GET /api/recommendations/cold-start
+ * Handle cold start problem for new users
+ */
+router.get(
+  '/cold-start',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    // Check if user is new (has less than 5 views)
+    const viewCount = await prisma.view.count({
+      where: { userId },
+    });
+
+    if (viewCount >= 5) {
+      // User is not new, return regular recommendations
+      const limit = parseInt(req.query.limit as string) || 20;
+      const recommendations = await getRecommendations(userId, null, limit);
+      
+      const transformedResults = recommendations.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        thumbnail: item.thumbnail || '',
+        duration: item.duration ? formatDuration(item.duration) : '0:00',
+        views: item.views,
+        likes: item.likes,
+        createdAt: item.createdAt.toISOString(),
+        creator: {
+          id: item.creator.id,
+          name: item.creator.name,
+          username: item.creator.username,
+          avatar: item.creator.avatar || '',
+          isVerified: item.creator.isVerified,
+          followers: 0,
+          views: 0,
+          contentCount: 0,
+          bio: '',
+        },
+        type: item.type,
+        quality: item.quality,
+        tags: item.tags,
+        category: item.category,
+        isPremium: item.isPremium,
+      }));
+
+      return res.json({
+        success: true,
+        data: transformedResults,
+      });
+    }
+
+    // New user - get onboarding recommendations
+    const preferences = req.query.categories 
+      ? { categories: (req.query.categories as string).split(',') }
+      : undefined;
+
+    const recommendations = await handleNewUser(userId, preferences);
+
+    const transformedResults = recommendations.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration ? formatDuration(item.duration) : '0:00',
+      views: item.views,
+      likes: item.likes,
+      createdAt: item.createdAt.toISOString(),
+      creator: {
+        id: item.creator.id,
+        name: item.creator.name,
+        username: item.creator.username,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified,
+        followers: 0,
+        views: 0,
+        contentCount: 0,
+        bio: '',
+      },
+      type: item.type,
+      quality: item.quality,
+      tags: item.tags,
+      category: item.category,
+      isPremium: item.isPremium,
+    }));
+
+    res.json({
+      success: true,
+      data: transformedResults,
+      isNewUser: true,
+    });
+  })
+);
 
 export default router;
 
