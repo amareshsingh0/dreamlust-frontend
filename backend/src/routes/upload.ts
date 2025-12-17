@@ -12,6 +12,7 @@ import { autoFlagContent } from '../lib/moderation/autoModeration';
 import { invalidateSearchCache, invalidateHomepageCache } from '../lib/cache/contentCache';
 import { s3Storage } from '../lib/storage/s3Storage';
 import { videoStorage } from '../lib/storage/videoStorage';
+import { trackUploadActivity } from '../lib/social/activityFeedService';
 import {
   queueVideoTranscoding,
   queueThumbnailGeneration,
@@ -307,6 +308,11 @@ router.post(
         ).catch((error) => {
           console.error('Failed to send new upload emails:', error);
         });
+      });
+
+      // Track upload activity for followers
+      trackUploadActivity(content.id, creator.id).catch((error) => {
+        console.error('Failed to track upload activity:', error);
       });
     }
 

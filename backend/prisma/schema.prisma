@@ -45,6 +45,10 @@ model User {
   savedSearches           SavedSearch[]
   searchHistory           SearchHistory[]
   collaborations          Collaboration[]
+  followers               Follow[]       @relation("Follower")
+  following               Follow[]       @relation("Following")
+  activityFeed            ActivityFeed[]
+  collections             Collection[]
 
   @@index([created_at], map: "idx_users_created_at")
   @@index([deleted_at], map: "idx_users_deleted_at")
@@ -136,6 +140,7 @@ model Content {
   scheduledContent ScheduledContent?
   thumbnailTest   ThumbnailTest?
   collaborations  Collaboration[]
+  collectionItems CollectionItem[]
   creator        Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   views          View[]
   categories     ContentCategory[]
@@ -371,6 +376,77 @@ model PlaylistItem {
   @@index([playlist_id], map: "idx_playlist_items_playlist")
   @@index([playlist_id, sort_order], map: "idx_playlist_items_playlist_order")
   @@map("playlist_items")
+}
+
+model Follow {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  followerId          String    @map("follower_id") @db.Uuid
+  followingId         String    @map("following_id") @db.Uuid
+  followingType       String    @default("user") @map("following_type") // creator, user
+  notificationsEnabled Boolean? @default(true) @map("notifications_enabled")
+  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  follower            User      @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following           User      @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId], map: "follows_unique")
+  @@index([followerId], map: "idx_follows_follower")
+  @@index([followingId], map: "idx_follows_following")
+  @@map("follows")
+}
+
+model ActivityFeed {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  actorId     String    @map("actor_id") @db.Uuid
+  type        String    // upload, like, comment, follow, playlist_create, collection_create
+  targetType  String    @map("target_type") // content, playlist, user, collection
+  targetId    String    @map("target_id") @db.Uuid
+  metadata    Json?
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "idx_activity_feed_user_created")
+  @@index([actorId], map: "idx_activity_feed_actor")
+  @@index([targetType, targetId], map: "idx_activity_feed_target")
+  @@map("activity_feed")
+}
+
+model Collection {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  description     String?
+  ownerId         String            @map("owner_id") @db.Uuid
+  isPublic        Boolean?          @default(true) @map("is_public")
+  isCollaborative Boolean?         @default(false) @map("is_collaborative")
+  contributors    String[]          // User IDs who can add
+  followers       Int?              @default(0)
+  thumbnailUrl    String?           @map("thumbnail_url")
+  createdAt       DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime?         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items           CollectionItem[]
+
+  @@index([isPublic, followers], map: "idx_collections_public_followers")
+  @@index([ownerId], map: "idx_collections_owner")
+  @@index([isCollaborative], map: "idx_collections_collaborative")
+  @@map("collections")
+}
+
+model CollectionItem {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collectionId String   @map("collection_id") @db.Uuid
+  contentId    String   @map("content_id") @db.Uuid
+  addedById    String   @map("added_by_id") @db.Uuid
+  position     Int?      @default(0)
+  note         String?  // Personal note about why added
+  addedAt      DateTime? @default(now()) @map("added_at") @db.Timestamp(6)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  content      Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, contentId], map: "collection_items_unique")
+  @@index([collectionId, position], map: "idx_collection_items_collection_position")
+  @@index([contentId], map: "idx_collection_items_content")
+  @@map("collection_items")
 }
 
 model Subscription {

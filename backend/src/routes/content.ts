@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { validateBody } from '../middleware/validation';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { awardPoints } from '../lib/loyalty/points';
+import { trackLikeActivity } from '../lib/social/activityFeedService';
 
 const router = Router();
 
@@ -183,6 +184,11 @@ router.post(
         contentId: id,
       }).catch((error) => {
         console.error('Failed to award like points:', error);
+      });
+
+      // Track like activity
+      trackLikeActivity(id, userId, content.creatorId).catch((error) => {
+        console.error('Failed to track like activity:', error);
       });
 
       res.json({

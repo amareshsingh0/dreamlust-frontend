@@ -5,6 +5,7 @@ import { commentsRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { validateBody, validateQuery } from '../middleware/validation';
 import { awardPoints } from '../lib/loyalty/points';
+import { createActivity } from '../lib/social/activityFeedService';
 import {
   createCommentSchema,
   updateCommentSchema,

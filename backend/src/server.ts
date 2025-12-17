@@ -62,6 +62,7 @@ import funnelAnalyticsRoutes from './routes/funnel-analytics';
 import featuresRoutes from './routes/features';
 import searchAutocompleteRoutes from './routes/search-autocomplete';
 import savedSearchesRoutes from './routes/saved-searches';
+import socialRoutes from './routes/social';
 import healthRoutes, { simpleHealthCheck } from './routes/health';
 import { createServer } from 'http';
 import { initializeSocketServer } from './socket/socketServer';
@@ -214,6 +215,7 @@ app.use('/api/experiments', experimentsRoutes);
 app.use('/api/features', featuresRoutes);
 app.use('/api/search', searchAutocompleteRoutes);
 app.use('/api/saved-searches', savedSearchesRoutes);
+app.use('/api/social', socialRoutes);
 
 // Sentry error handler (must be before other error handlers)
 if (env.NODE_ENV === 'production' && env.SENTRY_DSN) {
