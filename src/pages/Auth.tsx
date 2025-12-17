@@ -92,7 +92,6 @@ const Auth = () => {
       let errorMessage = "Failed to sign in. ";
       
       if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
-        setBackendConnected(false); // Update connection status
         errorMessage += "Cannot connect to backend server. Please ensure the backend is running at " + API_BASE_URL;
       } else if (error.message?.includes("Invalid email or password") || error.message?.includes("Invalid credentials")) {
         errorMessage = "Invalid email or password. Please check your credentials and try again.";
