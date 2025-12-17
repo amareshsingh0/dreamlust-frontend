@@ -1372,5 +1372,60 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  bundles: {
+    getAll: <T>(params?: { creatorId?: string; isActive?: boolean }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.creatorId) searchParams.append('creatorId', params.creatorId);
+      if (params?.isActive !== undefined) searchParams.append('isActive', params.isActive.toString());
+      const query = searchParams.toString();
+      const url = `/api/bundles${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    get: <T>(id: string) =>
+      apiRequest<T>(`/api/bundles/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: <T>(data: {
+      title: string;
+      description?: string;
+      thumbnail?: string | null;
+      contentIds: string[];
+      price: number;
+      expiresAt?: string | null;
+    }) =>
+      apiRequest<T>('/api/bundles', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: <T>(id: string, data: {
+      title?: string;
+      description?: string | null;
+      thumbnail?: string | null;
+      price?: number;
+      isActive?: boolean;
+      expiresAt?: string | null;
+    }) =>
+      apiRequest<T>(`/api/bundles/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/bundles/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    purchase: <T>(id: string, data?: { paymentProvider?: string; paymentId?: string }) =>
+      apiRequest<T>(`/api/bundles/${id}/purchase`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data || {}),
+      }),
+  },
 };
 

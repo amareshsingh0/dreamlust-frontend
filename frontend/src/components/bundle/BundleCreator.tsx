@@ -72,28 +72,31 @@ export function BundleCreator({ myContent = [], onBundleCreated }: BundleCreator
     setIsCreating(true);
 
     try {
-      // TODO: Replace with actual API call when bundle endpoint is available
-      // For now, we'll simulate the API call
+      // Prepare thumbnail URL (if thumbnail is a File, we'd need to upload it first)
+      let thumbnailUrl: string | null = null;
+      if (thumbnail instanceof File) {
+        // In a real implementation, upload the thumbnail to storage first
+        // For now, we'll skip this and just use null
+        thumbnailUrl = null;
+      }
+
       const bundleData = {
         title: title.trim(),
-        description: description.trim(),
-        thumbnail: thumbnail,
+        description: description.trim() || undefined,
+        thumbnail: thumbnailUrl,
         contentIds: selectedContent,
         price: parseFloat(price),
         expiresAt: expiresAt?.toISOString() || null,
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.bundles.create(bundleData);
 
-      // Uncomment when API is ready:
-      // const response = await api.bundles.create(bundleData);
-      // if (!response.success) {
-      //   throw new Error(response.error?.message || 'Failed to create bundle');
-      // }
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create bundle');
+      }
 
       toast.success('Bundle created successfully!');
-      
+
       // Reset form
       setTitle('');
       setDescription('');

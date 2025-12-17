@@ -978,3 +978,61 @@ model Feedback {
   @@index([type, createdAt], map: "idx_feedback_type_created")
   @@map("feedback")
 }
+
+model Bundle {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorId       String         @map("creator_id") @db.Uuid
+  title           String
+  description     String?        @db.Text
+  thumbnail       String?
+  price           Decimal        @db.Decimal(10, 2)
+  originalPrice   Decimal?       @map("original_price") @db.Decimal(10, 2) // Sum of individual content prices
+  discountPercent Int?           @map("discount_percent")
+  currency        String         @default("USD")
+  isActive        Boolean        @default(true) @map("is_active")
+  expiresAt       DateTime?      @map("expires_at") @db.Timestamp(6)
+  purchaseCount   Int            @default(0) @map("purchase_count")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamp(6)
+  bundleItems     BundleItem[]
+  bundlePurchases BundlePurchase[]
+
+  @@index([creatorId], map: "idx_bundles_creator")
+  @@index([isActive], map: "idx_bundles_active")
+  @@index([expiresAt], map: "idx_bundles_expires")
+  @@map("bundles")
+}
+
+model BundleItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bundleId  String   @map("bundle_id") @db.Uuid
+  contentId String   @map("content_id") @db.Uuid
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  bundle    Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, contentId], map: "bundle_content_unique")
+  @@index([bundleId], map: "idx_bundle_items_bundle")
+  @@index([contentId], map: "idx_bundle_items_content")
+  @@map("bundle_items")
+}
+
+model BundlePurchase {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bundleId        String   @map("bundle_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  amount          Decimal  @db.Decimal(10, 2)
+  currency        String   @default("USD")
+  paymentProvider String?  @map("payment_provider") // razorpay, stripe, paypal
+  paymentId       String?  @map("payment_id")
+  status          String   @default("pending") // pending, completed, failed, refunded
+  purchasedAt     DateTime @default(now()) @map("purchased_at") @db.Timestamp(6)
+  refundedAt      DateTime? @map("refunded_at") @db.Timestamp(6)
+  bundle          Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@index([bundleId], map: "idx_bundle_purchases_bundle")
+  @@index([userId], map: "idx_bundle_purchases_user")
+  @@index([status], map: "idx_bundle_purchases_status")
+  @@map("bundle_purchases")
+}

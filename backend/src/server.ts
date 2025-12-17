@@ -56,6 +56,7 @@ import pushRoutes from './routes/push';
 import feedbackRoutes from './routes/feedback';
 import funnelAnalyticsRoutes from './routes/funnel-analytics';
 import healthRoutes from './routes/health';
+import bundlesRoutes from './routes/bundles';
 import { createServer } from 'http';
 import { initializeSocketServer } from './socket/socketServer';
 
@@ -191,6 +192,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/funnel-analytics', funnelAnalyticsRoutes);
+app.use('/api/bundles', bundlesRoutes);
 
 // Sentry error handler (must be before other error handlers)
 if (env.NODE_ENV === 'production' && env.SENTRY_DSN) {
