@@ -85,35 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      console.log('🔐 Attempting login for:', email);
-      
-      // Make API request with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      let response;
-      try {
-        response = await api.auth.login<{
-          user: User;
-          tokens: {
-            accessToken: string;
-          };
-        }>({ email, password, rememberMe });
-        clearTimeout(timeoutId);
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Request timeout. Please check your connection and try again.');
-        }
-        throw fetchError;
-      }
-
-      console.log('📥 Login response:', { 
-        success: response.success, 
-        hasData: !!response.data, 
-        error: response.error,
-        dataKeys: response.data ? Object.keys(response.data) : []
-      });
+      // API request timeout is handled by api.ts (15 seconds)
+      const response = await api.auth.login<{
+        user: User;
+        tokens: {
+          accessToken: string;
+        };
+      }>({ email, password, rememberMe });
 
       // Check if response is successful
       if (!response.success) {
@@ -166,8 +144,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authStorage.setAccessToken(accessToken);
         setObject('user', userData);
         setUser(userData);
-        
-        console.log('✅ Login successful for user:', userData.email);
       } catch (storageError) {
         console.error('❌ Failed to store auth data:', storageError);
         throw new Error('Failed to save login information. Please try again.');
@@ -245,11 +221,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         // Fire and forget - don't wait for response
         api.auth.logout()
-          .then(() => {
-            if (import.meta.env.DEV) {
-              console.log('✅ Logout successful');
-            }
-          })
           .catch((error) => {
             if (import.meta.env.DEV) {
               console.warn('Logout API call failed (non-blocking):', error);
