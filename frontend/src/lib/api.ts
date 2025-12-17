@@ -18,14 +18,22 @@ export async function apiRequest<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   
   try {
-    const response = await fetch(url, {
+    // Add timeout to fetch request (15 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const fetchOptions: RequestInit = {
       ...options,
+      signal: options.signal || controller.signal, // Use provided signal or create new one
       credentials: options.credentials || 'include', // Include cookies for auth
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-    });
+    };
+    
+    const response = await fetch(url, fetchOptions);
+    clearTimeout(timeoutId);
 
     // Handle network errors
     if (!response.ok && response.status === 0) {
