@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { Footer } from './Footer';
+import { BottomNavigation } from '@/components/mobile/BottomNavigation';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -41,13 +42,14 @@ export function Layout({ children }: LayoutProps) {
       />
       <main className={cn(
         "pt-16 flex-1 transition-all duration-300 overflow-x-hidden",
-        "lg:pl-64"
+        "pb-20 md:pb-0 lg:pl-64"
       )}>
         {children}
       </main>
       <div className="lg:pl-64">
         <Footer />
       </div>
+      <BottomNavigation />
     </div>
   );
 }

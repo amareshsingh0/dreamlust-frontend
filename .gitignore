@@ -44,3 +44,6 @@ frontend/.env
 frontend/.env.local
 backend/.env
 backend/.env.local
+
+# Windows reserved names
+nul

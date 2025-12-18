@@ -8,6 +8,7 @@ import { validateBody } from '../middleware/validation';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { awardPoints } from '../lib/loyalty/points';
 import { trackLikeActivity } from '../lib/social/activityFeedService';
+import { getCachedContent, invalidateContentCache } from '../lib/cache/contentCache';
 
 const router = Router();
 
@@ -157,6 +158,9 @@ router.post(
         },
       });
 
+      // Invalidate cache
+      await invalidateContentCache(id);
+
       res.json({
         success: true,
         message: 'Content unliked',
@@ -178,6 +182,9 @@ router.post(
           likeCount: { increment: 1 },
         },
       });
+
+      // Invalidate cache
+      await invalidateContentCache(id);
 
       // Award points for liking content
       awardPoints(userId, 'LIKE_CONTENT', {
@@ -348,33 +355,42 @@ router.get(
     const { id } = req.params;
     const userId = req.user?.userId;
 
-    const content = await prisma.content.findUnique({
-      where: { id },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            handle: true,
-            display_name: true,
-            avatar: true,
-            is_verified: true,
-          },
-        },
-        tags: {
-          include: {
-            tag: true,
-          },
-        },
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-      },
-    });
+    // Try to get from cache first
+    let content = await getCachedContent(id);
 
+    // If not in cache, fetch from database
     if (!content) {
-      throw new NotFoundError('Content not found');
+      content = await prisma.content.findUnique({
+        where: { id },
+        include: {
+          creator: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      });
+
+      if (!content) {
+        throw new NotFoundError('Content not found');
+      }
     }
 
     // Check if user liked this content

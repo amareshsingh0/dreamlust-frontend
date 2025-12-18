@@ -46,14 +46,12 @@ export function verify2FAToken(secret: string, token: string): boolean {
  * Enable 2FA for a user (after verification)
  */
 export async function enable2FA(userId: string, secret: string): Promise<void> {
-  // Verify the secret is valid by checking a token
-  // In production, store encrypted secret in database
+  // Store secret in database (in production, encrypt before storing)
   await prisma.user.update({
     where: { id: userId },
     data: {
-      // Add 2FA fields to User model if not present
-      // twoFactorEnabled: true,
-      // twoFactorSecret: encrypt(secret), // Encrypt before storing
+      twoFactorEnabled: true,
+      twoFactorSecret: secret, // TODO: Encrypt before storing in production
     },
   });
 }
@@ -65,8 +63,8 @@ export async function disable2FA(userId: string): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: {
-      // twoFactorEnabled: false,
-      // twoFactorSecret: null,
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
     },
   });
 }

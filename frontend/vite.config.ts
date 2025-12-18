@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { securityHeadersPlugin } from "./vite.config.security-headers";
 import viteCompression from "vite-plugin-compression";
 
@@ -44,49 +43,79 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 4001,
   },
+  preview: {
+    host: "::",
+    port: 4173,
+    strictPort: true,
+  },
   build: {
     outDir: "dist",
+    // CommonJS options to handle circular dependencies
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Split node_modules into smaller chunks
+          // AGGRESSIVE FIX: Put ALL React-dependent libraries in react-vendor chunk
+          // This ensures React is always available and prevents circular dependencies
           if (id.includes('node_modules')) {
-            // React core - critical, load first
-            if (id.includes('react') && !id.includes('react-dom')) {
-              return 'react-core';
+            // React core libraries - MUST be together
+            if (id.includes('node_modules/react/') || 
+                id.includes('node_modules/react-dom/') ||
+                id.includes('node_modules/react/jsx-runtime')) {
+              return 'react-vendor';
             }
-            if (id.includes('react-dom')) {
-              return 'react-dom';
+            
+            // ALL React-dependent libraries - put in react-vendor to avoid circular deps
+            // This includes ANY library with 'react' in the path
+            if (id.includes('react') || 
+                id.includes('@radix-ui') ||
+                id.includes('react-router') ||
+                id.includes('@tanstack/react') ||
+                id.includes('react-hook-form') ||
+                id.includes('@hookform') ||
+                id.includes('react-helmet') ||
+                id.includes('next-themes') ||
+                id.includes('lucide-react') ||
+                id.includes('chart.js') ||
+                id.includes('react-chartjs-2') ||
+                id.includes('recharts') ||
+                id.includes('embla-carousel-react') ||
+                id.includes('react-day-picker') ||
+                id.includes('react-resizable-panels') ||
+                id.includes('sonner') ||
+                id.includes('vaul') ||
+                id.includes('cmdk') ||
+                id.includes('input-otp')) {
+              return 'react-vendor';
             }
-            // React Router - critical for routing
-            if (id.includes('react-router')) {
-              return 'react-router';
-            }
-            // TanStack Query - used for data fetching
-            if (id.includes('@tanstack')) {
-              return 'tanstack-query';
-            }
-            // Radix UI components - split by usage
-            if (id.includes('@radix-ui')) {
-              if (id.includes('dialog') || id.includes('dropdown') || id.includes('select')) {
-                return 'radix-ui-core';
-              }
-              return 'radix-ui-other';
-            }
-            // Lucide React - large icon library, tree-shake unused icons
-            if (id.includes('lucide-react')) {
-              return 'lucide-icons';
-            }
-            // Form libraries
-            if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
+            
+            // Form validation - separate chunk (no React dependency)
+            if (id.includes('zod')) {
               return 'form-vendor';
             }
-            // Sentry - lazy loaded, separate chunk
-            if (id.includes('@sentry')) {
+            
+            // Sentry - lazy loaded only on errors, separate chunk
+            // This ensures Sentry is never loaded in initial bundle
+            if (id.includes('@sentry') || id.includes('sentry')) {
               return 'sentry';
             }
-            // Other vendor libraries
-            return 'vendor-other';
+            
+            // Heavy non-React libs - separate chunk
+            // Only put truly non-React libraries here
+            if (id.includes('@aws-sdk') || 
+                id.includes('axios') || 
+                id.includes('date-fns') ||
+                id.includes('socket.io-client') ||
+                id.includes('ws')) {
+              return 'vendor-other';
+            }
+            
+            // If unsure, put in react-vendor to be safe (prevents circular deps)
+            // Most modern UI libraries depend on React anyway
+            return 'react-vendor';
           }
           // Split app code by feature
           if (id.includes('/src/components/feedback/')) {
@@ -112,11 +141,16 @@ export default defineConfig(({ mode }) => ({
     // Optimize chunk loading
     target: 'esnext',
     cssCodeSplit: true, // Split CSS into separate files
-    sourcemap: mode === 'development', // Only generate sourcemaps in dev
+    // Generate source maps in production for debugging (hidden source maps)
+    // Lighthouse best practices requires source maps for large JS files
+    sourcemap: mode === 'production' ? 'hidden' : true,
+    // Remove console.log in production (best practices)
+    esbuild: {
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
     securityHeadersPlugin(),
     // Enable gzip compression for production builds
     mode === "production" && viteCompression({
@@ -134,6 +168,9 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Ensure React is resolved consistently across all chunks
+      'react': path.resolve(__dirname, './node_modules/react'),
+      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
     },
   },
   // Optimize dependencies
@@ -141,9 +178,14 @@ export default defineConfig(({ mode }) => ({
     include: [
       'react',
       'react-dom',
+      'react/jsx-runtime',
       'react-router-dom',
     ],
     exclude: ['@sentry/react'], // Exclude Sentry from pre-bundling (lazy loaded)
+    // Force React to be pre-bundled together
+    esbuildOptions: {
+      target: 'esnext',
+    },
   },
   // Expose environment variables to client
   // Only VITE_* variables are exposed to frontend

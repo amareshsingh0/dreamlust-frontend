@@ -1,16 +1,162 @@
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Layout } from "@/components/layout/Layout";
-import { Settings as SettingsIcon, User, Bell, Shield, CreditCard, Globe } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, CreditCard, Globe, Loader2, Lock, ShieldCheck, ShieldOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Profile Validation Schema
+const profileSchema = z.object({
+  displayName: z
+    .string()
+    .min(2, "Display name must be at least 2 characters")
+    .max(50, "Display name must be at most 50 characters")
+    .regex(/^[a-zA-Z0-9\s_-]+$/, "Display name can only contain letters, numbers, spaces, underscores, and hyphens"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30, "Username must be at most 30 characters")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  bio: z
+    .string()
+    .max(500, "Bio must be at most 500 characters")
+    .optional(),
+});
+
+type ProfileFormData = z.infer<typeof profileSchema>;
 
 const Settings = () => {
+  const { user } = useAuth();
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // 2FA State
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  const [isGenerating2FA, setIsGenerating2FA] = useState(false);
+  const [isEnabling2FA, setIsEnabling2FA] = useState(false);
+  const [isDisabling2FA, setIsDisabling2FA] = useState(false);
+  const [twoFactorSecret, setTwoFactorSecret] = useState<string | null>(null);
+  const [twoFactorQRCode, setTwoFactorQRCode] = useState<string | null>(null);
+  const [twoFactorToken, setTwoFactorToken] = useState("");
+  const [showDisable2FA, setShowDisable2FA] = useState(false);
+  const [disableToken, setDisableToken] = useState("");
+
+  // Check if user is admin (2FA is only for admins)
+  const isAdmin = user?.role === 'ADMIN';
+
+  const {
+    register: registerProfile,
+    handleSubmit: handleProfileSubmit,
+    formState: { errors: profileErrors },
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      displayName: "",
+      username: "",
+      bio: "",
+    },
+  });
+
+  const onProfileSubmit = async (data: ProfileFormData) => {
+    setIsSavingProfile(true);
+    try {
+      // TODO: Implement profile update API call
+      console.log("Profile data:", data);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update profile. Please try again.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Generate 2FA QR Code
+  const handleGenerate2FA = async () => {
+    setIsGenerating2FA(true);
+    try {
+      const response = await api.auth.generate2FA<{ secret: string; qrCodeUrl: string }>();
+      if (response.success && response.data) {
+        setTwoFactorSecret(response.data.secret);
+        setTwoFactorQRCode(response.data.qrCodeUrl);
+      } else {
+        toast.error(response.error?.message || "Failed to generate 2FA secret");
+      }
+    } catch (error) {
+      toast.error("Failed to generate 2FA secret");
+    } finally {
+      setIsGenerating2FA(false);
+    }
+  };
+
+  // Enable 2FA
+  const handleEnable2FA = async () => {
+    if (!twoFactorSecret || !twoFactorToken) {
+      toast.error("Please enter the 6-digit code from your authenticator app");
+      return;
+    }
+
+    setIsEnabling2FA(true);
+    try {
+      const response = await api.auth.enable2FA<{ message: string }>({
+        token: twoFactorToken,
+        secret: twoFactorSecret,
+      });
+
+      if (response.success) {
+        setIs2FAEnabled(true);
+        setTwoFactorSecret(null);
+        setTwoFactorQRCode(null);
+        setTwoFactorToken("");
+        toast.success("Two-factor authentication enabled successfully!");
+      } else {
+        toast.error(response.error?.message || "Failed to enable 2FA");
+      }
+    } catch (error) {
+      toast.error("Failed to enable 2FA");
+    } finally {
+      setIsEnabling2FA(false);
+    }
+  };
+
+  // Disable 2FA
+  const handleDisable2FA = async () => {
+    if (!disableToken) {
+      toast.error("Please enter the 6-digit code from your authenticator app");
+      return;
+    }
+
+    setIsDisabling2FA(true);
+    try {
+      const response = await api.auth.disable2FA<{ message: string }>({
+        token: disableToken,
+      });
+
+      if (response.success) {
+        setIs2FAEnabled(false);
+        setShowDisable2FA(false);
+        setDisableToken("");
+        toast.success("Two-factor authentication disabled");
+      } else {
+        toast.error(response.error?.message || "Failed to disable 2FA");
+      }
+    } catch (error) {
+      toast.error("Failed to disable 2FA");
+    } finally {
+      setIsDisabling2FA(false);
+    }
+  };
   return (
     <>
       <Helmet>
@@ -19,11 +165,11 @@ const Settings = () => {
       </Helmet>
       
       <Layout>
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <SettingsIcon className="h-8 w-8 text-primary" />
-              <h1 className="text-4xl font-display font-bold">Settings</h1>
+        <div className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2">
+              <SettingsIcon className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold">Settings</h1>
             </div>
             <p className="text-muted-foreground">
               Manage your account settings and preferences
@@ -31,12 +177,31 @@ const Settings = () => {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-              <TabsTrigger value="privacy">Privacy</TabsTrigger>
-              <TabsTrigger value="billing">Billing</TabsTrigger>
-              <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 h-auto gap-1">
+              <TabsTrigger value="profile" className="text-xs sm:text-sm py-2">
+                <User className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Profile</span>
+              </TabsTrigger>
+              <TabsTrigger value="security" className="text-xs sm:text-sm py-2">
+                <Lock className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Security</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="text-xs sm:text-sm py-2">
+                <Bell className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Alerts</span>
+              </TabsTrigger>
+              <TabsTrigger value="privacy" className="text-xs sm:text-sm py-2">
+                <Shield className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Privacy</span>
+              </TabsTrigger>
+              <TabsTrigger value="billing" className="text-xs sm:text-sm py-2">
+                <CreditCard className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Billing</span>
+              </TabsTrigger>
+              <TabsTrigger value="preferences" className="text-xs sm:text-sm py-2">
+                <Globe className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Prefs</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-4">
@@ -48,20 +213,212 @@ const Settings = () => {
                   </CardTitle>
                   <CardDescription>Update your profile details</CardDescription>
                 </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        placeholder="Your display name"
+                        {...registerProfile("displayName")}
+                        className={profileErrors.displayName ? "border-destructive" : ""}
+                      />
+                      {profileErrors.displayName && (
+                        <p className="text-sm text-destructive">{profileErrors.displayName.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        placeholder="username"
+                        {...registerProfile("username")}
+                        className={profileErrors.username ? "border-destructive" : ""}
+                      />
+                      {profileErrors.username && (
+                        <p className="text-sm text-destructive">{profileErrors.username.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bio">Bio</Label>
+                      <Textarea
+                        id="bio"
+                        placeholder="Tell us about yourself"
+                        rows={3}
+                        maxLength={500}
+                        {...registerProfile("bio")}
+                        className={profileErrors.bio ? "border-destructive" : ""}
+                      />
+                      {profileErrors.bio && (
+                        <p className="text-sm text-destructive">{profileErrors.bio.message}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">Max 500 characters</p>
+                    </div>
+                    <Button type="submit" disabled={isSavingProfile}>
+                      {isSavingProfile ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="security" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Two-Factor Authentication (2FA)
+                  </CardTitle>
+                  <CardDescription>
+                    Add an extra layer of security to your account
+                    {!isAdmin && " (Available for admin accounts only)"}
+                  </CardDescription>
+                </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="displayName">Display Name</Label>
-                    <Input id="displayName" name="displayName" placeholder="Your display name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    <Input id="username" name="username" placeholder="username" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Input id="bio" name="bio" placeholder="Tell us about yourself" />
-                  </div>
-                  <Button>Save Changes</Button>
+                  {!isAdmin ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <ShieldOff className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Two-factor authentication is only available for admin accounts.</p>
+                    </div>
+                  ) : is2FAEnabled ? (
+                    // 2FA is enabled - show disable option
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        <ShieldCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        <div>
+                          <p className="font-medium text-green-700 dark:text-green-300">2FA is enabled</p>
+                          <p className="text-sm text-green-600 dark:text-green-400">Your account is protected with two-factor authentication</p>
+                        </div>
+                      </div>
+
+                      {showDisable2FA ? (
+                        <div className="space-y-4 p-4 border rounded-lg">
+                          <p className="text-sm text-muted-foreground">
+                            Enter your 6-digit code from your authenticator app to disable 2FA:
+                          </p>
+                          <Input
+                            type="text"
+                            placeholder="000000"
+                            maxLength={6}
+                            value={disableToken}
+                            onChange={(e) => setDisableToken(e.target.value.replace(/\D/g, ""))}
+                            className="text-center text-2xl tracking-widest"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              variant="destructive"
+                              onClick={handleDisable2FA}
+                              disabled={isDisabling2FA || disableToken.length !== 6}
+                            >
+                              {isDisabling2FA ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Disabling...
+                                </>
+                              ) : (
+                                "Disable 2FA"
+                              )}
+                            </Button>
+                            <Button variant="outline" onClick={() => { setShowDisable2FA(false); setDisableToken(""); }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button variant="outline" onClick={() => setShowDisable2FA(true)}>
+                          Disable Two-Factor Authentication
+                        </Button>
+                      )}
+                    </div>
+                  ) : twoFactorQRCode ? (
+                    // Show QR code setup
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                        </p>
+                        <div className="inline-block p-4 bg-white rounded-lg">
+                          <img src={twoFactorQRCode} alt="2FA QR Code" className="w-48 h-48" />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Or enter this secret manually: <code className="bg-muted px-2 py-1 rounded">{twoFactorSecret}</code>
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Enter the 6-digit code from your app:</Label>
+                        <Input
+                          type="text"
+                          placeholder="000000"
+                          maxLength={6}
+                          value={twoFactorToken}
+                          onChange={(e) => setTwoFactorToken(e.target.value.replace(/\D/g, ""))}
+                          className="text-center text-2xl tracking-widest"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleEnable2FA}
+                          disabled={isEnabling2FA || twoFactorToken.length !== 6}
+                        >
+                          {isEnabling2FA ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Enabling...
+                            </>
+                          ) : (
+                            "Enable 2FA"
+                          )}
+                        </Button>
+                        <Button variant="outline" onClick={() => { setTwoFactorQRCode(null); setTwoFactorSecret(null); setTwoFactorToken(""); }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Initial state - show setup button
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Two-factor authentication adds an extra layer of security by requiring a code from your mobile device when signing in.
+                      </p>
+                      <Button onClick={handleGenerate2FA} disabled={isGenerating2FA}>
+                        {isGenerating2FA ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="mr-2 h-4 w-4" />
+                            Set Up Two-Factor Authentication
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Password
+                  </CardTitle>
+                  <CardDescription>Update your password</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link to="/forgot-password">
+                    <Button variant="outline">Change Password</Button>
+                  </Link>
                 </CardContent>
               </Card>
             </TabsContent>

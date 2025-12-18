@@ -1,0 +1,6 @@
+# Ignore all files in storage except .gitkeep
+*
+!.gitignore
+!.gitkeep
+**/.gitkeep
+

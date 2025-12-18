@@ -1,28 +1,45 @@
 /**
  * CSRF Protection Middleware
  * Protects against Cross-Site Request Forgery attacks
+ * Uses Redis for token storage when available
  */
 
 import { Request, Response, NextFunction } from 'express';
 import csrf from 'csrf';
 import { UnauthorizedError } from '../lib/errors';
 import { sessionStore } from '../lib/auth/session';
+import { redis, isRedisAvailable } from '../lib/redis';
+import crypto from 'crypto';
 
 const tokens = new csrf();
 
-// In-memory CSRF secret store (keyed by session ID or user ID)
+// In-memory CSRF secret store (fallback when Redis unavailable)
 const csrfSecrets = new Map<string, string>();
 
 /**
  * Get or create CSRF secret for a request
  */
-function getCsrfSecret(req: Request): string {
+async function getCsrfSecret(req: Request): Promise<string> {
   // Try to get from session cookie first
   const sessionId = req.cookies?.sessionId;
   if (sessionId) {
     const session = sessionStore.get(sessionId);
     if (session) {
-      const key = `session:${sessionId}`;
+      const key = `csrf:secret:session:${sessionId}`;
+      
+      // Try Redis first
+      if (isRedisAvailable() && redis) {
+        const cached = await redis.get(key);
+        if (cached) {
+          return cached;
+        }
+        // Generate and store in Redis
+        const secret = tokens.secretSync();
+        await redis.setex(key, 86400, secret); // 24 hours
+        return secret;
+      }
+      
+      // Fallback to in-memory
       if (!csrfSecrets.has(key)) {
         csrfSecrets.set(key, tokens.secretSync());
       }
@@ -32,7 +49,21 @@ function getCsrfSecret(req: Request): string {
 
   // Fall back to user ID if authenticated
   if (req.user?.userId) {
-    const key = `user:${req.user.userId}`;
+    const key = `csrf:secret:user:${req.user.userId}`;
+    
+    // Try Redis first
+    if (isRedisAvailable() && redis) {
+      const cached = await redis.get(key);
+      if (cached) {
+        return cached;
+      }
+      // Generate and store in Redis
+      const secret = tokens.secretSync();
+      await redis.setex(key, 86400, secret); // 24 hours
+      return secret;
+    }
+    
+    // Fallback to in-memory
     if (!csrfSecrets.has(key)) {
       csrfSecrets.set(key, tokens.secretSync());
     }
@@ -41,7 +72,21 @@ function getCsrfSecret(req: Request): string {
 
   // Fall back to IP address (less secure but better than nothing)
   const ip = req.ip || 'unknown';
-  const key = `ip:${ip}`;
+  const key = `csrf:secret:ip:${ip}`;
+  
+  // Try Redis first
+  if (isRedisAvailable() && redis) {
+    const cached = await redis.get(key);
+    if (cached) {
+      return cached;
+    }
+    // Generate and store in Redis
+    const secret = tokens.secretSync();
+    await redis.setex(key, 3600, secret); // 1 hour for IP-based
+    return secret;
+  }
+  
+  // Fallback to in-memory
   if (!csrfSecrets.has(key)) {
     csrfSecrets.set(key, tokens.secretSync());
   }
@@ -51,16 +96,35 @@ function getCsrfSecret(req: Request): string {
 /**
  * Generate CSRF token for the session
  */
-export function generateCsrfToken(req: Request): string {
-  const secret = getCsrfSecret(req);
-  return tokens.create(secret);
+export async function generateCsrfToken(req: Request): Promise<string> {
+  const secret = await getCsrfSecret(req);
+  const token = tokens.create(secret);
+  
+  // Store token in Redis for verification (15 minutes)
+  const tokenKey = `csrf:token:${crypto.createHash('sha256').update(token).digest('hex')}`;
+  if (isRedisAvailable() && redis) {
+    await redis.setex(tokenKey, 900, '1'); // 15 minutes
+  }
+  
+  return token;
 }
 
 /**
  * Verify CSRF token
  */
-export function verifyCsrfToken(req: Request, token: string): boolean {
-  const secret = getCsrfSecret(req);
+export async function verifyCsrfToken(req: Request, token: string): Promise<boolean> {
+  // Check if token exists in Redis (one-time use tokens)
+  const tokenKey = `csrf:token:${crypto.createHash('sha256').update(token).digest('hex')}`;
+  if (isRedisAvailable() && redis) {
+    const exists = await redis.get(tokenKey);
+    if (!exists) {
+      return false; // Token not found or expired
+    }
+    // Delete token after use (one-time use)
+    await redis.del(tokenKey);
+  }
+  
+  const secret = await getCsrfSecret(req);
   return tokens.verify(secret, token);
 }
 
@@ -90,12 +154,15 @@ export function csrfProtect(req: Request, res: Response, next: NextFunction): vo
     throw new UnauthorizedError('CSRF token is required. Please include X-CSRF-Token header.');
   }
 
-  // Verify token
-  if (!verifyCsrfToken(req, token)) {
-    throw new UnauthorizedError('Invalid CSRF token. Please refresh the page and try again.');
-  }
-
-  next();
+  // Verify token (async)
+  verifyCsrfToken(req, token).then((isValid) => {
+    if (!isValid) {
+      throw new UnauthorizedError('Invalid CSRF token. Please refresh the page and try again.');
+    }
+    next();
+  }).catch((error) => {
+    next(error);
+  });
 }
 
 /**
@@ -113,11 +180,17 @@ export function optionalCsrfProtect(req: Request, res: Response, next: NextFunct
                 req.body?.csrfToken ||
                 req.query?.csrfToken;
 
-  // If token is provided, verify it
+  // If token is provided, verify it (async)
   if (token && typeof token === 'string') {
-    if (!verifyCsrfToken(req, token)) {
-      throw new UnauthorizedError('Invalid CSRF token.');
-    }
+    verifyCsrfToken(req, token).then((isValid) => {
+      if (!isValid) {
+        throw new UnauthorizedError('Invalid CSRF token.');
+      }
+      next();
+    }).catch((error) => {
+      next(error);
+    });
+    return;
   }
 
   next();
@@ -127,8 +200,8 @@ export function optionalCsrfProtect(req: Request, res: Response, next: NextFunct
  * Get CSRF token endpoint handler
  * Returns CSRF token (works for both authenticated and anonymous users)
  */
-export function getCsrfToken(req: Request, res: Response): void {
-  const token = generateCsrfToken(req);
+export async function getCsrfToken(req: Request, res: Response): Promise<void> {
+  const token = await generateCsrfToken(req);
   
   res.json({
     success: true,

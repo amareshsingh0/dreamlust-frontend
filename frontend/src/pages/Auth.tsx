@@ -263,16 +263,24 @@ const Auth = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    id="remember-me"
-                    type="checkbox"
-                    {...signInForm.register("rememberMe")}
-                    className="rounded border-gray-300 w-5 h-5 min-w-[20px] min-h-[20px]"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer min-h-[44px] flex items-center">
-                    Remember me
-                  </label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="remember-me"
+                      type="checkbox"
+                      {...signInForm.register("rememberMe")}
+                      className="rounded border-gray-300 w-5 h-5 min-w-[20px] min-h-[20px]"
+                    />
+                    <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer min-h-[44px] flex items-center">
+                      Remember me
+                    </label>
+                  </div>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-pink-500 hover:text-pink-600 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
 
                 <Button

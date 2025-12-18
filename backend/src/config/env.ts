@@ -120,6 +120,9 @@ const envSchema = z.object({
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).optional(),
   
+  // Storage Path (for local file storage)
+  STORAGE_PATH: z.string().default('./storage/downloads'),
+  
   // Alerting & Incident Response (Discord Webhooks)
   DISCORD_WEBHOOK_URL: z.string().url().optional(), // Discord webhook for all alerts (replaces PagerDuty, Opsgenie, Slack)
   // Legacy support (deprecated - use DISCORD_WEBHOOK_URL instead)

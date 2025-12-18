@@ -37,8 +37,30 @@ export function securityHeadersPlugin(): Plugin {
         // Permissions Policy (formerly Feature-Policy)
         res.setHeader(
           'Permissions-Policy',
-          'camera=(), microphone=(), geolocation=(), payment=(self)'
+          'camera=(), microphone=(), geolocation=(), payment=(self), interest-cohort=()'
         );
+        
+        // Cookie SameSite attribute (helps with third-party cookie warnings)
+        // Note: This is set via cookie attributes, not headers
+        // For third-party cookies, we document them in cookie policy
+        
+        // Content-Security-Policy (CSP) - Best Practices requirement
+        // Allow same-origin, inline scripts (for Vite), and external CDNs
+        const cspDirectives = [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.paypal.com",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src 'self' https://fonts.gstatic.com data:",
+          "img-src 'self' data: https: blob:",
+          "connect-src 'self' https://api.dreamlust.com https://checkout.razorpay.com https://www.paypal.com wss: ws:",
+          "media-src 'self' https: blob:",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "frame-ancestors 'self'",
+          "upgrade-insecure-requests"
+        ].join('; ');
+        res.setHeader('Content-Security-Policy', cspDirectives);
         
         // X-XSS-Protection (legacy but still useful)
         res.setHeader('X-XSS-Protection', '1; mode=block');

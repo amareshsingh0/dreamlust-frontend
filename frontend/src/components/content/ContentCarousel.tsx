@@ -35,16 +35,16 @@ export function ContentCarousel({
   return (
     <section className="relative">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="font-display text-xl font-bold">{title}</h2>
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <div className="min-w-0 flex-1 mr-2">
+          <h2 className="font-display text-base sm:text-lg md:text-xl font-bold truncate">{title}</h2>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">{description}</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {showViewAll && (
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" className="text-xs sm:text-sm h-8 px-2 sm:px-3" asChild>
               <a href={viewAllPath}>View All</a>
             </Button>
           )}
@@ -70,18 +70,18 @@ export function ContentCarousel({
       </div>
 
       {/* Carousel */}
-      <div className="relative -mx-4 px-4 overflow-hidden">
+      <div className="relative -mx-3 sm:-mx-4 px-3 sm:px-4 overflow-hidden">
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+          className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-2 sm:pb-4 snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {loading ? (
             // Loading skeleton
             Array.from({ length: 4 }).map((_, i) => (
-              <div 
-                key={i} 
-                className="flex-shrink-0 w-[280px] sm:w-[300px] animate-pulse"
+              <div
+                key={i}
+                className="flex-shrink-0 w-[200px] xs:w-[240px] sm:w-[280px] md:w-[300px] animate-pulse snap-start"
               >
                 <div className="aspect-video bg-muted rounded-lg mb-2" />
                 <div className="h-4 bg-muted rounded w-3/4 mb-2" />
@@ -90,9 +90,9 @@ export function ContentCarousel({
             ))
           ) : content.length > 0 ? (
             content.map((item) => (
-              <div 
-                key={item.id} 
-                className="flex-shrink-0 w-[280px] sm:w-[300px]"
+              <div
+                key={item.id}
+                className="flex-shrink-0 w-[200px] xs:w-[240px] sm:w-[280px] md:w-[300px] snap-start"
               >
                 <Suspense fallback={<ContentCardSkeleton variant="compact" />}>
                   <ContentCard content={item} variant="compact" />

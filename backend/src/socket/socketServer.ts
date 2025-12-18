@@ -3,6 +3,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import { setSocketInstance } from '../lib/socket/emitDownloadEvents';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -65,6 +66,46 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
 
   io.on('connection', (socket: AuthenticatedSocket) => {
     console.log(`Socket connected: ${socket.id}`);
+
+    // Join user room for download updates
+    if (socket.userId) {
+      socket.join(`user:${socket.userId}`);
+      
+      // Check if user is admin and join admin room
+      prisma.user.findUnique({
+        where: { id: socket.userId },
+        select: { role: true },
+      }).then((user) => {
+        if (user && user.role === 'ADMIN') {
+          socket.join('admin');
+          console.log(`Admin ${socket.userId} joined admin room`);
+        }
+      }).catch((error) => {
+        console.error('Error checking admin status:', error);
+      });
+    }
+
+    // Join admin room handler
+    socket.on('join-admin', () => {
+      if (socket.userId) {
+        prisma.user.findUnique({
+          where: { id: socket.userId },
+          select: { role: true },
+        }).then((user) => {
+          if (user && user.role === 'ADMIN') {
+            socket.join('admin');
+            socket.emit('joined-admin', { success: true });
+            console.log(`Admin ${socket.userId} joined admin room`);
+          } else {
+            socket.emit('joined-admin', { success: false, error: 'Not an admin' });
+          }
+        }).catch((error) => {
+          socket.emit('joined-admin', { success: false, error: 'Failed to verify admin status' });
+        });
+      } else {
+        socket.emit('joined-admin', { success: false, error: 'Not authenticated' });
+      }
+    });
 
     // Join a stream room
     socket.on('join-stream', async (data: JoinStreamData) => {
@@ -285,6 +326,13 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
       }
     });
   });
+
+  // Set socket instance for download events
+  setSocketInstance(io);
+
+  // Initialize admin broadcast service
+  const { initializeAdminBroadcast } = require('../lib/websocket/adminBroadcast');
+  initializeAdminBroadcast(io);
 
   return io;
 }

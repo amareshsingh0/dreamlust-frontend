@@ -4,6 +4,7 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { commentsRateLimiter } from '../middleware/rateLimit';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { validateBody, validateQuery } from '../middleware/validation';
+import { csrfProtect } from '../middleware/csrf';
 import { awardPoints } from '../lib/loyalty/points';
 import { createActivity } from '../lib/social/activityFeedService';
 import {
@@ -187,6 +188,7 @@ router.post(
   '/',
   authenticate,
   commentsRateLimiter,
+  csrfProtect,
   validateBody(createCommentSchema),
   async (req: Request, res: Response) => {
     const userId = req.user!.userId;
@@ -307,6 +309,7 @@ router.put(
   '/:id',
   authenticate,
   commentsRateLimiter,
+  csrfProtect,
   validateBody(updateCommentSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -365,6 +368,7 @@ router.delete(
   '/:id',
   authenticate,
   commentsRateLimiter,
+  csrfProtect,
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.userId;
@@ -421,6 +425,7 @@ router.post(
   '/:id/like',
   authenticate,
   commentsRateLimiter,
+  csrfProtect,
   validateBody(commentLikeSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -520,6 +525,7 @@ router.post(
   '/:id/pin',
   authenticate,
   commentsRateLimiter,
+  csrfProtect,
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.userId;
@@ -577,6 +583,7 @@ router.post(
   '/:id/report',
   authenticate,
   commentsRateLimiter,
+  csrfProtect,
   validateBody(reportCommentSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;

@@ -42,6 +42,10 @@ import payoutsRoutes from './routes/payouts';
 import webhooksRoutes from './routes/webhooks';
 import privacyRoutes from './routes/privacy';
 import moderationRoutes from './routes/moderation';
+import adminRoutes from './routes/admin';
+import adminExportRoutes from './routes/admin-export';
+import authResetRoutes from './routes/auth-reset';
+import auth2FARoutes from './routes/auth-2fa';
 import uploadRoutes from './routes/upload';
 import creatorsRoutes from './routes/creators';
 import creatorToolsRoutes from './routes/creator-tools';
@@ -63,12 +67,16 @@ import featuresRoutes from './routes/features';
 import searchAutocompleteRoutes from './routes/search-autocomplete';
 import savedSearchesRoutes from './routes/saved-searches';
 import socialRoutes from './routes/social';
+import downloadsRoutes from './routes/downloads';
 import healthRoutes, { simpleHealthCheck } from './routes/health';
+import cacheTestRoutes from './routes/cache-test';
 import { createServer } from 'http';
 import { initializeSocketServer } from './socket/socketServer';
 // Initialize monitoring service (will auto-start in production)
 // Import monitoring service to ensure it's loaded and auto-starts
 import './lib/monitoring/monitoringService';
+// Verify email connection on startup
+import { verifyEmailConnection } from './lib/email/mailer';
 
 console.log('📦 Creating Express app...');
 const app = express();
@@ -92,6 +100,13 @@ if (env.NODE_ENV === 'production') {
 
 // Security middleware - comprehensive security headers
 app.use(...securityMiddleware);
+
+// HTTPS enforcement (production only)
+if (env.NODE_ENV === 'production') {
+  const { enforceHTTPS, setHSTSHeader } = require('./middleware/httpsEnforcer');
+  app.use(enforceHTTPS);
+  app.use(setHSTSHeader);
+}
 
 // CORS configuration - allow frontend origin and localhost in development
 const allowedOrigins = [
@@ -180,6 +195,8 @@ app.get('/', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/reset-password', authResetRoutes);
+app.use('/api/auth/2fa', auth2FARoutes);
 app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/preferences', preferencesRoutes);
@@ -194,6 +211,8 @@ app.use('/api/payouts', payoutsRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/moderation', moderationRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin/export', adminExportRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/creators', creatorsRoutes);
 app.use('/api/creator-tools', creatorToolsRoutes);
@@ -216,6 +235,8 @@ app.use('/api/features', featuresRoutes);
 app.use('/api/search', searchAutocompleteRoutes);
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/social', socialRoutes);
+app.use('/api/downloads', downloadsRoutes);
+app.use('/api/cache-test', cacheTestRoutes);
 
 // Sentry error handler (must be before other error handlers)
 if (env.NODE_ENV === 'production' && env.SENTRY_DSN) {
@@ -255,7 +276,7 @@ try {
 
 let server;
 try {
-  server = httpServer.listen(PORT, () => {
+  server = httpServer.listen(PORT, async () => {
     logger.info('Server started successfully', {
       port: PORT,
       environment: env.NODE_ENV,
@@ -263,6 +284,11 @@ try {
       apiUrl: env.API_URL,
     });
     console.log(`✅ Server running on http://localhost:${PORT}`);
+    
+    // Verify email connection (non-blocking)
+    verifyEmailConnection().catch((error) => {
+      logger.warn('Email service verification failed', { error });
+    });
   });
   
   // Handle server errors

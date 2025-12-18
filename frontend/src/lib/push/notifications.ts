@@ -23,7 +23,9 @@ async function getVAPIDPublicKey(): Promise<string | null> {
       return vapidPublicKey;
     }
   } catch (error) {
-    console.error('Failed to get VAPID public key:', error);
+    if (import.meta.env.DEV) {
+      console.error('Failed to get VAPID public key:', error);
+    }
   }
 
   return null;
@@ -103,7 +105,9 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
     // Get VAPID public key
     const publicKey = await getVAPIDPublicKey();
     if (!publicKey) {
-      console.error('VAPID public key not available');
+      if (import.meta.env.DEV) {
+        console.error('VAPID public key not available');
+      }
       return false;
     }
 

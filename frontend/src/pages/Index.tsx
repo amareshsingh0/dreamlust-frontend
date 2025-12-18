@@ -43,7 +43,9 @@ const Index = () => {
           setForYouContent(mockContent.slice(2, 10));
         }
       } catch (error) {
-        console.error('Failed to fetch For You recommendations:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch For You recommendations:', error);
+        }
         setForYouContent(mockContent.slice(2, 10));
       } finally {
         setLoadingForYou(false);
@@ -65,7 +67,9 @@ const Index = () => {
           setTrendingNowContent(fallbackTrending);
         }
       } catch (error) {
-        console.error('Failed to fetch Trending Now:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch Trending Now:', error);
+        }
         setTrendingNowContent(fallbackTrending);
       } finally {
         setLoadingTrendingNow(false);
@@ -87,7 +91,9 @@ const Index = () => {
           setFollowedCreatorsContent([]);
         }
       } catch (error) {
-        console.error('Failed to fetch Followed Creators content:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch Followed Creators content:', error);
+        }
         setFollowedCreatorsContent([]);
       } finally {
         setLoadingFollowedCreators(false);
@@ -109,7 +115,9 @@ const Index = () => {
           setContinueWatchingContent([]);
         }
       } catch (error) {
-        console.error('Failed to fetch Continue Watching:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch Continue Watching:', error);
+        }
         setContinueWatchingContent([]);
       } finally {
         setLoadingContinueWatching(false);
@@ -134,7 +142,9 @@ const Index = () => {
           setLastWatchedTitle(null);
         }
       } catch (error) {
-        console.error('Failed to fetch Last Watched Similar:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch Last Watched Similar:', error);
+        }
         setLastWatchedSimilar([]);
         setLastWatchedTitle(null);
       } finally {
@@ -157,7 +167,9 @@ const Index = () => {
           setRegionalContent([]);
         }
       } catch (error) {
-        console.error('Failed to fetch Regional content:', error);
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch Regional content:', error);
+        }
         setRegionalContent([]);
       } finally {
         setLoadingRegional(false);
@@ -175,10 +187,10 @@ const Index = () => {
       </Helmet>
       
       <Layout>
-        <div className="space-y-8 pb-12">
+        <div className="space-y-6 sm:space-y-8 pb-8 sm:pb-12">
           <HeroSection />
-          
-          <div className="px-4 lg:px-8 space-y-10">
+
+          <div className="px-3 sm:px-4 lg:px-8 space-y-6 sm:space-y-8 md:space-y-10">
             {/* For You - Mix of collaborative + content-based */}
             {forYouContent.length > 0 && (
               <ContentCarousel 

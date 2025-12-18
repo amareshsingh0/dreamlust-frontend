@@ -5,23 +5,42 @@
  * Usage: bun run src/workers.ts
  */
 
-import { initializeWorkers } from './lib/queues/workers';
+import { initializeWorkers } from './lib/queues/workers/index';
 
 console.log('🚀 Starting background workers...');
 
-const workers = initializeWorkers();
+try {
+  const workers = initializeWorkers();
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🛑 Shutting down workers...');
-  await Promise.all(workers.map((worker) => worker.close()));
-  process.exit(0);
-});
+  if (workers.length === 0) {
+    console.warn('⚠️  No workers initialized. Make sure Redis is running and REDIS_URL is set in .env');
+    console.log('💡 Workers will start automatically when Redis is available');
+    // Keep process running
+    setInterval(() => {
+      // Heartbeat to keep process alive
+    }, 60000);
+  } else {
+    console.log(`✅ ${workers.length} workers started and running`);
+  }
 
-process.on('SIGINT', async () => {
-  console.log('🛑 Shutting down workers...');
-  await Promise.all(workers.map((worker) => worker.close()));
-  process.exit(0);
-});
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('🛑 Shutting down workers...');
+    await Promise.all(workers.map((worker) => worker?.close?.()).filter(Boolean));
+    process.exit(0);
+  });
 
-console.log('✅ All workers started and running');
+  process.on('SIGINT', async () => {
+    console.log('🛑 Shutting down workers...');
+    await Promise.all(workers.map((worker) => worker?.close?.()).filter(Boolean));
+    process.exit(0);
+  });
+
+  // Keep process alive
+  setInterval(() => {
+    // Heartbeat to keep process alive
+  }, 60000);
+} catch (error) {
+  console.error('❌ Failed to start workers:', error);
+  process.exit(1);
+}

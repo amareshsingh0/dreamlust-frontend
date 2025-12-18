@@ -89,6 +89,11 @@ export const schedulerQueue = isQueueEnabled && defaultQueueOptions
   ? new Queue('scheduler', defaultQueueOptions) 
   : null;
 
+// Download queue (optional)
+export const downloadQueue = isQueueEnabled && defaultQueueOptions 
+  ? new Queue('downloads', defaultQueueOptions) 
+  : null;
+
 /**
  * Add job to video processing queue
  */
@@ -257,6 +262,27 @@ export async function queueScheduledContentProcessing() {
 }
 
 /**
+ * Add job to download queue
+ */
+export async function queueDownload(data: {
+  downloadId: string;
+  userId: string;
+  contentId: string;
+  mediaUrl: string;
+  quality?: 'auto' | '1080p' | '720p' | '480p' | '360p';
+  fileSize?: bigint | number;
+}) {
+  if (!downloadQueue) {
+    console.warn('⚠️  Download queue not available. Skipping job.');
+    return null;
+  }
+  return downloadQueue.add('download', data, {
+    priority: 1,
+    jobId: `download-${data.downloadId}`,
+  });
+}
+
+/**
  * Get queue status
  */
 export async function getQueueStatus(queueName: string) {
@@ -270,6 +296,7 @@ export async function getQueueStatus(queueName: string) {
     'analytics': analyticsQueue,
     'email': emailQueue,
     'scheduler': schedulerQueue,
+    'downloads': downloadQueue,
   };
 
   const queue = queues[queueName as keyof typeof queues];

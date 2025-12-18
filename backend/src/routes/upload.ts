@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 import { requireCreator } from '../middleware/authorize';
 import { userRateLimiter } from '../middleware/rateLimit';
+import { csrfProtect } from '../middleware/csrf';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ValidationError, NotFoundError } from '../lib/errors';
 import { z } from 'zod';
@@ -97,6 +98,7 @@ router.post(
   authenticate,
   requireCreator,
   userRateLimiter,
+  csrfProtect,
   upload.fields([
     { name: 'thumbnail', maxCount: 1 },
     { name: 'media', maxCount: 1 },
@@ -387,8 +389,23 @@ router.post(
       }) : Promise.resolve(),
       
       // Auto-moderation in background (don't block response)
-      autoFlagContent(content.id, creator.id)
-        .catch(err => console.error('Auto-moderation error:', err)),
+      Promise.resolve(autoFlagContent(content.id, creator.id)).catch(err => console.error('Auto-moderation error:', err)),
+      
+      // Broadcast new upload to admin dashboard
+      Promise.resolve().then(() => {
+        try {
+          const { broadcastNewUpload } = require('../lib/websocket/adminBroadcast');
+          broadcastNewUpload(content.id, {
+            id: content.id,
+            title: content.title,
+            creatorId: creator.id,
+            type: content.type,
+            status: content.status,
+          });
+        } catch (error) {
+          console.error('Error broadcasting new upload:', error);
+        }
+      }),
       
       // Send notification in background
       queueNotification({

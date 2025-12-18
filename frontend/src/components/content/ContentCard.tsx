@@ -103,6 +103,8 @@ export const ContentCard = React.memo(function ContentCard({ content, variant = 
             alt={content.title}
             blurDataURL={(content as any).thumbnailBlur || createSimpleBlurPlaceholder()}
             className="group-hover:scale-105 transition-transform duration-500"
+            width={160}
+            height={90}
             objectFit="cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
@@ -154,6 +156,8 @@ export const ContentCard = React.memo(function ContentCard({ content, variant = 
           alt={content.title}
           blurDataURL={(content as any).thumbnailBlur || createSimpleBlurPlaceholder()}
           className="group-hover:scale-110 transition-transform duration-500"
+          width={640}
+          height={360}
           objectFit="cover"
         />
         

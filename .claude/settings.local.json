@@ -16,7 +16,11 @@
       "Bash(bunx prisma generate:*)",
       "Bash(bun run lint)",
       "Bash(git add:*)",
-      "Bash(timeout 30 bunx prisma:*)"
+      "Bash(timeout 30 bunx prisma:*)",
+      "Bash(dir:*)",
+      "Bash(bun tsc:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)"
     ]
   }
 }

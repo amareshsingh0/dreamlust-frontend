@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { searchSchema, SearchRequest } from '../schemas/search';
 import { Prisma } from '@prisma/client';
 import { searchRateLimiter, userRateLimiter } from '../middleware/rateLimit';
-import { getCachedSearchResults, invalidateSearchCache } from '../lib/cache/contentCache';
+import { getCachedSearch } from '../lib/cache/searchCache';
 import { optionalAuth } from '../middleware/auth';
 import { z } from 'zod';
 import logger from '../lib/logger';

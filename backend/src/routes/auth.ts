@@ -7,6 +7,7 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { userRateLimiter, strictRateLimiter, loginRateLimiter } from '../middleware/rateLimit';
 import { getCsrfToken } from '../middleware/csrf';
+import { csrfProtect } from '../middleware/csrf';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
   registerSchema,
@@ -188,6 +189,8 @@ router.post(
         role: true,
         status: true,
         deleted_at: true,
+        twoFactorEnabled: true,
+        twoFactorSecret: true,
       },
     });
 
@@ -203,6 +206,20 @@ router.post(
     const isValid = await verifyPassword(password, user.password);
     if (!isValid) {
       throw new UnauthorizedError('Invalid email or password');
+    }
+
+    // Check if 2FA is enabled for this user
+    if (user.twoFactorEnabled && user.twoFactorSecret) {
+      // Return response indicating 2FA is required
+      // Don't generate full tokens yet - user must verify 2FA first
+      return res.json({
+        success: true,
+        data: {
+          requires2FA: true,
+          userId: user.id,
+          message: 'Two-factor authentication required',
+        },
+      });
     }
 
     // Generate tokens
@@ -316,7 +333,7 @@ router.post(
  * POST /api/auth/logout
  * Logout user
  */
-router.post('/logout', authenticate, asyncHandler(async (req: Request, res: Response) => {
+router.post('/logout', authenticate, csrfProtect, asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   
   // Clear refresh token cookie
@@ -342,6 +359,7 @@ router.post(
   '/change-password',
   authenticate,
   strictRateLimiter,
+  csrfProtect,
   validateBody(changePasswordSchema),
   asyncHandler(async (req: Request, res: Response) => {
     const { currentPassword, newPassword } = req.body;
@@ -422,7 +440,9 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
  * GET /api/auth/csrf-token
  * Get CSRF token for the current session
  */
-router.get('/csrf-token', getCsrfToken);
+router.get('/csrf-token', asyncHandler(async (req: Request, res: Response) => {
+  await getCsrfToken(req, res);
+}));
 
 export default router;
 

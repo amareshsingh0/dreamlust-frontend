@@ -4,7 +4,7 @@
  */
 
 import { Worker, Job } from 'bullmq';
-import { env } from '../../config/env';
+import { env } from '../../../config/env';
 import { getScheduledContentToPublish, publishScheduledContent } from '../../creator/schedulerService';
 import logger from '../../logger';
 

@@ -171,5 +171,3 @@ Add these badges to your README:
 - [Bun Setup Action](https://github.com/oven-sh/setup-bun)
 - [Vercel Action](https://github.com/amondnet/vercel-action)
 - [Railway Deploy Action](https://github.com/bervProject/railway-deploy)
-
-

@@ -52,6 +52,9 @@ model User {
   downloads               Download[]     @relation("Downloads")
   tips_given              Tip[]          @relation("TipsGiven")
 
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?  @db.Text
+
   @@index([created_at], map: "idx_users_created_at")
   @@index([deleted_at], map: "idx_users_deleted_at")
   @@index([email], map: "idx_users_email")

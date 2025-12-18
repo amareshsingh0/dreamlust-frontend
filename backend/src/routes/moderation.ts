@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { requireModerator, requireAdmin } from '../middleware/authorize';
 import { userRateLimiter } from '../middleware/rateLimit';
 import { validateBody, validateQuery } from '../middleware/validation';
+import { csrfProtect } from '../middleware/csrf';
 import {
   createReportSchema,
   updateReportSchema,
@@ -246,6 +247,7 @@ router.post(
   '/reports/:id/resolve',
   authenticate,
   requireModerator,
+  csrfProtect,
   validateBody(resolveReportSchema),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -293,6 +295,16 @@ router.post(
           status: 'BANNED',
         },
       });
+    }
+
+    // Broadcast new report if status changed to PENDING
+    if (status === 'PENDING' || status === 'UNDER_REVIEW') {
+      try {
+        const { broadcastNewReport } = require('../lib/websocket/adminBroadcast');
+        broadcastNewReport(updatedReport);
+      } catch (error) {
+        console.error('Error broadcasting new report:', error);
+      }
     }
 
     res.json({
