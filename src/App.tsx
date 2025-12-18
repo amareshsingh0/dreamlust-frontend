@@ -16,6 +16,10 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 
+// Password reset pages (lazy loaded)
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+
 // Lazy loaded pages (code splitting for better performance)
 const Explore = lazy(() => import("./pages/Explore"));
 const Search = lazy(() => import("./pages/Search"));
@@ -44,6 +48,7 @@ const Liked = lazy(() => import("./pages/Liked"));
 const Playlists = lazy(() => import("./pages/Playlists"));
 const PlaylistDetail = lazy(() => import("./pages/PlaylistDetail"));
 const Following = lazy(() => import("./pages/Following"));
+const Library = lazy(() => import("./pages/Library"));
 const Categories = lazy(() => import("./pages/Categories"));
 const Category = lazy(() => import("./pages/Category"));
 const Premium = lazy(() => import("./pages/Premium"));
@@ -56,6 +61,8 @@ const TroubleshootingGuide = lazy(() => import("./components/troubleshooting/Tro
 const ConnectivityChecker = lazy(() => import("./components/connectivity/ConnectivityChecker"));
 const APIDebugger = lazy(() => import("./pages/APIDebugger"));
 const ModerationDashboard = lazy(() => import("./pages/admin/ModerationDashboard"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const LiveDashboard = lazy(() => import("./pages/creator/LiveDashboard"));
 const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage"));
 
@@ -102,6 +109,22 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/signup" element={<Auth />} />
+            <Route
+              path="/forgot-password"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <ForgotPassword />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/reset-password"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <ResetPassword />
+                </Suspense>
+              }
+            />
             <Route 
               path="/explore" 
               element={
@@ -274,6 +297,30 @@ const App = () => (
               } 
             />
             {/* Admin Pages */}
+            <Route 
+              path="/admin" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <AdminDashboard />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <UserManagement />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/admin/reports" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <ModerationDashboard />
+                </Suspense>
+              } 
+            />
             <Route 
               path="/admin/moderation" 
               element={

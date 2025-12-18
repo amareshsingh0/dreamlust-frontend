@@ -37,36 +37,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = authStorage.getAccessToken();
         
         if (storedUser && token) {
+          // Set user immediately to prevent blank screen
           setUser(storedUser);
+          setIsLoading(false);
           
-          // Verify token is still valid by checking with backend
-          try {
-            const response = await api.auth.me<{ user: User }>();
-            if (response.success && response.data) {
-              // Response structure: { user: {...} } or just user object
-              const userData = response.data.user || response.data;
-              if (userData && userData.id) {
-                setUser(userData);
-                setObject('user', userData);
+          // Verify token is still valid by checking with backend (non-blocking)
+          // Don't block UI if API is not available
+          api.auth.me<{ user: User }>()
+            .then((response) => {
+              if (response.success && response.data) {
+                // Response structure: { user: {...} } or just user object
+                const userData = response.data.user || response.data;
+                if (userData && userData.id) {
+                  setUser(userData);
+                  setObject('user', userData);
+                } else {
+                  // Invalid user data, clear everything
+                  clearAuth();
+                }
               } else {
-                // Invalid user data, clear everything
+                // Token invalid, clear everything
                 clearAuth();
               }
-            } else {
-              // Token invalid, clear everything
-              clearAuth();
-            }
-          } catch (error) {
-            // Network error or invalid token - clear auth
-            console.warn('Token validation failed:', error);
-            clearAuth();
-          }
+            })
+            .catch((error) => {
+              // API not available or error - keep using stored user
+              console.warn('Failed to verify token with backend:', error);
+              // Don't clear auth if API is unavailable - user might be offline
+              // Only clear if it's an authentication error
+              if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+                clearAuth();
+              }
+            });
+        } else {
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Error loading user:', error);
-        clearAuth();
-      } finally {
         setIsLoading(false);
+        // Don't clear auth on error - might be network issue
       }
     };
 

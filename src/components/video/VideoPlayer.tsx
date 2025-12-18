@@ -3,6 +3,8 @@ import { Play, Pause, Volume2, VolumeX, Maximize, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { VideoPlayerSkeleton } from './VideoPlayerSkeleton';
 import { loadVideoPlayerLibrary, preconnectVideoCDN, getHLSManifestUrl } from '@/lib/videoUtils';
+import { GestureControls, SeekIndicator } from '@/components/mobile/GestureControls';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface VideoPlayerProps {
   src: string;
@@ -205,6 +207,53 @@ export function VideoPlayer({
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
           </div>
         )}
+
+        {/* Mobile Gesture Controls */}
+        {isMobile && controls && (
+          <GestureControls
+            videoRef={videoRef}
+            onSeek={(seconds) => {
+              setSeekIndicator({
+                visible: true,
+                side: seconds > 0 ? 'right' : 'left',
+                type: 'seek',
+                value: seconds,
+              });
+              setTimeout(() => setSeekIndicator(prev => ({ ...prev, visible: false })), 1000);
+            }}
+            onBrightnessChange={(value) => {
+              setSeekIndicator({
+                visible: true,
+                side: 'left',
+                type: 'brightness',
+                value,
+              });
+              setTimeout(() => setSeekIndicator(prev => ({ ...prev, visible: false })), 1000);
+            }}
+            onVolumeChange={(value) => {
+              setVolume(value / 100);
+              setSeekIndicator({
+                visible: true,
+                side: 'right',
+                type: 'volume',
+                value,
+              });
+              setTimeout(() => setSeekIndicator(prev => ({ ...prev, visible: false })), 1000);
+            }}
+            showIndicator={(side, type, value) => {
+              setSeekIndicator({ visible: true, side, type, value });
+              setTimeout(() => setSeekIndicator(prev => ({ ...prev, visible: false })), 1000);
+            }}
+          />
+        )}
+
+        {/* Seek Indicator */}
+        <SeekIndicator
+          side={seekIndicator.side}
+          type={seekIndicator.type}
+          value={seekIndicator.value}
+          visible={seekIndicator.visible}
+        />
 
         {/* Controls overlay */}
         {controls && (

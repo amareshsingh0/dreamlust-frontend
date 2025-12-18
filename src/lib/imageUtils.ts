@@ -1,118 +1,36 @@
 /**
- * Image Optimization Utilities
- * For generating blur placeholders and optimizing images
+ * Image utility functions for optimization
  */
 
 /**
- * Generate a blur placeholder from an image URL
- * Uses a simple base64-encoded SVG as placeholder
- * For production, consider using a service like Cloudinary or Imgix
+ * Convert Unsplash URL to optimized format with proper dimensions
+ * @param url - Original Unsplash URL
+ * @param width - Desired width
+ * @param height - Optional height
+ * @returns Optimized URL
  */
-export async function generateBlurPlaceholder(
-  imageUrl: string,
-  width: number = 20,
-  height: number = 20
-): Promise<string> {
-  try {
-    // Fetch image
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error('Failed to fetch image');
-    }
-
-    const blob = await response.blob();
-    const bitmap = await createImageBitmap(blob);
-
-    // Create canvas for downscaling
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-      throw new Error('Canvas context not available');
-    }
-
-    // Draw scaled image
-    ctx.drawImage(bitmap, 0, 0, width, height);
-
-    // Convert to base64
-    const base64 = canvas.toDataURL('image/jpeg', 0.1);
-    return base64;
-  } catch (error) {
-    console.error('Error generating blur placeholder:', error);
-    // Return a simple gray placeholder
-    return `data:image/svg+xml;base64,${btoa(
-      `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="#737373"/>
-      </svg>`
-    )}`;
-  }
-}
-
-/**
- * Generate a simple blur hash placeholder
- * Returns a base64-encoded low-quality image
- */
-export function createSimpleBlurPlaceholder(width: number = 10, height: number = 10): string {
-  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:#737373;stop-opacity:1" />
-        <stop offset="100%" style="stop-color:#525252;stop-opacity:1" />
-      </linearGradient>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#grad)"/>
-  </svg>`;
+export function optimizeUnsplashUrl(url: string, width: number, height?: number): string {
+  if (!url.includes('unsplash.com')) return url;
   
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  // Remove existing query params
+  const baseUrl = url.split('?')[0];
+  
+  // Build optimized query string
+  const params = new URLSearchParams();
+  params.set('w', width.toString());
+  if (height) {
+    params.set('h', height.toString());
+    params.set('fit', 'crop');
+  }
+  params.set('auto', 'format'); // Enable automatic format (WebP/AVIF)
+  params.set('q', '80'); // Quality 80 for good balance
+  
+  return `${baseUrl}?${params.toString()}`;
 }
 
 /**
- * Get optimized image URL
- * In production, this would use a CDN or image optimization service
+ * Create a simple blur placeholder
  */
-export function getOptimizedImageUrl(
-  originalUrl: string,
-  options: {
-    width?: number;
-    height?: number;
-    quality?: number;
-    format?: 'webp' | 'jpeg' | 'png';
-  } = {}
-): string {
-  const { width, height, quality = 85, format = 'webp' } = options;
-
-  // If using a CDN like Cloudinary, Imgix, or similar, construct the URL here
-  // Example: return `${CDN_BASE_URL}/${originalUrl}?w=${width}&h=${height}&q=${quality}&f=${format}`;
-
-  // For now, return original URL
-  // In production, integrate with your image CDN
-  return originalUrl;
+export function createSimpleBlurPlaceholder(): string {
+  return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzczNzM3Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5Mb2FkaW5nLi4uPC90ZXh0Pjwvc3ZnPg==';
 }
-
-/**
- * Preload image for better performance
- */
-export function preloadImage(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-/**
- * Check if image is in viewport (for lazy loading)
- */
-export function isInViewport(element: HTMLElement): boolean {
-  const rect = element.getBoundingClientRect();
-  return (
-    rect.top >= 0 &&
-    rect.left >= 0 &&
-    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-  );
-}
-

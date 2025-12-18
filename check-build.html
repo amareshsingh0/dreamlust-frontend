@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build Check</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .check {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .success { background: #22c55e; }
+    .error { background: #ef4444; }
+    .info { background: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Build Check</h1>
+  <div id="checks"></div>
+  
+  <script>
+    const checks = [];
+    const container = document.getElementById('checks');
+    
+    function addCheck(name, status, message) {
+      const div = document.createElement('div');
+      div.className = `check ${status}`;
+      div.innerHTML = `<strong>${name}:</strong> ${message}`;
+      container.appendChild(div);
+      checks.push({ name, status, message });
+    }
+    
+    // Check 1: Root element
+    const root = document.getElementById('root');
+    if (root) {
+      addCheck('Root Element', 'success', 'Found');
+    } else {
+      addCheck('Root Element', 'error', 'NOT FOUND - This is the problem!');
+    }
+    
+    // Check 2: Scripts
+    const scripts = document.querySelectorAll('script[type="module"]');
+    addCheck('Module Scripts', scripts.length > 0 ? 'success' : 'error', 
+      `${scripts.length} script(s) found`);
+    
+    // Check 3: CSS
+    const stylesheets = Array.from(document.styleSheets);
+    addCheck('Stylesheets', stylesheets.length > 0 ? 'success' : 'error',
+      `${stylesheets.length} stylesheet(s) loaded`);
+    
+    // Check 4: Console errors
+    const originalError = console.error;
+    let errorCount = 0;
+    console.error = function(...args) {
+      errorCount++;
+      originalError.apply(console, args);
+    };
+    
+    setTimeout(() => {
+      if (errorCount > 0) {
+        addCheck('Console Errors', 'error', `${errorCount} error(s) detected - Check browser console`);
+      } else {
+        addCheck('Console Errors', 'success', 'No errors detected');
+      }
+      
+      // Summary
+      const hasErrors = checks.some(c => c.status === 'error');
+      if (hasErrors) {
+        addCheck('Summary', 'error', 'Issues found - Check above');
+      } else {
+        addCheck('Summary', 'success', 'All checks passed!');
+      }
+    }, 2000);
+  </script>
+</body>
+</html>
+

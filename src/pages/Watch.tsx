@@ -402,10 +402,10 @@ export default function Watch() {
       </Helmet>
       
       <Layout>
-        <div className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3 sm:space-y-4">
               {/* Video Player */}
               <div className="relative aspect-video bg-black rounded-xl overflow-hidden group" data-testid="video-player">
                 <img 
@@ -435,29 +435,29 @@ export default function Watch() {
                 </div>
 
                 {/* Controls */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-black/80 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   {/* Progress bar */}
-                  <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+                  <div className="w-full h-2 sm:h-1 bg-white/30 rounded-full mb-2 sm:mb-4 cursor-pointer touch-none">
                     <div className="h-full w-1/3 bg-primary rounded-full" />
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Button variant="ghost" size="icon" className="text-white hover:text-primary">
-                        {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                    <div className="flex items-center gap-1 sm:gap-3">
+                      <Button variant="ghost" size="icon" className="text-white hover:text-primary h-10 w-10 sm:h-9 sm:w-9">
+                        {isPlaying ? <Pause className="h-5 w-5 sm:h-5 sm:w-5" /> : <Play className="h-5 w-5 sm:h-5 sm:w-5" />}
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-white hover:text-primary"
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-white hover:text-primary h-10 w-10 sm:h-9 sm:w-9"
                         onClick={() => setIsMuted(!isMuted)}
                       >
                         {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                       </Button>
-                      <span className="text-white text-sm">0:00 / {content.duration}</span>
+                      <span className="text-white text-xs sm:text-sm">0:00 / {content.duration}</span>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="text-white hover:text-primary">
@@ -506,18 +506,18 @@ export default function Watch() {
 
               {/* Title & Actions */}
               <div>
-                <h1 className="font-display text-2xl font-bold mb-2">{content.title}</h1>
+                <h1 className="font-display text-lg sm:text-xl md:text-2xl font-bold mb-2">{content.title}</h1>
                 
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                   <span>{content.views.toLocaleString()} views</span>
                   <span>•</span>
                   <span>{new Date(content.createdAt).toLocaleDateString()}</span>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   {/* Creator */}
-                  <Link to={`/creator/${content.creator.username}`} className="flex items-center gap-3 group">
-                    <Avatar className="h-12 w-12 border-2 border-primary/50">
+                  <Link to={`/creator/${content.creator.username}`} className="flex items-center gap-2 sm:gap-3 group">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/50">
                       <AvatarImage src={content.creator.avatar} alt={`${content.creator.name} avatar`} />
                       <AvatarFallback>{content.creator.name[0]}</AvatarFallback>
                     </Avatar>
@@ -537,43 +537,44 @@ export default function Watch() {
                   </Link>
 
                   {/* Actions */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <Button
                       variant={isLiked ? 'default' : 'secondary'}
                       size="sm"
-                      className="gap-2"
+                      className="gap-1 sm:gap-2 h-9 px-2 sm:px-3"
                       onClick={handleLike}
                       data-testid="like-button"
                     >
                       <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
-                      {(content.likes + (isLiked ? 1 : 0)).toLocaleString()}
+                      <span className="text-xs sm:text-sm">{(content.likes + (isLiked ? 1 : 0)).toLocaleString()}</span>
                     </Button>
                     <Button
                       variant={isDisliked ? 'destructive' : 'secondary'}
                       size="sm"
+                      className="h-9 px-2 sm:px-3"
                       onClick={handleDislike}
                     >
                       <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
                     </Button>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      className="gap-2"
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="gap-1 sm:gap-2 h-9 px-2 sm:px-3"
                       onClick={handleShare}
                     >
                       <Share2 className="h-4 w-4" />
-                      Share
+                      <span className="hidden xs:inline">Share</span>
                     </Button>
                     <Dialog open={showAddToPlaylist} onOpenChange={setShowAddToPlaylist}>
                       <DialogTrigger asChild>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
-                          className="gap-2"
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="gap-1 sm:gap-2 h-9 px-2 sm:px-3"
                           onClick={handleSave}
                         >
                           <Plus className="h-4 w-4" />
-                          Save
+                          <span className="hidden xs:inline">Save</span>
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
@@ -661,7 +662,30 @@ export default function Watch() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            if (!id) return;
+                            try {
+                              const response = await api.downloads.create({
+                                contentId: id,
+                                quality: selectedQuality === 'auto' ? undefined : selectedQuality,
+                              });
+                              if (response.success) {
+                                toast({
+                                  title: 'Download started',
+                                  description: 'Your download has been queued. Check your library to see progress.',
+                                });
+                              }
+                            } catch (error: unknown) {
+                              const errorMessage = error instanceof Error ? error.message : 'Failed to start download';
+                              toast({
+                                title: 'Download failed',
+                                description: errorMessage,
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                        >
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </DropdownMenuItem>

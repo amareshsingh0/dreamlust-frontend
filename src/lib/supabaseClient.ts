@@ -5,10 +5,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Graceful degradation instead of throwing error
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    "⚠️ Missing Supabase environment variables. Supabase features will be disabled. " +
-    "Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file."
-  );
+  if (import.meta.env.DEV) {
+    console.warn(
+      "⚠️ Missing Supabase environment variables. Supabase features will be disabled. " +
+      "Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file."
+    );
+  }
   
   // Create a mock client that safely does nothing
   export const supabase = {

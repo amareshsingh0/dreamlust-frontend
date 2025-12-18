@@ -2,6 +2,65 @@ import { authStorage } from './storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+// CSRF Token Management
+let csrfToken: string | null = null;
+let csrfTokenPromise: Promise<string> | null = null;
+
+async function fetchCsrfToken(): Promise<string> {
+  const url = `${API_BASE_URL}/api/auth/csrf-token`;
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch CSRF token');
+    }
+
+    const data = await response.json();
+    if (data.success && data.data?.csrfToken) {
+      csrfToken = data.data.csrfToken;
+      return csrfToken;
+    }
+    throw new Error('Invalid CSRF token response');
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error('Failed to fetch CSRF token:', error);
+    }
+    throw error;
+  }
+}
+
+// Get CSRF token, fetching if needed (with deduplication)
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken) {
+    return csrfToken;
+  }
+
+  // Prevent multiple simultaneous fetches
+  if (csrfTokenPromise) {
+    return csrfTokenPromise;
+  }
+
+  csrfTokenPromise = fetchCsrfToken().finally(() => {
+    csrfTokenPromise = null;
+  });
+
+  return csrfTokenPromise;
+}
+
+// Clear CSRF token (called on CSRF errors or logout)
+export function clearCsrfToken(): void {
+  csrfToken = null;
+}
+
+// Refresh CSRF token
+export async function refreshCsrfToken(): Promise<string> {
+  csrfToken = null;
+  return getCsrfToken();
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -112,11 +171,14 @@ export async function apiRequest<T>(
       errorMessage += error.message || 'Please check your connection and ensure the server is running.';
     }
     
-    console.error('API Request Error:', {
-      url,
-      error: error.message,
-      stack: error.stack,
-    });
+    // Only log errors in development to avoid console errors in production (best practices)
+    if (import.meta.env.DEV) {
+      console.error('API Request Error:', {
+        url,
+        error: error.message,
+        stack: error.stack,
+      });
+    }
     
     return {
       success: false,
@@ -142,12 +204,30 @@ function getHeaders(customHeaders: Record<string, string> = {}): Record<string, 
     'Content-Type': 'application/json',
     ...customHeaders,
   };
-  
+
   // Only add Authorization header if token exists and not explicitly overridden
   if (token && !customHeaders.Authorization) {
     headers.Authorization = `Bearer ${token}`;
   }
-  
+
+  return headers;
+}
+
+// Helper to add auth headers WITH CSRF token (for state-changing requests)
+async function getHeadersWithCsrf(customHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+  const token = getAuthToken();
+  const csrf = await getCsrfToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': csrf,
+    ...customHeaders,
+  };
+
+  // Only add Authorization header if token exists and not explicitly overridden
+  if (token && !customHeaders.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   return headers;
 }
 
@@ -327,10 +407,13 @@ export const api = {
   upload: {
     content: async <T>(formData: FormData): Promise<ApiResponse<T>> => {
       const token = getAuthToken();
+      const csrf = await getCsrfToken();
       const url = `${API_BASE_URL}/api/upload/content`;
-      
+
       try {
-        const headers: Record<string, string> = {};
+        const headers: Record<string, string> = {
+          'X-CSRF-Token': csrf,
+        };
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
@@ -522,43 +605,49 @@ export const api = {
         headers: getHeaders(),
       });
     },
-    create: <T>(data: { contentId: string; text: string; parentId?: string }) => {
+    create: async <T>(data: { contentId: string; text: string; parentId?: string }) => {
+      const headers = await getHeadersWithCsrf();
       return apiRequest<T>('/api/comments', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
       });
     },
-    update: <T>(id: string, data: { text: string }) => {
+    update: async <T>(id: string, data: { text: string }) => {
+      const headers = await getHeadersWithCsrf();
       return apiRequest<T>(`/api/comments/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
       });
     },
-    delete: <T>(id: string) => {
+    delete: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
       return apiRequest<T>(`/api/comments/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
+        headers,
       });
     },
-    like: <T>(id: string, type: 'like' | 'dislike') => {
+    like: async <T>(id: string, type: 'like' | 'dislike') => {
+      const headers = await getHeadersWithCsrf();
       return apiRequest<T>(`/api/comments/${id}/like`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify({ type }),
       });
     },
-    pin: <T>(id: string) => {
+    pin: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
       return apiRequest<T>(`/api/comments/${id}/pin`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
       });
     },
-    report: <T>(id: string, data: { reason: string; type?: string }) => {
+    report: async <T>(id: string, data: { reason: string; type?: string }) => {
+      const headers = await getHeadersWithCsrf();
       return apiRequest<T>(`/api/comments/${id}/report`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
       });
     },
@@ -768,31 +857,196 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    updateReport: <T>(id: string, data: {
+    updateReport: async <T>(id: string, data: {
       status?: string;
       action?: string;
       moderatorNotes?: string;
-    }) =>
-      apiRequest<T>(`/api/moderation/reports/${id}`, {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/moderation/reports/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    resolveReport: <T>(id: string, data: {
+      });
+    },
+    resolveReport: async <T>(id: string, data: {
       status: string;
       action?: string;
       moderatorNotes?: string;
-    }) =>
-      apiRequest<T>(`/api/moderation/reports/${id}/resolve`, {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/moderation/reports/${id}/resolve`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
+      });
+    },
     getStats: <T>() =>
       apiRequest<T>('/api/moderation/stats', {
         method: 'GET',
         headers: getHeaders(),
       }),
+  },
+  admin: {
+    // Dashboard
+    getDashboardStats: <T>() =>
+      apiRequest<T>('/api/admin/dashboard/stats', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getDashboardCharts: <T>(params?: { period?: '7d' | '30d' | '90d' }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.period) searchParams.append('period', params.period);
+      const queryString = searchParams.toString();
+      const url = `/api/admin/dashboard/charts${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getDashboardActivity: <T>(params?: { limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/admin/dashboard/activity${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    // Users
+    getUsers: <T>(params?: {
+      search?: string;
+      status?: 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'INACTIVE';
+      role?: 'USER' | 'CREATOR' | 'MODERATOR' | 'ADMIN';
+      page?: number;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.search) searchParams.append('search', params.search);
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.role) searchParams.append('role', params.role);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/admin/users${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getUser: <T>(id: string) =>
+      apiRequest<T>(`/api/admin/users/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    updateUser: async <T>(id: string, data: {
+      role?: 'USER' | 'CREATOR' | 'MODERATOR' | 'ADMIN';
+      status?: 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'INACTIVE';
+      email?: string;
+      username?: string;
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/users/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    suspendUser: async <T>(id: string, data?: { reason?: string; duration?: number }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/users/${id}/suspend`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {}),
+      });
+    },
+    banUser: async <T>(id: string, data?: { reason?: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/users/${id}/ban`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {}),
+      });
+    },
+    impersonateUser: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/users/${id}/impersonate`, {
+        method: 'POST',
+        headers,
+      });
+    },
+    // Content
+    getContent: <T>(params?: {
+      status?: string;
+      type?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.type) searchParams.append('type', params.type);
+      if (params?.search) searchParams.append('search', params.search);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const queryString = searchParams.toString();
+      const url = `/api/admin/content${queryString ? `?${queryString}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    removeContent: async <T>(id: string, data?: { reason?: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/content/${id}/remove`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data || {}),
+      });
+    },
+    // Creators
+    warnCreator: async <T>(id: string, data: { reason: string; severity?: 'low' | 'medium' | 'high' }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/creators/${id}/warn`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    // Moderation
+    autoModerate: async <T>(contentId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/admin/moderation/auto-moderate/${contentId}`, {
+        method: 'POST',
+        headers,
+      });
+    },
+    // Export (direct download URLs)
+    exportUsersCSV: (params?: { status?: string; role?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.role) searchParams.append('role', params.role);
+      return `${API_BASE_URL}/api/admin/export/users/csv?${searchParams.toString()}`;
+    },
+    exportUsersExcel: (params?: { status?: string; role?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.role) searchParams.append('role', params.role);
+      return `${API_BASE_URL}/api/admin/export/users/excel?${searchParams.toString()}`;
+    },
+    exportContentCSV: (params?: { status?: string; type?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.type) searchParams.append('type', params.type);
+      return `${API_BASE_URL}/api/admin/export/content/csv?${searchParams.toString()}`;
+    },
+    exportContentExcel: (params?: { status?: string; type?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.type) searchParams.append('type', params.type);
+      return `${API_BASE_URL}/api/admin/export/content/excel?${searchParams.toString()}`;
+    },
   },
   auth: {
     register: <T>(data: {
@@ -821,20 +1075,16 @@ export const api = {
         body: JSON.stringify(data),
         credentials: 'include', // Important for cookies
       }),
-    logout: <T>() => {
-      const token = getAuthToken();
-      return apiRequest<T>('/api/auth/logout', {
+    logout: async <T>() => {
+      const headers = await getHeadersWithCsrf();
+      const result = await apiRequest<T>('/api/auth/logout', {
         method: 'POST',
-        headers: token 
-          ? {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            }
-          : {
-              'Content-Type': 'application/json',
-            },
+        headers,
         credentials: 'include',
       });
+      // Clear CSRF token on logout
+      clearCsrfToken();
+      return result;
     },
     me: <T>() =>
       apiRequest<T>('/api/auth/me', {
@@ -850,14 +1100,70 @@ export const api = {
         body: JSON.stringify({ refreshToken }),
         credentials: 'include',
       }),
-    changePassword: <T>(data: {
+    changePassword: async <T>(data: {
       currentPassword: string;
       newPassword: string;
-    }) =>
-      apiRequest<T>('/api/auth/change-password', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/auth/change-password', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    // Password Reset
+    requestPasswordReset: <T>(data: { email: string }) =>
+      apiRequest<T>('/api/auth/reset-password/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    verifyResetToken: <T>(data: { token: string }) =>
+      apiRequest<T>('/api/auth/reset-password/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    resetPassword: <T>(data: { token: string; password: string }) =>
+      apiRequest<T>('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    // 2FA (Two-Factor Authentication)
+    generate2FA: <T>() =>
+      apiRequest<T>('/api/auth/2fa/generate', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    enable2FA: async <T>(data: { token: string; secret: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/auth/2fa/enable', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    disable2FA: async <T>(data: { token: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/auth/2fa/disable', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    verify2FA: <T>(data: { token: string }) =>
+      apiRequest<T>('/api/auth/2fa/verify', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
+      }),
+    verify2FALogin: <T>(data: { userId: string; token: string; rememberMe?: boolean }) =>
+      apiRequest<T>('/api/auth/2fa/verify-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
       }),
   },
   live: {
@@ -1773,6 +2079,46 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ contributorId }),
+      }),
+  },
+  downloads: {
+    create: <T>(data: { contentId: string; quality?: string; expiresInDays?: number }) =>
+      apiRequest<T>('/api/downloads', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    get: <T>(params?: { status?: string; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/downloads${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getById: <T>(id: string) =>
+      apiRequest<T>(`/api/downloads/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getUrl: <T>(id: string) =>
+      apiRequest<T>(`/api/downloads/${id}/url`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    cancel: <T>(id: string) =>
+      apiRequest<T>(`/api/downloads/${id}?action=cancel`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/downloads/${id}?action=delete`, {
+        method: 'DELETE',
+        headers: getHeaders(),
       }),
   },
 };

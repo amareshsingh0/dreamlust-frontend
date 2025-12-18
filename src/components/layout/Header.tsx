@@ -135,9 +135,9 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
         </div>
 
         {/* Center - Search */}
-        <form 
+        <form
           onSubmit={handleSearch}
-          className={`flex-1 max-w-2xl ${showSearch ? 'absolute inset-x-4 top-3 z-10 bg-background p-2 rounded-lg md:relative md:inset-auto md:p-0 md:bg-transparent' : 'hidden md:block'}`}
+          className={`flex-1 max-w-2xl ${showSearch ? 'absolute inset-x-2 sm:inset-x-4 top-2 z-20 bg-background/95 backdrop-blur-sm p-2 rounded-lg shadow-lg border border-border/50 md:relative md:inset-auto md:p-0 md:bg-transparent md:shadow-none md:border-0' : 'hidden md:block'}`}
         >
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -145,17 +145,18 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
               id="header-search-input"
               name="header-search-input"
               type="search"
-              placeholder="Search content, creators, tags..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+              className="pl-10 pr-10 bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 h-10"
+              autoFocus={showSearch}
             />
             {showSearch && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 md:hidden"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 md:hidden"
                 onClick={() => setShowSearch(false)}
                 aria-label="Close search"
               >

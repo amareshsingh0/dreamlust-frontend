@@ -237,7 +237,7 @@ export default function Profile() {
       </Helmet>
       
       <Layout>
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
           {/* Profile Header */}
           <ProfileHeader
             isOwnProfile={true}
@@ -261,27 +261,27 @@ export default function Profile() {
           />
 
           {/* Content Tabs */}
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-2xl grid-cols-5">
-              <TabsTrigger value="overview" className="gap-2">
+          <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+            <TabsList className="grid w-full max-w-2xl grid-cols-5 h-auto gap-0.5 sm:gap-1">
+              <TabsTrigger value="overview" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <Activity className="h-4 w-4" />
-                <span className="hidden sm:inline">Overview</span>
+                <span className="hidden xs:inline">Overview</span>
               </TabsTrigger>
-              <TabsTrigger value="playlists" className="gap-2">
+              <TabsTrigger value="playlists" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <PlaySquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Playlists</span>
+                <span className="hidden xs:inline">Lists</span>
               </TabsTrigger>
-              <TabsTrigger value="history" className="gap-2">
+              <TabsTrigger value="history" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <Clock className="h-4 w-4" />
-                <span className="hidden sm:inline">History</span>
+                <span className="hidden xs:inline">History</span>
               </TabsTrigger>
-              <TabsTrigger value="liked" className="gap-2">
+              <TabsTrigger value="liked" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <Heart className="h-4 w-4" />
-                <span className="hidden sm:inline">Liked</span>
+                <span className="hidden xs:inline">Liked</span>
               </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">
+              <TabsTrigger value="settings" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Settings</span>
+                <span className="hidden xs:inline">Settings</span>
               </TabsTrigger>
             </TabsList>
 
@@ -340,11 +340,15 @@ export default function Profile() {
                           )}
                           {activity.type === 'followed' && activity.creator && (
                             <>
-                              <img 
-                                src={activity.creator.avatar} 
-                                alt={activity.creator.name}
-                                className="w-10 h-10 rounded-full"
-                              />
+                              <Avatar className="w-10 h-10">
+                                <AvatarImage 
+                                  src={activity.creator.avatar} 
+                                  alt={activity.creator.name}
+                                  width={40}
+                                  height={40}
+                                />
+                                <AvatarFallback>{activity.creator.name[0]}</AvatarFallback>
+                              </Avatar>
                               <div className="flex-1">
                                 <p className="text-sm">
                                   <Users className="inline h-4 w-4 mr-1" />

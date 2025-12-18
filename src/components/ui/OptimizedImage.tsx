@@ -1,5 +1,6 @@
 import { useState, useEffect, ImgHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+import { optimizeUnsplashUrl } from '@/lib/imageUtils';
 
 interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {
   src: string;
@@ -33,22 +34,27 @@ export function OptimizedImage({
   objectFit = 'cover',
   ...props
 }: OptimizedImageProps) {
-  const [imageSrc, setImageSrc] = useState<string>(blurDataURL || src);
+  // Optimize image URL with proper dimensions and format
+  const optimizedSrc = width && src.includes('unsplash.com') 
+    ? optimizeUnsplashUrl(src, width, height) 
+    : src;
+  
+  const [imageSrc, setImageSrc] = useState<string>(blurDataURL || optimizedSrc);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     // Preload the actual image
     const img = new Image();
-    img.src = src;
+    img.src = optimizedSrc;
     img.onload = () => {
-      setImageSrc(src);
+      setImageSrc(optimizedSrc);
       setIsLoaded(true);
     };
     img.onerror = () => {
       setHasError(true);
     };
-  }, [src]);
+  }, [optimizedSrc]);
 
   // Fallback image
   const fallbackSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzczNzM3Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==';
@@ -85,8 +91,8 @@ export function OptimizedImage({
           hasError && 'opacity-100'
         )}
         style={{ objectFit }}
-        width={width}
-        height={height}
+        width={width || undefined}
+        height={height || undefined}
         {...props}
       />
 

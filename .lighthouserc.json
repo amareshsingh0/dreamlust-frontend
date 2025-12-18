@@ -2,8 +2,9 @@
   "ci": {
     "collect": {
       "startServerCommand": "bun run preview",
-      "startServerReadyPattern": "Local:|ready in|vite preview|http://localhost:4173",
-      "startServerReadyTimeout": 60000,
+      "startServerReadyPattern": "Local:|ready in|vite preview|http://localhost:4173|http://127.0.0.1:4173|VITE.*ready",
+      "startServerReadyTimeout": 120000,
+      "wait": 5000,
       "url": [
         "http://localhost:4173/",
         "http://localhost:4173/search",
@@ -24,7 +25,8 @@
           "height": 940,
           "deviceScaleFactor": 1
         }
-      }
+      },
+      "chromeFlags": "--disable-gpu --no-sandbox"
     },
     "assert": {
       "assertions": {
