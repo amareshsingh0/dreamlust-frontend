@@ -29,10 +29,22 @@ const Following = () => {
       try {
         setLoading(true);
         const response = await api.creators.getFollowing({ page, limit: 20 });
-        
+
         if (response.success && response.data) {
-          const data = response.data as { creators: Creator[] };
-          const creators = data.creators || [];
+          const data = response.data as { creators: any[] };
+          // Map backend fields to frontend Creator type
+          const creators: Creator[] = (data.creators || []).map((c: any) => ({
+            id: c.id,
+            name: c.displayName || c.handle || 'Unknown',
+            username: c.handle || c.id,
+            avatar: c.avatar || '',
+            banner: c.banner,
+            bio: c.bio || '',
+            followers: c.followerCount || 0,
+            views: 0,
+            contentCount: c.contentCount || 0,
+            isVerified: c.isVerified || false,
+          }));
           setFollowing(prev => page === 1 ? creators : [...prev, ...creators]);
           setHasMore(creators.length === 20);
         } else {
