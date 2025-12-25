@@ -23,11 +23,11 @@ export async function getCachedCategories(fetchFn?: () => Promise<any>) {
     ? await fetchFn()
     : await prisma.category.findMany({
         where: {
-          is_active: true,
+          isActive: true,
           deletedAt: null,
         },
         orderBy: {
-          sort_order: 'asc',
+          sortOrder: 'asc',
         },
       });
 

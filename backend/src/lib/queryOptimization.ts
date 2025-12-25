@@ -14,10 +14,10 @@ export const contentInclude = {
     select: {
       id: true,
       handle: true,
-      display_name: true,
+      displayName: true,
       avatar: true,
-      is_verified: true,
-      follower_count: true,
+      isVerified: true,
+      followerCount: true,
     },
   },
   categories: {

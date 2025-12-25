@@ -192,11 +192,11 @@ router.post(
         id: true,
         email: true,
         username: true,
-        display_name: true,
+        displayName: true,
         avatar: true,
         bio: true,
-        created_at: true,
-        user_preferences: true,
+        createdAt: true,
+        userPreferences: true,
       },
     });
 
@@ -209,12 +209,12 @@ router.post(
         id: user.id,
         email: user.email,
         username: user.username,
-        displayName: user.display_name,
+        displayName: user.displayName,
         avatar: user.avatar,
         bio: user.bio,
-        createdAt: user.created_at,
+        createdAt: user.createdAt,
       },
-      preferences: user.user_preferences,
+      preferences: user.userPreferences,
       exportedAt: new Date().toISOString(),
     };
 
@@ -348,13 +348,13 @@ router.post(
         requestedAt: new Date(),
         scheduledFor,
         reason: reason || null,
-        status: 'pending',
+        status: 'PENDING',
       },
       create: {
         userId,
         scheduledFor,
         reason: reason || null,
-        status: 'pending',
+        status: 'PENDING',
       },
     });
 

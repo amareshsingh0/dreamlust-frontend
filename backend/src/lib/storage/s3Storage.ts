@@ -1,6 +1,7 @@
 /**
- * S3/R2 Storage Service
- * Handles file uploads to S3-compatible storage (AWS S3, Cloudflare R2, etc.)
+ * Cloudflare R2 Storage Service
+ * Handles file uploads to Cloudflare R2 (S3-compatible storage)
+ * Falls back to AWS S3 if R2 is not configured
  */
 
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
@@ -9,7 +10,7 @@ import { env } from '../../config/env';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface UploadOptions {
-  contentType?: string;
+  type?: string;
   cacheControl?: string;
   metadata?: Record<string, string>;
   acl?: 'private' | 'public-read';
@@ -22,29 +23,33 @@ export interface UploadResult {
 }
 
 class S3StorageService {
-  private client: S3Client;
+  private client?: S3Client;
   private bucketName: string;
   private cdnUrl?: string;
   private region: string;
 
   constructor() {
-    // Support both S3 and R2
-    const isR2 = !!env.R2_ACCOUNT_ID;
-    const accessKeyId = env.S3_ACCESS_KEY_ID || env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = env.S3_SECRET_ACCESS_KEY || env.R2_SECRET_ACCESS_KEY;
-    this.bucketName = env.S3_BUCKET_NAME || env.R2_BUCKET_NAME || '';
-    this.cdnUrl = env.S3_CDN_URL || env.R2_PUBLIC_URL;
-    this.region = env.S3_REGION || (isR2 ? 'auto' : 'us-east-1');
+    // Prioritize Cloudflare R2 over AWS S3
+    const cloudflareAccountId = env.CLOUDFLARE_ACCOUNT_ID || env.R2_ACCOUNT_ID;
+    const isR2 = !!cloudflareAccountId;
+    
+    // Use Cloudflare R2 credentials first, fallback to AWS S3
+    const accessKeyId = env.CLOUDFLARE_ACCESS_KEY_ID || env.R2_ACCESS_KEY_ID || env.S3_ACCESS_KEY_ID;
+    const secretAccessKey = env.CLOUDFLARE_SECRET_ACCESS_KEY || env.R2_SECRET_ACCESS_KEY || env.S3_SECRET_ACCESS_KEY;
+    this.bucketName = env.R2_BUCKET_NAME || env.S3_BUCKET_NAME || '';
+    this.cdnUrl = env.R2_PUBLIC_URL || env.S3_CDN_URL;
+    this.region = isR2 ? 'auto' : (env.S3_REGION || 'us-east-1');
 
     if (!accessKeyId || !secretAccessKey || !this.bucketName) {
-      console.warn('⚠️  S3/R2 storage not configured. File uploads will use placeholder URLs.');
+      console.warn('⚠️  Cloudflare R2 storage not configured. File uploads will use placeholder URLs.');
+      console.warn('⚠️  Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY, and R2_BUCKET_NAME in your .env file.');
       return;
     }
 
     // R2 endpoint format: https://<account-id>.r2.cloudflarestorage.com
     let endpoint = env.S3_ENDPOINT;
     if (isR2 && !endpoint) {
-      endpoint = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+      endpoint = `https://${cloudflareAccountId}.r2.cloudflarestorage.com`;
     }
 
     this.client = new S3Client({
@@ -57,6 +62,15 @@ class S3StorageService {
       // For R2, force path style
       forcePathStyle: isR2,
     });
+
+    if (isR2) {
+      console.log('✅ Cloudflare R2 storage configured successfully');
+      console.log(`   Account ID: ${cloudflareAccountId}`);
+      console.log(`   Bucket: ${this.bucketName}`);
+      console.log(`   Public URL: ${this.cdnUrl || 'Not configured'}`);
+    } else {
+      console.log('✅ AWS S3 storage configured');
+    }
   }
 
   /**
@@ -82,12 +96,12 @@ class S3StorageService {
     const key = `${folder}/${uuidv4()}.${extension}`;
 
     // R2 doesn't support ACL, so we omit it for R2
-    const isR2 = !!env.R2_ACCOUNT_ID;
+    const isR2 = !!(env.CLOUDFLARE_ACCOUNT_ID || env.R2_ACCOUNT_ID);
     const commandOptions: any = {
       Bucket: this.bucketName,
       Key: key,
       Body: buffer,
-      ContentType: options.contentType || this.getContentType(extension),
+      ContentType: options.type || this.getContentType(extension),
       CacheControl: options.cacheControl || 'public, max-age=31536000, immutable',
       Metadata: options.metadata || {},
     };
@@ -103,14 +117,16 @@ class S3StorageService {
 
     // Generate URL based on storage type
     let url: string;
-    if (env.R2_ACCOUNT_ID && env.R2_PUBLIC_URL) {
-      // R2 public URL
+    const cloudflareAccountId = env.CLOUDFLARE_ACCOUNT_ID || env.R2_ACCOUNT_ID;
+    
+    if (cloudflareAccountId && env.R2_PUBLIC_URL) {
+      // R2 public URL (preferred)
       url = `${env.R2_PUBLIC_URL}/${key}`;
-    } else if (env.R2_ACCOUNT_ID) {
-      // R2 endpoint URL
-      url = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${this.bucketName}/${key}`;
+    } else if (cloudflareAccountId) {
+      // R2 endpoint URL (fallback)
+      url = `https://${cloudflareAccountId}.r2.cloudflarestorage.com/${this.bucketName}/${key}`;
     } else {
-      // S3 URL
+      // S3 URL (legacy)
       url = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
     }
     const cdnUrl = this.cdnUrl ? `${this.cdnUrl}/${key}` : url;
@@ -128,10 +144,10 @@ class S3StorageService {
   async uploadImage(
     buffer: Buffer,
     filename: string,
-    folder: 'thumbnails' | 'avatars' | 'banners' = 'thumbnails'
+    folder: 'thumbnails' | 'avatars' | 'banners' | 'feedback' = 'thumbnails'
   ): Promise<UploadResult> {
     return this.uploadFile(buffer, filename, folder, {
-      contentType: this.getContentType(filename.split('.').pop() || ''),
+      type: this.getContentType(filename.split('.').pop() || ''),
       cacheControl: 'public, max-age=31536000, immutable',
       acl: 'public-read',
     });
@@ -146,7 +162,7 @@ class S3StorageService {
     folder: string = 'videos'
   ): Promise<UploadResult> {
     return this.uploadFile(buffer, filename, folder, {
-      contentType: 'video/mp4',
+      type: 'video/mp4',
       cacheControl: 'public, max-age=31536000, immutable',
       acl: 'public-read',
     });
@@ -201,6 +217,7 @@ class S3StorageService {
       Key: key,
     });
 
+    // @ts-ignore - AWS SDK version mismatch between client-s3 and s3-request-presigner
     return await getSignedUrl(this.client, command, { expiresIn });
   }
 

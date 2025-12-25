@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { verifyWebhookSignature, stripe } from '../lib/stripe';
 import { verifyWebhookSignature as verifyRazorpayWebhook, razorpay } from '../lib/razorpay';
 import { env } from '../config/env';
+import { trackEvent, EventTypes } from '../lib/analytics/tracker';
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.post(
       const event = JSON.parse(webhookBody);
       
       // Handle the event
-      switch (event.event_type) {
+      switch (event.eventType) {
         case 'PAYMENT.CAPTURE.COMPLETED': {
           await handlePaymentSuccess(event);
           break;
@@ -64,7 +65,7 @@ router.post(
         }
 
         default:
-          console.log(`Unhandled event type: ${event.event_type}`);
+          console.log(`Unhandled event type: ${event.eventType}`);
       }
 
       res.status(200).json({ received: true });
@@ -92,7 +93,7 @@ async function handlePaymentSuccess(event: any) {
   const tip = await prisma.tip.findFirst({
     where: {
       transactionId: orderId,
-      status: 'pending',
+      status: 'PENDING',
     },
     include: {
       toCreator: {
@@ -120,7 +121,7 @@ async function handlePaymentSuccess(event: any) {
   await prisma.tip.update({
     where: { id: tip.id },
     data: {
-      status: 'completed',
+      status: 'COMPLETED',
       transactionId: captureId || orderId,
     },
   });
@@ -134,7 +135,7 @@ async function handlePaymentSuccess(event: any) {
         title: 'Tip Received!',
         message: tip.isAnonymous
           ? `You received a $${tip.amount} ${tip.currency} tip!`
-          : `You received a $${tip.amount} ${tip.currency} tip from ${tip.fromUser.display_name || tip.fromUser.username}!`,
+          : `You received a $${tip.amount} ${tip.currency} tip from ${tip.fromUser.displayName || tip.fromUser.username}!`,
         link: `/creator/${tip.toCreator.handle}`,
         metadata: {
           tipId: tip.id,
@@ -166,14 +167,14 @@ async function handlePaymentFailure(event: any) {
   const tip = await prisma.tip.findFirst({
     where: {
       transactionId: orderId,
-      status: 'pending',
+      status: 'PENDING',
     },
   });
 
   if (tip) {
     await prisma.tip.update({
       where: { id: tip.id },
-      data: { status: 'failed' },
+      data: { status: 'FAILED' },
     });
     console.log(`Payment failed for tip ${tip.id}`);
   }
@@ -256,7 +257,7 @@ async function handleStripePaymentSuccess(event: any) {
   // Find transaction
   const transaction = await prisma.transaction.findFirst({
     where: {
-      stripe_payment_id: paymentIntentId,
+      stripePaymentId: paymentIntentId,
     },
   });
 
@@ -270,8 +271,8 @@ async function handleStripePaymentSuccess(event: any) {
     where: { id: transaction.id },
     data: {
       status: 'COMPLETED',
-      payment_id: paymentIntent.id,
-      receipt_url: paymentIntent.charges?.data[0]?.receipt_url || null,
+      paymentId: paymentIntent.id,
+      receiptUrl: paymentIntent.charges?.data[0]?.receiptUrl || null,
     },
   });
 
@@ -280,15 +281,15 @@ async function handleStripePaymentSuccess(event: any) {
     const metadata = transaction.metadata as { creatorId?: string };
     if (metadata.creatorId) {
       await prisma.creatorEarnings.upsert({
-        where: { creator_id: metadata.creatorId },
+        where: { creatorId: metadata.creatorId },
         create: {
-          creator_id: metadata.creatorId,
+          creatorId: metadata.creatorId,
           balance: transaction.amount,
-          lifetime_earnings: transaction.amount,
+          lifetimeEarnings: transaction.amount,
         },
         update: {
           balance: { increment: transaction.amount },
-          lifetime_earnings: { increment: transaction.amount },
+          lifetimeEarnings: { increment: transaction.amount },
         },
       });
     }
@@ -306,7 +307,7 @@ async function handleStripePaymentFailure(event: any) {
 
   const transaction = await prisma.transaction.findFirst({
     where: {
-      stripe_payment_id: paymentIntentId,
+      stripePaymentId: paymentIntentId,
     },
   });
 
@@ -330,7 +331,7 @@ async function handleStripeSubscriptionUpdate(event: any) {
 
   const userSubscription = await prisma.userSubscription.findFirst({
     where: {
-      stripe_subscription_id: stripeSubscriptionId,
+      stripeSubscriptionId: stripeSubscriptionId,
     },
   });
 
@@ -339,9 +340,9 @@ async function handleStripeSubscriptionUpdate(event: any) {
       where: { id: userSubscription.id },
       data: {
         status: subscription.status === 'active' ? 'active' : 'canceled',
-        current_period_start: new Date(subscription.current_period_start * 1000),
-        current_period_end: new Date(subscription.current_period_end * 1000),
-        cancel_at_period_end: subscription.cancel_at_period_end || false,
+        currentPeriodStart: new Date(subscription.currentPeriodStart * 1000),
+        currentPeriodEnd: new Date(subscription.currentPeriodEnd * 1000),
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd || false,
       },
     });
   }
@@ -356,7 +357,7 @@ async function handleStripeSubscriptionDeleted(event: any) {
 
   const userSubscription = await prisma.userSubscription.findFirst({
     where: {
-      stripe_subscription_id: stripeSubscriptionId,
+      stripeSubscriptionId: stripeSubscriptionId,
     },
   });
 
@@ -364,7 +365,7 @@ async function handleStripeSubscriptionDeleted(event: any) {
     await prisma.userSubscription.update({
       where: { id: userSubscription.id },
       data: {
-        status: 'canceled',
+        status: 'CANCELED',
       },
     });
   }
@@ -379,7 +380,7 @@ async function handleStripeTransferCreated(event: any) {
   // Find transaction by transfer ID
   const transaction = await prisma.transaction.findFirst({
     where: {
-      stripe_payment_id: transfer.id,
+      stripePaymentId: transfer.id,
       type: 'WITHDRAWAL',
     },
   });
@@ -389,9 +390,9 @@ async function handleStripeTransferCreated(event: any) {
     if (metadata.creatorId) {
       // Update creator earnings - move from pending to completed
       await prisma.creatorEarnings.update({
-        where: { creator_id: metadata.creatorId },
+        where: { creatorId: metadata.creatorId },
         data: {
-          pending_payout: { decrement: transaction.amount },
+          pendingPayout: { decrement: transaction.amount },
         },
       });
     }
@@ -508,7 +509,7 @@ async function activateSubscription(
     // Check if subscription already exists
     const existingSubscription = await prisma.userSubscription.findFirst({
       where: {
-        razorpay_subscription_id: subscriptionId,
+        razorpaySubscriptionId: subscriptionId,
       },
     });
 
@@ -518,12 +519,12 @@ async function activateSubscription(
         where: { id: existingSubscription.id },
         data: {
           status: subscription.status === 'active' ? 'active' : 'canceled',
-          current_period_start: subscription.current_start
+          currentPeriodStart: subscription.current_start
             ? new Date(subscription.current_start * 1000)
-            : existingSubscription.current_period_start,
-          current_period_end: subscription.current_end
+            : existingSubscription.currentPeriodStart,
+          currentPeriodEnd: subscription.current_end
             ? new Date(subscription.current_end * 1000)
-            : existingSubscription.current_period_end,
+            : existingSubscription.currentPeriodEnd,
         },
       });
       console.log(`Subscription updated: ${subscriptionId}`);
@@ -531,17 +532,17 @@ async function activateSubscription(
       // Create new subscription record
       await prisma.userSubscription.create({
         data: {
-          user_id: userId,
+          userId: userId,
           plan: planId,
           status: subscription.status === 'active' ? 'active' : 'canceled',
-          razorpay_subscription_id: subscriptionId,
-          current_period_start: subscription.current_start
+          razorpaySubscriptionId: subscriptionId,
+          currentPeriodStart: subscription.current_start
             ? new Date(subscription.current_start * 1000)
             : new Date(),
-          current_period_end: subscription.current_end
+          currentPeriodEnd: subscription.current_end
             ? new Date(subscription.current_end * 1000)
             : new Date(),
-          cancel_at_period_end: false,
+          cancelAtPeriodEnd: false,
         },
       });
 
@@ -554,18 +555,40 @@ async function activateSubscription(
       if (amount > 0) {
         await prisma.transaction.create({
           data: {
-            user_id: userId,
+            userId: userId,
             type: 'SUBSCRIPTION',
             amount: amount,
             currency: planConfig?.currency || 'INR',
             status: subscription.status === 'active' ? 'COMPLETED' : 'PENDING',
-            razorpay_payment_id: subscriptionId,
+            razorpayPaymentId: subscriptionId,
             metadata: {
               subscriptionId: subscriptionId,
               plan: planId,
             },
           },
         });
+      }
+
+      // Track checkout completed event
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      
+      if (user) {
+        // Create a mock request object for tracking
+        const mockReq = {
+          get: () => '',
+          headers: {},
+          cookies: {},
+          ip: 'webhook',
+        } as any;
+        
+        await trackEvent(mockReq, EventTypes.CHECKOUT_COMPLETED, {
+          plan: planId,
+          subscriptionId: subscriptionId,
+          amount: amount,
+        }, userId).catch(() => {}); // Non-blocking
       }
 
       console.log(`Subscription activated for user ${userId}, plan ${planId}`);
@@ -581,7 +604,7 @@ async function activateSubscription(
 async function deactivateSubscription(subscriptionId: string) {
   const userSubscription = await prisma.userSubscription.findFirst({
     where: {
-      razorpay_subscription_id: subscriptionId,
+      razorpaySubscriptionId: subscriptionId,
     },
   });
 
@@ -589,7 +612,7 @@ async function deactivateSubscription(subscriptionId: string) {
     await prisma.userSubscription.update({
       where: { id: userSubscription.id },
       data: {
-        status: 'canceled',
+        status: 'CANCELED',
       },
     });
     console.log(`Subscription deactivated: ${subscriptionId}`);
@@ -607,7 +630,7 @@ async function handleFailedPayment(payment: any) {
   // Find transaction by order ID
   const transaction = await prisma.transaction.findFirst({
     where: {
-      razorpay_payment_id: orderId,
+      razorpayPaymentId: orderId,
     },
   });
 
@@ -631,7 +654,7 @@ async function handleFailedPayment(payment: any) {
     try {
       await prisma.notification.create({
         data: {
-          user_id: transaction.user_id,
+          userId: transaction.userId,
           type: 'PAYMENT_FAILED',
           title: 'Payment Failed',
           message: `Your payment of ${transaction.currency} ${transaction.amount} failed. Please update your payment method.`,
@@ -661,7 +684,7 @@ async function handleRazorpayPaymentCaptured(event: any) {
   // Find transaction by order ID
   const transaction = await prisma.transaction.findFirst({
     where: {
-      razorpay_payment_id: orderId,
+      razorpayPaymentId: orderId,
     },
   });
 
@@ -675,9 +698,9 @@ async function handleRazorpayPaymentCaptured(event: any) {
     where: { id: transaction.id },
     data: {
       status: 'COMPLETED',
-      razorpay_payment_id: payment.id,
-      payment_id: payment.id,
-      receipt_url: payment.receipt || null,
+      razorpayPaymentId: payment.id,
+      paymentId: payment.id,
+      receiptUrl: payment.receipt || null,
     },
   });
 
@@ -686,17 +709,37 @@ async function handleRazorpayPaymentCaptured(event: any) {
     const metadata = transaction.metadata as { creatorId?: string };
     if (metadata.creatorId) {
       await prisma.creatorEarnings.upsert({
-        where: { creator_id: metadata.creatorId },
+        where: { creatorId: metadata.creatorId },
         create: {
-          creator_id: metadata.creatorId,
+          creatorId: metadata.creatorId,
           balance: transaction.amount,
-          lifetime_earnings: transaction.amount,
+          lifetimeEarnings: transaction.amount,
         },
         update: {
           balance: { increment: transaction.amount },
-          lifetime_earnings: { increment: transaction.amount },
+          lifetimeEarnings: { increment: transaction.amount },
         },
       });
+    }
+  }
+
+  // Track checkout completed if it's a subscription payment
+  if (transaction.type === 'SUBSCRIPTION' && transaction.metadata && typeof transaction.metadata === 'object') {
+    const metadata = transaction.metadata as { subscriptionId?: string; plan?: string };
+    if (metadata.subscriptionId) {
+      // Create a mock request object for tracking
+      const mockReq = {
+        get: () => '',
+        headers: {},
+        cookies: {},
+        ip: 'webhook',
+      } as any;
+      
+      await trackEvent(mockReq, EventTypes.CHECKOUT_COMPLETED, {
+        plan: metadata.plan,
+        subscriptionId: metadata.subscriptionId,
+        amount: Number(transaction.amount),
+      }, transaction.userId).catch(() => {}); // Non-blocking
     }
   }
 
@@ -712,7 +755,7 @@ async function handleRazorpaySubscriptionResumed(event: any) {
 
   const userSubscription = await prisma.userSubscription.findFirst({
     where: {
-      razorpay_subscription_id: subscriptionId,
+      razorpaySubscriptionId: subscriptionId,
     },
   });
 
@@ -721,12 +764,12 @@ async function handleRazorpaySubscriptionResumed(event: any) {
       where: { id: userSubscription.id },
       data: {
         status: 'active',
-        current_period_start: subscription.current_start
+        currentPeriodStart: subscription.current_start
           ? new Date(subscription.current_start * 1000)
-          : userSubscription.current_period_start,
-        current_period_end: subscription.current_end
+          : userSubscription.currentPeriodStart,
+        currentPeriodEnd: subscription.current_end
           ? new Date(subscription.current_end * 1000)
-          : userSubscription.current_period_end,
+          : userSubscription.currentPeriodEnd,
       },
     });
     console.log(`Subscription resumed: ${subscriptionId}`);
@@ -743,7 +786,7 @@ async function handleRazorpayPaymentFailed(event: any) {
   // Find transaction by order ID
   const transaction = await prisma.transaction.findFirst({
     where: {
-      razorpay_payment_id: orderId,
+      razorpayPaymentId: orderId,
     },
   });
 
@@ -757,8 +800,8 @@ async function handleRazorpayPaymentFailed(event: any) {
     where: { id: transaction.id },
     data: {
       status: 'FAILED',
-      razorpay_payment_id: payment.id,
-      payment_id: payment.id,
+      razorpayPaymentId: payment.id,
+      paymentId: payment.id,
     },
   });
 
@@ -768,27 +811,30 @@ async function handleRazorpayPaymentFailed(event: any) {
     if (metadata.tipId) {
       await prisma.tip.update({
         where: { id: metadata.tipId },
-        data: { status: 'failed' },
+        data: { status: 'FAILED' },
       });
     }
   }
 
   // If it's a payout, revert the balance change
   if (transaction.type === 'WITHDRAWAL') {
-    await prisma.creatorEarnings.update({
-      where: { creator_id: transaction.metadata?.creatorId as string },
-      data: {
-        balance: { increment: transaction.amount },
-        pending_payout: { decrement: transaction.amount },
-      },
-    });
+    const metadata = transaction.metadata as { creatorId?: string } | null;
+    if (metadata?.creatorId) {
+      await prisma.creatorEarnings.update({
+        where: { creatorId: metadata.creatorId },
+        data: {
+          balance: { increment: transaction.amount },
+          pendingPayout: { decrement: transaction.amount },
+        },
+      });
+    }
   }
 
   // Create notification for user
   try {
     await prisma.notification.create({
       data: {
-        user_id: transaction.user_id,
+        userId: transaction.userId,
         type: 'PAYMENT_FAILED',
         title: 'Payment Failed',
         message: `Your payment of ${transaction.currency} ${transaction.amount} failed. Please update your payment method.`,

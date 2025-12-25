@@ -2,9 +2,8 @@
  * CreatorCard Component Tests
  */
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@/test/utils';
+import { render, screen } from '@/test/utils';
 import { CreatorCard } from '../CreatorCard';
 import { Creator } from '@/types';
 

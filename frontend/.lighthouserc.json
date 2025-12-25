@@ -1,15 +1,15 @@
 {
   "ci": {
     "collect": {
-      "startServerCommand": "bun run preview",
-      "startServerReadyPattern": "Local:|ready in|vite preview|http://localhost:4173|http://127.0.0.1:4173|VITE.*ready",
+      "startServerCommand": "npm run preview",
+      "startServerReadyPattern": "Local:|ready in|vite preview|http://localhost:3000|http://127.0.0.1:3000|http://localhost:5173|http://127.0.0.1:5173|VITE.*ready",
       "startServerReadyTimeout": 120000,
       "wait": 5000,
       "url": [
-        "http://localhost:4173/",
-        "http://localhost:4173/search",
-        "http://localhost:4173/explore",
-        "http://localhost:4173/trending"
+        "http://localhost:3000/",
+        "http://localhost:3000/search",
+        "http://localhost:3000/explore",
+        "http://localhost:3000/trending"
       ],
       "numberOfRuns": 3,
       "settings": {
@@ -48,5 +48,3 @@
     }
   }
 }
-
-

@@ -1,10 +1,18 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoPlayerSkeleton } from './VideoPlayerSkeleton';
 import { loadVideoPlayerLibrary, preconnectVideoCDN, getHLSManifestUrl } from '@/lib/videoUtils';
 import { GestureControls, SeekIndicator } from '@/components/mobile/GestureControls';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
+
+interface SeekIndicatorState {
+  visible: boolean;
+  side: 'left' | 'right';
+  type: 'seek' | 'volume' | 'brightness';
+  value: number;
+}
 
 interface VideoPlayerProps {
   src: string;
@@ -17,6 +25,15 @@ interface VideoPlayerProps {
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
+  onProductInfo?: (productId: string) => void;
+  videoRef?: React.RefObject<HTMLVideoElement>;
+  onTimeUpdate?: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
+  subtitleTracks?: Array<{
+    src: string;
+    srcLang: string;
+    label: string;
+    default?: boolean;
+  }>;
 }
 
 /**
@@ -34,25 +51,41 @@ export function VideoPlayer({
   controls = true,
   className,
   live = false,
-  lowLatency = false,
+  lowLatency: _lowLatency = false,
   onPlay,
   onPause,
   onEnded,
+  onProductInfo: _onProductInfo,
+  videoRef: externalVideoRef,
+  onTimeUpdate,
+  subtitleTracks,
 }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(autoplay);
   const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
+  const [_volume, setVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [shouldLoad, setShouldLoad] = useState(autoplay);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [seekIndicator, setSeekIndicator] = useState<SeekIndicatorState>({
+    visible: false,
+    side: 'right',
+    type: 'seek',
+    value: 0,
+  });
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = externalVideoRef || internalVideoRef;
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   // Preconnect to video CDN on mount
   useEffect(() => {
     if (src) {
-      const cdnUrl = new URL(src).origin;
-      preconnectVideoCDN(cdnUrl);
+      try {
+        const cdnUrl = new URL(src).origin;
+        preconnectVideoCDN(cdnUrl);
+      } catch {
+        // Invalid URL, skip preconnect
+      }
     }
   }, [src]);
 
@@ -105,19 +138,20 @@ export function VideoPlayer({
     }
 
     try {
+      const container = containerRef.current as any;
       if (!isFullscreen) {
         // Try standard API first
-        if (containerRef.current.requestFullscreen) {
-          containerRef.current.requestFullscreen();
-        } else if (containerRef.current.webkitRequestFullscreen) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
           // Safari
-          containerRef.current.webkitRequestFullscreen();
-        } else if (containerRef.current.mozRequestFullScreen) {
+          container.webkitRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
           // Firefox
-          containerRef.current.mozRequestFullScreen();
-        } else if (containerRef.current.msRequestFullscreen) {
+          container.mozRequestFullScreen();
+        } else if (container.msRequestFullscreen) {
           // IE/Edge
-          containerRef.current.msRequestFullscreen();
+          container.msRequestFullscreen();
         } else {
           toast.error('Fullscreen is not available');
           return;
@@ -186,20 +220,26 @@ export function VideoPlayer({
           poster={poster}
           className="w-full h-full"
           onLoadedData={() => setIsLoading(false)}
+          onTimeUpdate={onTimeUpdate}
           onEnded={() => {
             if (!live) {
               setIsPlaying(false);
               onEnded?.();
             }
           }}
-          playsInline
-          autoPlay={autoplay || live}
-          muted={live ? false : undefined}
-          {...(live && {
-            'data-live': 'true',
-            ...(lowLatency && { 'data-low-latency': 'true' }),
-          })}
-        />
+        >
+          {/* Subtitle Tracks */}
+          {subtitleTracks?.map((track) => (
+            <track
+              key={track.srcLang}
+              kind="subtitles"
+              src={track.src}
+              srcLang={track.srcLang}
+              label={track.label}
+              default={track.default}
+            />
+          ))}
+        </video>
 
         {/* Loading overlay */}
         {isLoading && (

@@ -5,20 +5,21 @@
 
 import { expect } from 'vitest';
 import { axe } from 'vitest-axe';
+import type { AxeResults } from 'axe-core';
+
+// Define the matcher result type
+interface MatcherResult {
+  pass: boolean;
+  message: () => string;
+}
 
 // Create custom matcher for a11y violations
 const toHaveNoViolations = {
-  toHaveNoViolations(received: any) {
-    const { pass, message } = this.utils.matcherHint(
-      '.toHaveNoViolations',
-      'received',
-      ''
-    );
-
+  toHaveNoViolations(received: AxeResults): MatcherResult {
     if (!received || !received.violations) {
       return {
         pass: false,
-        message: () => `${message}\n\nExpected: accessibility audit results\nReceived: ${received}`,
+        message: () => `Expected accessibility audit results but received: ${received}`,
       };
     }
 
@@ -30,15 +31,15 @@ const toHaveNoViolations = {
     }
 
     const violations = received.violations
-      .map((violation: any) => {
-        const nodes = violation.nodes.map((node: any) => `  - ${node.html}`).join('\n');
+      .map((violation) => {
+        const nodes = violation.nodes.map((node) => `  - ${node.html}`).join('\n');
         return `  ${violation.id}: ${violation.description}\n${nodes}`;
       })
       .join('\n\n');
 
     return {
       pass: false,
-      message: () => `${message}\n\nFound ${received.violations.length} accessibility violation(s):\n\n${violations}`,
+      message: () => `Found ${received.violations.length} accessibility violation(s):\n\n${violations}`,
     };
   },
 };
@@ -52,12 +53,12 @@ expect.extend(toHaveNoViolations);
  * @param options - Axe configuration options
  * @returns Promise with audit results
  */
-export async function checkA11y(container: HTMLElement, options?: any) {
+export async function checkA11y(container: HTMLElement, options?: Parameters<typeof axe>[1]): Promise<AxeResults> {
   const results = await axe(container, options);
   if (results.violations && results.violations.length > 0) {
     const violations = results.violations
-      .map((violation: any) => {
-        const nodes = violation.nodes.map((node: any) => `  - ${node.html}`).join('\n');
+      .map((violation) => {
+        const nodes = violation.nodes.map((node) => `  - ${node.html}`).join('\n');
         return `  ${violation.id}: ${violation.description}\n${nodes}`;
       })
       .join('\n\n');
@@ -77,5 +78,3 @@ export async function checkA11y(container: HTMLElement, options?: any) {
  * ```
  */
 export { axe };
-
-

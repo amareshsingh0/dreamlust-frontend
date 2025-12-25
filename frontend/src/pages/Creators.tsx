@@ -24,19 +24,18 @@ const Creators = () => {
     try {
       setIsLoading(true);
       const response = await api.creators.getAll<{
-        data: {
-          creators: any[];
-          pagination: {
-            page: number;
-            limit: number;
-            total: number;
-            pages: number;
-          };
+        creators: any[];
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          pages: number;
         };
       }>({ page, limit: 20 });
 
       if (response.success && response.data) {
-        const creatorData = response.data.creators.map((c: any) => ({
+        const data = response.data as { creators: any[]; pagination: { page: number; limit: number; total: number; pages: number } };
+        const creatorData = data.creators.map((c: any) => ({
           id: c.id,
           name: c.display_name || c.handle,
           username: c.handle,
@@ -58,14 +57,14 @@ const Creators = () => {
 
         // Update following status
         const followingSet = new Set<string>();
-        response.data.creators.forEach((c: any) => {
+        data.creators.forEach((c: any) => {
           if (c.isFollowing) {
             followingSet.add(c.id);
           }
         });
         setFollowing(prev => new Set([...prev, ...followingSet]));
 
-        setHasMore(page < response.data.pagination.pages);
+        setHasMore(page < data.pagination.pages);
       } else {
         toast.error(response.error?.message || "Failed to load creators");
       }
@@ -139,8 +138,8 @@ const Creators = () => {
   return (
     <>
       <Helmet>
-        <title>Creators - Dreamlust</title>
-        <meta name="description" content="Discover talented creators on Dreamlust. Follow your favorites and explore their content." />
+        <title>Creators - PassionFantasia</title>
+        <meta name="description" content="Discover talented creators on PassionFantasia. Follow your favorites and explore their content." />
       </Helmet>
 
       <Layout>

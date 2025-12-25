@@ -87,7 +87,7 @@ export async function sendOpsgenieAlert(
       throw new Error(`Opsgenie API error: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as { data?: { id?: string } };
     logger.info('Opsgenie alert sent successfully', {
       alert: alert.name,
       alert_id: result.data?.id,

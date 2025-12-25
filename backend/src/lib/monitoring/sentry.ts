@@ -7,7 +7,7 @@ import * as Sentry from '@sentry/node';
 import { Express } from 'express';
 import { env } from '../../config/env';
 
-let appInstance: Express | undefined;
+let _appInstance: Express | undefined;
 
 export function initSentry(app?: Express) {
   if (!env.SENTRY_DSN) {
@@ -16,22 +16,13 @@ export function initSentry(app?: Express) {
     return;
   }
 
-  appInstance = app;
+  _appInstance = app;
 
   Sentry.init({
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV,
     tracesSampleRate: parseFloat(env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
-    integrations: [
-      // Enable HTTP tracing
-      new Sentry.Integrations.Http({ tracing: true }),
-      // Enable Express integration
-      ...(app ? [new Sentry.Integrations.Express({ app })] : []),
-    ],
-    // Capture unhandled promise rejections
-    captureUnhandledRejections: true,
-    // Capture uncaught exceptions
-    captureUncaughtExceptions: true,
+    // Modern Sentry SDK auto-enables integrations
     // Release tracking
     release: process.env.SENTRY_RELEASE || undefined,
     // Server name

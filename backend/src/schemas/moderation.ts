@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Report Schema
  */
 export const createReportSchema = z.object({
-  contentType: z.enum(['content', 'comment', 'creator']).default('content'),
+  targetType: z.enum(['content', 'comment', 'creator']).default('content'),
   targetId: z.string().uuid().optional(),
   contentId: z.string().uuid().optional(),
   reportedUserId: z.string().uuid().optional(),
@@ -45,11 +45,11 @@ export const updateContentFlagSchema = z.object({
  */
 export const moderationQueueSchema = z.object({
   status: z.enum(['PENDING', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED', 'ACTION_TAKEN']).optional(),
-  contentType: z.enum(['content', 'comment', 'creator']).optional(),
+  type: z.enum(['content', 'comment', 'creator']).optional(),
   severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  sortBy: z.enum(['created_at', 'severity', 'status']).default('created_at'),
+  sortBy: z.enum(['createdAt', 'severity', 'status']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 

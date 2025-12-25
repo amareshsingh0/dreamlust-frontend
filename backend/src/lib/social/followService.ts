@@ -102,7 +102,7 @@ export async function getFollowers(userId: string, limit: number = 50, offset: n
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },
@@ -126,7 +126,7 @@ export async function getFollowing(userId: string, limit: number = 50, offset: n
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },
@@ -153,7 +153,7 @@ async function updateFollowerCounts(userId: string) {
 
   // Update user's creator profile if they are a creator
   const creator = await prisma.creator.findUnique({
-    where: { user_id: userId },
+    where: { userId: userId },
     select: { id: true },
   });
 
@@ -161,8 +161,8 @@ async function updateFollowerCounts(userId: string) {
     await prisma.creator.update({
       where: { id: creator.id },
       data: {
-        follower_count: followerCount,
-        following_count: followingCount,
+        followerCount: followerCount,
+        followingCount: followingCount,
       },
     });
   }

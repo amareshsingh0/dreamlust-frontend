@@ -153,9 +153,9 @@ export async function scanWithGoogleVision(imageUrl: string): Promise<ImageClass
     };
 
     const confidence = Math.max(
-      getConfidence(safeSearch.adult || 'UNKNOWN'),
-      getConfidence(safeSearch.violence || 'UNKNOWN'),
-      getConfidence(safeSearch.racy || 'UNKNOWN')
+      getConfidence(String(safeSearch.adult || 'UNKNOWN')),
+      getConfidence(String(safeSearch.violence || 'UNKNOWN')),
+      getConfidence(String(safeSearch.racy || 'UNKNOWN'))
     );
 
     return {
@@ -163,9 +163,9 @@ export async function scanWithGoogleVision(imageUrl: string): Promise<ImageClass
       categories,
       confidence,
       safeSearch: {
-        adult: safeSearch.adult || 'UNKNOWN',
-        violence: safeSearch.violence || 'UNKNOWN',
-        racy: safeSearch.racy || 'UNKNOWN',
+        adult: String(safeSearch.adult || 'UNKNOWN'),
+        violence: String(safeSearch.violence || 'UNKNOWN'),
+        racy: String(safeSearch.racy || 'UNKNOWN'),
       },
     };
   } catch (error: any) {

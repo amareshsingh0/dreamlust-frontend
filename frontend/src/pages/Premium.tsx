@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/layout/Layout";
 import { Star, Check, Zap, Crown, Sparkles } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -44,7 +44,7 @@ const Premium = () => {
   return (
     <>
       <Helmet>
-        <title>Go Premium - Dreamlust</title>
+        <title>Go Premium - PassionFantasia</title>
         <meta name="description" content="Upgrade to Premium for exclusive features" />
       </Helmet>
       

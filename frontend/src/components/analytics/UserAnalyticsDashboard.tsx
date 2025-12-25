@@ -3,17 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  BarChart3, 
-  Users, 
-  Eye, 
-  Clock, 
-  TrendingUp, 
-  Globe, 
-  Monitor, 
+import {
+  BarChart3,
+  Users,
+  Eye,
+  Clock,
+  TrendingUp,
+  Globe,
+  Monitor,
   Smartphone,
-  Tablet,
-  Calendar
+  Tablet
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -106,7 +105,7 @@ export function UserAnalyticsDashboard() {
     setLoading(true);
     try {
       if (activeTab === 'overview') {
-        const response = await api.analytics.getStats({
+        const response = await (api.analytics as any).getStats({
           startDate: startDate?.toISOString(),
           endDate: endDate?.toISOString(),
         });
@@ -114,7 +113,7 @@ export function UserAnalyticsDashboard() {
           setStats(response.data as AnalyticsStats);
         }
       } else {
-        const response = await api.analytics.getUserStats({
+        const response = await (api.analytics as any).getUserStats({
           startDate: startDate?.toISOString(),
           endDate: endDate?.toISOString(),
         });

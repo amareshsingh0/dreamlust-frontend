@@ -31,7 +31,7 @@ export function GiftCardPreview({
             <Gift className="h-8 w-8" />
             <div className="text-right">
               <p className="text-sm opacity-90">Gift Card</p>
-              <p className="text-xs opacity-75">Dreamlust</p>
+              <p className="text-xs opacity-75">PassionFantasia</p>
             </div>
           </div>
           

@@ -245,7 +245,7 @@ router.get(
                 id: true,
                 email: true,
                 username: true,
-                display_name: true,
+                displayName: true,
               },
             }
           : false,
@@ -263,7 +263,7 @@ router.get(
     }
 
     // Check if user owns this feedback or is admin
-    if (!isAdmin && feedback.userId !== userId) {
+    if (!isAdmin && feedback.user?.id !== userId) {
       return res.status(403).json({
         success: false,
         error: {

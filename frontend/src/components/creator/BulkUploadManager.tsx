@@ -64,7 +64,7 @@ export function BulkUploadManager({ onUploadComplete }: BulkUploadManagerProps) 
     setUploads(prev => [...prev, ...newUploads]);
 
     try {
-      const response = await api.post('/creator-tools/bulk-upload', formData, {
+      const response = await (api as any).post('/creator-tools/bulk-upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

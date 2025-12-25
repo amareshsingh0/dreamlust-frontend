@@ -5,6 +5,7 @@ import { userRateLimiter } from '../middleware/rateLimit';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { prisma } from '../lib/prisma';
 import { NotFoundError } from '../lib/errors';
+import { trackEvent, EventTypes } from '../lib/analytics/tracker';
 
 const router = Router();
 
@@ -25,13 +26,13 @@ router.get(
     if (userId) {
       userSubscriptions = await prisma.userSubscription.findMany({
         where: {
-          user_id: userId,
+          userId: userId,
           status: 'active',
         },
         select: {
           plan: true,
           status: true,
-          current_period_end: true,
+          currentPeriodEnd: true,
         },
       });
     }
@@ -43,9 +44,16 @@ router.get(
         ...plan,
         isSubscribed: !!userSubscription,
         subscriptionStatus: userSubscription?.status || null,
-        currentPeriodEnd: userSubscription?.current_period_end || null,
+        currentPeriodEnd: userSubscription?.currentPeriodEnd || null,
       };
     });
+
+    // Track subscription viewed event
+    if (userId) {
+      await trackEvent(req, EventTypes.SUBSCRIPTION_VIEWED, {
+        planCount: plans.length,
+      }, userId).catch(() => {}); // Non-blocking
+    }
 
     res.json({
       success: true,
@@ -73,20 +81,20 @@ router.get(
     }
 
     // If user is authenticated, include their subscription status for this plan
-    let userSubscription = null;
+    let userSubscription: any = null;
     if (userId) {
       userSubscription = await prisma.userSubscription.findFirst({
         where: {
-          user_id: userId,
+          userId: userId,
           plan: id,
           status: 'active',
         },
         select: {
           id: true,
           status: true,
-          current_period_start: true,
-          current_period_end: true,
-          cancel_at_period_end: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          cancelAtPeriodEnd: true,
         },
       });
     }

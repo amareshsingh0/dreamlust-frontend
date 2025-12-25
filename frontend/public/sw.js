@@ -1,9 +1,9 @@
 /**
- * Service Worker for DreamLust PWA
+ * Service Worker for PassionFantasia PWA
  * Provides offline support and caching
  */
 
-const CACHE_NAME = 'dreamlust-v1';
+const CACHE_NAME = 'passionfantasia-v1';
 const OFFLINE_PAGE = '/offline.html';
 
 // Assets to cache on install
@@ -127,7 +127,7 @@ async function syncViews() {
 // Handle push notifications
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};
-  const title = data.title || 'DreamLust';
+  const title = data.title || 'PassionFantasia';
   const options = {
     body: data.body || 'You have a new notification',
     icon: '/icon-192.png',

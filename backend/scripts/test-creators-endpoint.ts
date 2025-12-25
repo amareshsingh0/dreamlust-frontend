@@ -7,6 +7,7 @@
  * Usage: bun run scripts/test-creators-endpoint.ts
  */
 
+export {};
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 console.log('🧪 Testing /api/creators endpoint...\n');

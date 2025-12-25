@@ -3,6 +3,8 @@ import { Filter, SlidersHorizontal, Grid, List } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { ContentGrid } from '@/components/content/ContentGrid';
 import { ContentCard } from '@/components/content/ContentCard';
+import { VirtualizedContentGrid } from '@/components/content/VirtualizedContentGrid';
+import { VirtualizedContentList } from '@/components/content/VirtualizedContentList';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -102,7 +104,7 @@ export default function Explore() {
   return (
     <>
       <Helmet>
-        <title>Explore Content - DreamLust</title>
+        <title>Explore Content - PassionFantasia</title>
         <meta name="description" content="Explore and discover amazing content with advanced filters and sorting options." />
       </Helmet>
       

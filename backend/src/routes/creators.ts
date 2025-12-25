@@ -29,7 +29,7 @@ router.get(
     // Build where clause
     const baseWhere: any = {
       status: 'APPROVED', // Only show approved creators
-      deleted_at: null, // Exclude soft-deleted creators
+      deletedAt: null, // Exclude soft-deleted creators
     };
 
     // Add search filter if provided
@@ -38,7 +38,7 @@ router.get(
           ...baseWhere,
           OR: [
             { handle: { contains: search.trim(), mode: 'insensitive' } },
-            { display_name: { contains: search.trim(), mode: 'insensitive' } },
+            { displayName: { contains: search.trim(), mode: 'insensitive' } },
             { bio: { contains: search.trim(), mode: 'insensitive' } },
           ],
         }
@@ -52,18 +52,18 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
             banner: true,
             bio: true,
-            is_verified: true,
-            follower_count: true,
-            content_count: true,
-            total_views: true,
+            isVerified: true,
+            followerCount: true,
+            contentCount: true,
+            totalViews: true,
           },
           orderBy: [
-            { follower_count: 'desc' },
-            { created_at: 'desc' },
+            { followerCount: 'desc' },
+            { createdAt: 'desc' },
           ],
           skip,
           take: limit,
@@ -102,14 +102,14 @@ router.get(
     if (userId) {
       const subscriptions = await prisma.subscription.findMany({
         where: {
-          subscriber_id: userId,
+          subscriberId: userId,
           status: 'ACTIVE', // Subscription status, not creator status
-          creator_id: { in: creators.map(c => c.id) },
+          creatorId: { in: creators.map(c => c.id) },
         },
-        select: { creator_id: true },
+        select: { creatorId: true },
       });
       followingMap = subscriptions.reduce((acc, sub) => {
-        acc[sub.creator_id] = true;
+        acc[sub.creatorId] = true;
         return acc;
       }, {} as Record<string, boolean>);
     }
@@ -120,7 +120,7 @@ router.get(
         creators: creators.map(creator => ({
           ...creator,
           // Convert BigInt to string for JSON serialization
-          total_views: creator.total_views ? String(creator.total_views) : null,
+          totalViews: creator.totalViews ? String(creator.totalViews) : null,
           isFollowing: followingMap[creator.id] || false,
         })),
         pagination: {
@@ -152,18 +152,18 @@ router.get(
       select: {
         id: true,
         handle: true,
-        display_name: true,
+        displayName: true,
         avatar: true,
         banner: true,
         bio: true,
         location: true,
         website: true,
-        is_verified: true,
-        follower_count: true,
-        following_count: true,
-        content_count: true,
-        total_views: true,
-        total_likes: true,
+        isVerified: true,
+        followerCount: true,
+        followingCount: true,
+        contentCount: true,
+        totalViews: true,
+        totalLikes: true,
         status: true,
       },
     });
@@ -177,8 +177,8 @@ router.get(
     if (userId) {
       const subscription = await prisma.subscription.findFirst({
         where: {
-          subscriber_id: userId,
-          creator_id: creator.id,
+          subscriberId: userId,
+          creatorId: creator.id,
         },
       });
       isFollowing = !!subscription && subscription.status === 'ACTIVE';
@@ -189,7 +189,7 @@ router.get(
       data: {
         ...creator,
         // Convert BigInt to string for JSON serialization
-        total_views: creator.total_views ? String(creator.total_views) : null,
+        totalViews: creator.totalViews ? String(creator.totalViews) : null,
         isFollowing,
       },
     });
@@ -211,7 +211,7 @@ router.post(
     // Check if creator exists
     const creator = await prisma.creator.findUnique({
       where: { id: creatorId },
-      select: { id: true, user_id: true },
+      select: { id: true, userId: true },
     });
 
     if (!creator) {
@@ -219,15 +219,15 @@ router.post(
     }
 
     // Can't follow yourself
-    if (creator.user_id === userId) {
+    if (creator.userId === userId) {
       throw new ValidationError('Cannot follow yourself');
     }
 
     // Check if already following
     const existingSubscription = await prisma.subscription.findFirst({
       where: {
-        subscriber_id: userId,
-        creator_id: creatorId,
+        subscriberId: userId,
+        creatorId: creatorId,
       },
     });
 
@@ -243,7 +243,7 @@ router.post(
       await prisma.creator.update({
         where: { id: creatorId },
         data: {
-          follower_count: { decrement: 1 },
+          followerCount: { decrement: 1 },
         },
       });
 
@@ -256,12 +256,12 @@ router.post(
       // Follow (create subscription)
       await prisma.subscription.create({
         data: {
-          subscriber_id: userId,
-          creator_id: creatorId,
+          subscriberId: userId,
+          creatorId: creatorId,
           tier: 'BASIC',
           status: 'ACTIVE',
           amount: 0,
-          is_recurring: false,
+          isRecurring: false,
         },
       });
 
@@ -269,7 +269,7 @@ router.post(
       await prisma.creator.update({
         where: { id: creatorId },
         data: {
-          follower_count: { increment: 1 },
+          followerCount: { increment: 1 },
         },
       });
 
@@ -310,7 +310,7 @@ router.get(
     const [subscriptions, total] = await Promise.all([
       prisma.subscription.findMany({
         where: {
-          subscriber_id: userId,
+          subscriberId: userId,
           status: 'ACTIVE',
         },
         include: {
@@ -318,24 +318,24 @@ router.get(
             select: {
               id: true,
               handle: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
               banner: true,
               bio: true,
-              is_verified: true,
-              follower_count: true,
-              following_count: true,
-              content_count: true,
+              isVerified: true,
+              followerCount: true,
+              followingCount: true,
+              contentCount: true,
             },
           },
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
       prisma.subscription.count({
         where: {
-          subscriber_id: userId,
+          subscriberId: userId,
           status: 'ACTIVE',
         },
       }),
@@ -373,18 +373,18 @@ router.get(
       select: {
         id: true,
         handle: true,
-        display_name: true,
+        displayName: true,
         avatar: true,
         banner: true,
         bio: true,
         location: true,
         website: true,
-        is_verified: true,
-        follower_count: true,
-        following_count: true,
-        content_count: true,
-        total_views: true,
-        total_likes: true,
+        isVerified: true,
+        followerCount: true,
+        followingCount: true,
+        contentCount: true,
+        totalViews: true,
+        totalLikes: true,
         status: true,
       },
     });
@@ -398,8 +398,8 @@ router.get(
     if (userId) {
       const subscription = await prisma.subscription.findFirst({
         where: {
-          subscriber_id: userId,
-          creator_id: id,
+          subscriberId: userId,
+          creatorId: id,
         },
       });
       isFollowing = !!subscription && subscription.status === 'ACTIVE';
@@ -410,7 +410,7 @@ router.get(
       data: {
         ...creator,
         // Convert BigInt to string for JSON serialization
-        total_views: creator.total_views ? String(creator.total_views) : null,
+        totalViews: creator.totalViews ? String(creator.totalViews) : null,
         isFollowing,
       },
     });

@@ -21,7 +21,7 @@ async function fetchCsrfToken(): Promise<string> {
     const data = await response.json();
     if (data.success && data.data?.csrfToken) {
       csrfToken = data.data.csrfToken;
-      return csrfToken;
+      return data.data.csrfToken as string;
     }
     throw new Error('Invalid CSRF token response');
   } catch (error) {
@@ -198,7 +198,7 @@ function getAuthToken(): string | null {
 }
 
 // Helper to add auth headers
-function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+export function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
   const token = getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -274,11 +274,21 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    put: <T>(body: unknown) =>
+    update: <T>(data: { language?: string; currency?: string; theme?: string; [key: string]: any }) =>
       apiRequest<T>('/api/preferences', {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify(body),
+        body: JSON.stringify(data),
+      }),
+    getLanguages: <T>() =>
+      apiRequest<T>('/api/preferences/languages', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getCurrencies: <T>() =>
+      apiRequest<T>('/api/preferences/currencies', {
+        method: 'GET',
+        headers: getHeaders(),
       }),
   },
   playlists: {
@@ -512,6 +522,12 @@ export const api = {
         headers: getHeaders(),
         body: JSON.stringify(body),
       }),
+    track: <T>(eventType: string, eventData?: any) =>
+      apiRequest<T>('/api/analytics/track', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ eventType, eventData }),
+      }),
     getStats: <T>() =>
       apiRequest<T>('/api/analytics/stats', {
         method: 'GET',
@@ -586,6 +602,15 @@ export const api = {
       const url = limit 
         ? `/api/recommendations/last-watched-similar?limit=${limit}`
         : '/api/recommendations/last-watched-similar';
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getSmartHomepage: <T>(limit?: number) => {
+      const url = limit 
+        ? `/api/recommendations/smart-homepage?limit=${limit}`
+        : '/api/recommendations/smart-homepage';
       return apiRequest<T>(url, {
         method: 'GET',
         headers: getHeaders(),
@@ -888,6 +913,36 @@ export const api = {
       }),
   },
   admin: {
+    churn: {
+      getPredictions: <T>(limit?: number) =>
+        apiRequest<T>(`/api/admin/churn/predictions${limit ? `?limit=${limit}` : ''}`, {
+          method: 'GET',
+          headers: getHeaders(),
+        }),
+      getRetentionMetrics: <T>(startDate?: string, endDate?: string) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return apiRequest<T>(`/api/admin/churn/retention-metrics?${params.toString()}`, {
+          method: 'GET',
+          headers: getHeaders(),
+        });
+      },
+      getRetentionByType: <T>() =>
+        apiRequest<T>('/api/admin/churn/retention-by-type', {
+          method: 'GET',
+          headers: getHeaders(),
+        }),
+      getCampaigns: <T>(limit?: number, offset?: number) => {
+        const params = new URLSearchParams();
+        if (limit) params.append('limit', limit.toString());
+        if (offset) params.append('offset', offset.toString());
+        return apiRequest<T>(`/api/admin/churn/campaigns?${params.toString()}`, {
+          method: 'GET',
+          headers: getHeaders(),
+        });
+      },
+    },
     // Dashboard
     getDashboardStats: <T>() =>
       apiRequest<T>('/api/admin/dashboard/stats', {
@@ -1053,6 +1108,7 @@ export const api = {
       email: string;
       username: string;
       password: string;
+      birthDate?: string;
       displayName?: string;
     }) =>
       apiRequest<T>('/api/auth/register', {
@@ -1091,6 +1147,34 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
+    updateProfile: async <T>(data: {
+      displayName?: string;
+      username?: string;
+      bio?: string;
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/auth/me', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    updateAvatar: async <T>(avatarUrl: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/auth/me/avatar', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ avatar: avatarUrl }),
+      });
+    },
+    updateBanner: async <T>(bannerUrl: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/auth/me/banner', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ banner: bannerUrl }),
+      });
+    },
     refresh: <T>(refreshToken?: string) =>
       apiRequest<T>('/api/auth/refresh', {
         method: 'POST',
@@ -2120,6 +2204,506 @@ export const api = {
         method: 'DELETE',
         headers: getHeaders(),
       }),
+  },
+  interactive: {
+    getElements: <T>(contentId: string) =>
+      apiRequest<T>(`/api/interactive/${contentId}/elements`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    createElement: <T>(data: {
+      contentId: string;
+      type: 'poll' | 'quiz' | 'choice_branch' | 'hotspot';
+      timestamp: number;
+      data: any;
+    }) =>
+      apiRequest<T>('/api/interactive/elements', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    updateElement: <T>(id: string, data: {
+      type?: 'poll' | 'quiz' | 'choice_branch' | 'hotspot';
+      timestamp?: number;
+      data?: any;
+    }) =>
+      apiRequest<T>(`/api/interactive/elements/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    deleteElement: <T>(id: string) =>
+      apiRequest<T>(`/api/interactive/elements/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    submitResponse: <T>(data: {
+      elementId: string;
+      response: any;
+    }) =>
+      apiRequest<T>('/api/interactive/responses', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getEngagement: <T>(contentId: string) =>
+      apiRequest<T>(`/api/interactive/${contentId}/engagement`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getElementResponses: <T>(elementId: string) =>
+      apiRequest<T>(`/api/interactive/elements/${elementId}/responses`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  series: {
+    get: <T>(params?: { creatorId?: string; status?: string; categoryId?: string; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.creatorId) searchParams.append('creatorId', params.creatorId);
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.categoryId) searchParams.append('categoryId', params.categoryId);
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      const url = `/api/series${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getById: <T>(id: string) =>
+      apiRequest<T>(`/api/series/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: <T>(data: {
+      title: string;
+      description?: string;
+      coverImage?: string;
+      categoryId?: string;
+      status?: string;
+    }) =>
+      apiRequest<T>('/api/series', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: <T>(id: string, data: {
+      title?: string;
+      description?: string;
+      coverImage?: string;
+      categoryId?: string;
+      status?: string;
+    }) =>
+      apiRequest<T>(`/api/series/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/series/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    follow: <T>(id: string) =>
+      apiRequest<T>(`/api/series/${id}/follow`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    unfollow: <T>(id: string) =>
+      apiRequest<T>(`/api/series/${id}/follow`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+  },
+  seasons: {
+    create: <T>(data: {
+      seriesId: string;
+      seasonNumber: number;
+      title?: string;
+      description?: string;
+      coverImage?: string;
+      releaseDate?: string;
+    }) =>
+      apiRequest<T>('/api/seasons', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: <T>(id: string, data: {
+      title?: string;
+      description?: string;
+      coverImage?: string;
+      releaseDate?: string;
+    }) =>
+      apiRequest<T>(`/api/seasons/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/seasons/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    addEpisode: <T>(seasonId: string, data: {
+      contentId: string;
+      episodeNumber: number;
+      title: string;
+      description?: string;
+      duration?: number;
+      releaseDate?: string;
+      isPublished?: boolean;
+    }) =>
+      apiRequest<T>(`/api/seasons/${seasonId}/episodes`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    updateEpisode: <T>(id: string, data: {
+      episodeNumber?: number;
+      title?: string;
+      description?: string;
+      duration?: number;
+      releaseDate?: string;
+      isPublished?: boolean;
+    }) =>
+      apiRequest<T>(`/api/seasons/episodes/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    deleteEpisode: <T>(id: string) =>
+      apiRequest<T>(`/api/seasons/episodes/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+  },
+  pricing: {
+    calculate: <T>(data: { product: any; context?: any }) =>
+      apiRequest<T>('/api/pricing/calculate', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getRules: <T>() =>
+      apiRequest<T>('/api/pricing/rules', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    createRule: <T>(data: any) =>
+      apiRequest<T>('/api/pricing/rules', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    updateRule: <T>(id: string, data: any) =>
+      apiRequest<T>(`/api/pricing/rules/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    deleteRule: <T>(id: string) =>
+      apiRequest<T>(`/api/pricing/rules/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+  },
+  promotions: {
+    validateCode: <T>(data: { code: string; productType?: string; amount?: number }) =>
+      apiRequest<T>('/api/promotions/validate-code', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getFlashSales: <T>() =>
+      apiRequest<T>('/api/promotions/flash-sales', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getFlashSale: <T>(id: string) =>
+      apiRequest<T>(`/api/promotions/flash-sales/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    purchaseFlashSale: <T>(id: string) =>
+      apiRequest<T>(`/api/promotions/flash-sales/${id}/purchase`, {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    getPromoCodes: <T>() =>
+      apiRequest<T>('/api/promotions/codes', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    createPromoCode: <T>(data: any) =>
+      apiRequest<T>('/api/promotions/codes', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    updatePromoCode: <T>(id: string, data: any) =>
+      apiRequest<T>(`/api/promotions/codes/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    deletePromoCode: <T>(id: string) =>
+      apiRequest<T>(`/api/promotions/codes/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+  },
+  subscriptionManagement: {
+    getCurrent: <T>() =>
+      apiRequest<T>('/api/subscription-management/current', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    pause: <T>(data: { subscriptionId: string; resumeAt: string; reason?: string }) =>
+      apiRequest<T>('/api/subscription-management/pause', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    resume: <T>(data: { subscriptionId: string }) =>
+      apiRequest<T>('/api/subscription-management/resume', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    cancel: <T>(data: { subscriptionId: string; cancelReason?: string; feedback?: string; acceptOffer?: boolean }) =>
+      apiRequest<T>('/api/subscription-management/cancel', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    upgrade: <T>(data: { subscriptionId: string; newPlan: string }) =>
+      apiRequest<T>('/api/subscription-management/upgrade', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    getChurnRisk: <T>() =>
+      apiRequest<T>('/api/subscription-management/churn-risk', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+  },
+  cohorts: {
+    get: <T>() =>
+      apiRequest<T>('/api/cohorts', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getById: <T>(id: string) =>
+      apiRequest<T>(`/api/cohorts/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: <T>(data: { name: string; definition: any }) =>
+      apiRequest<T>('/api/cohorts', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: <T>(id: string, data: { name?: string; definition?: any }) =>
+      apiRequest<T>(`/api/cohorts/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/cohorts/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    generate: <T>() =>
+      apiRequest<T>('/api/cohorts/generate', {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    calculateMetrics: <T>(id: string, date?: string) =>
+      apiRequest<T>(`/api/cohorts/${id}/calculate-metrics`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ date }),
+      }),
+    calculateAllMetrics: <T>() =>
+      apiRequest<T>('/api/cohorts/calculate-all-metrics', {
+        method: 'POST',
+        headers: getHeaders(),
+      }),
+    getPredictions: <T>(id: string, method?: string, weeksAhead?: number) => {
+      const params = new URLSearchParams();
+      if (method) params.append('method', method);
+      if (weeksAhead) params.append('weeksAhead', weeksAhead.toString());
+      return apiRequest<T>(`/api/cohorts/${id}/predictions?${params.toString()}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    compare: <T>(cohort1Id: string, cohort2Id: string) =>
+      apiRequest<T>(`/api/cohorts/compare?cohort1Id=${cohort1Id}&cohort2Id=${cohort2Id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    export: (id: string, format: 'csv' | 'excel' = 'csv') => {
+      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/cohorts/${id}/export?format=${format}`;
+      window.open(url, '_blank');
+    },
+  },
+  funnels: {
+    get: <T>() =>
+      apiRequest<T>('/api/funnels', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getById: <T>(id: string) =>
+      apiRequest<T>(`/api/funnels/${id}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: <T>(data: { name: string; description?: string; steps: any[] }) =>
+      apiRequest<T>('/api/funnels', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: <T>(id: string, data: { name?: string; description?: string; steps?: any[]; isActive?: boolean }) =>
+      apiRequest<T>(`/api/funnels/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      }),
+    delete: <T>(id: string) =>
+      apiRequest<T>(`/api/funnels/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      }),
+    getTemplates: <T>() =>
+      apiRequest<T>('/api/funnels/templates', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    createFromTemplate: <T>(templateName: string, variant?: string) =>
+      apiRequest<T>('/api/funnels/from-template', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ templateName, variant }),
+      }),
+    analyze: <T>(id: string, dateRange?: { startDate?: string; endDate?: string }) =>
+      apiRequest<T>(`/api/funnels/${id}/analyze`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(dateRange || {}),
+      }),
+    analyzeSegments: <T>(id: string, segments?: string[]) =>
+      apiRequest<T>(`/api/funnels/${id}/analyze-segments`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ segments }),
+      }),
+  },
+  contentRestrictions: {
+    check: <T>(contentId: string, country?: string) => {
+      const params = new URLSearchParams();
+      if (country) params.append('country', country);
+      return apiRequest<T>(`/api/content-restrictions/check/${contentId}?${params.toString()}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getRegionalTrending: <T>(country?: string, categoryId?: string) => {
+      const params = new URLSearchParams();
+      if (country) params.append('country', country);
+      if (categoryId) params.append('categoryId', categoryId);
+      return apiRequest<T>(`/api/content-restrictions/regional-trending?${params.toString()}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    get: <T>(contentId: string) =>
+      apiRequest<T>(`/api/content-restrictions/${contentId}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: async <T>(data: { contentId: string; type: string; countries: string[]; reason?: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/content-restrictions', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    update: async <T>(id: string, data: { countries?: string[]; reason?: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/content-restrictions/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/content-restrictions/${id}`, {
+        method: 'DELETE',
+        headers,
+      });
+    },
+    createRegionalContent: async <T>(data: {
+      categoryId?: string;
+      region: string;
+      featuredContent: string[];
+      trendingContent: string[];
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/content-restrictions/regional-content', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+  },
+  multiAngle: {
+    get: <T>(contentId: string) =>
+      apiRequest<T>(`/api/multi-angle/${contentId}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    create: async <T>(data: {
+      contentId: string;
+      mainAngle: string;
+      alternateAngles: Array<{ name: string; url: string; syncOffset?: number }>;
+      allowSwitching?: boolean;
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/multi-angle', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    update: async <T>(contentId: string, data: {
+      mainAngle?: string;
+      alternateAngles?: Array<{ name: string; url: string; syncOffset?: number }>;
+      allowSwitching?: boolean;
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/multi-angle/${contentId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async <T>(contentId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/multi-angle/${contentId}`, {
+        method: 'DELETE',
+        headers,
+      });
+    },
   },
 };
 

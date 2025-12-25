@@ -10,7 +10,7 @@ export interface PaymentIntent {
   clientSecret?: string;
   amount: number;
   currency: string;
-  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'canceled';
+  status: 'PENDING' | 'processing' | 'succeeded' | 'failed' | 'canceled';
   paymentMethod?: string;
 }
 
@@ -82,7 +82,7 @@ class PayPalProvider implements PaymentProvider {
         clientSecret: approvalUrl, // For PayPal, we use approval URL instead of client secret
         amount,
         currency,
-        status: 'pending',
+        status: 'PENDING',
       };
     } catch (error: any) {
       console.error('PayPal order creation failed:', error);

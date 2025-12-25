@@ -2,7 +2,6 @@
  * Button Component Accessibility Tests
  */
 
-import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils';
 import { checkA11y } from '@/test/a11y';
@@ -45,8 +44,8 @@ describe('Button Accessibility', () => {
   });
 
   it('should be keyboard accessible', () => {
-    const { container } = render(<Button>Keyboard Test</Button>);
-    
+    render(<Button>Keyboard Test</Button>);
+
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
     // Button should be focusable

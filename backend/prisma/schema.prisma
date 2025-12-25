@@ -7,33 +7,147 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* =======================
+   ENUMS
+   ======================= */
+
+enum user_role {
+  USER
+  CREATOR
+  MODERATOR
+  ADMIN
+}
+
+enum user_status {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  INACTIVE
+}
+
+enum creator_status {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum content_type {
+  VIDEO
+  PHOTO
+  VR
+  LIVE_STREAM
+  AUDIO
+}
+
+enum content_status {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  ARCHIVED
+  REJECTED
+  DELETED
+}
+
+enum subscription_tier {
+  BASIC
+  PREMIUM
+  VIP
+  CUSTOM
+}
+
+enum subscription_status {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PENDING
+  FAILED
+}
+
+enum transaction_type {
+  SUBSCRIPTION
+  TIP
+  PREMIUM_CONTENT
+  REFUND
+  WITHDRAWAL
+}
+
+enum transaction_status {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum notification_type {
+  NEW_FOLLOWER
+  NEW_COMMENT
+  NEW_LIKE
+  NEW_SUBSCRIBER
+  NEW_UPLOAD
+  CONTENT_APPROVED
+  CONTENT_REJECTED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  SYSTEM_ANNOUNCEMENT
+  MENTION
+  MESSAGE
+}
+
+enum report_type {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  COPYRIGHT_VIOLATION
+  FAKE_ACCOUNT
+  OTHER
+}
+
+enum report_status {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+  ACTION_TAKEN
+}
+
+/* =======================
+   MODELS
+   ======================= */
+
 model User {
   id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                   String                   @unique
   username                String                   @unique
   password                String
-  email_verified          Boolean?                 @default(false)
-  display_name            String?
+  emailVerified           Boolean?                 @default(false) @map("email_verified")
+  displayName             String?                  @map("display_name")
   avatar                  String?
   bio                     String?
   location                String?
   website                 String?
-  birth_date              DateTime?                @db.Timestamp(6)
+  birthDate               DateTime?                @map("birth_date") @db.Timestamp(6)
   theme                   String?                  @default("dark")
   language                String?                  @default("en")
-  notifications_enabled   Boolean?                 @default(true)
-  email_notifications     Boolean?                 @default(true)
+  notificationsEnabled    Boolean?                 @default(true) @map("notifications_enabled")
+  emailNotifications      Boolean?                 @default(true) @map("email_notifications")
   role                    user_role?               @default(USER)
   status                  user_status?             @default(ACTIVE)
-  is_creator              Boolean?                 @default(false)
+  isCreator               Boolean?                 @default(false) @map("is_creator")
   balance                 Decimal?                 @default(0) @db.Decimal(10, 2)
-  created_at              DateTime?                @default(now()) @db.Timestamp(6)
-  updated_at              DateTime?                @default(now()) @db.Timestamp(6)
-  deleted_at              DateTime?                @db.Timestamp(6)
+  createdAt               DateTime?                @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt               DateTime?                @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt               DateTime?                @map("deleted_at") @db.Timestamp(6)
   version                 Int?                     @default(0)
-  account_deletions       AccountDeletion?
-  user_preferences        UserPreferences?
-  user_subscriptions      UserSubscription[]
+
+  twoFactorEnabled        Boolean                  @default(false)
+  twoFactorSecret         String?                  @db.Text
+
+  // Relations
+  accountDeletion         AccountDeletion?
+  userPreferences         UserPreferences?
+  userSubscriptions       UserSubscription[]
   loyalty                 UserLoyalty?
   loyaltyTransactions     LoyaltyTransaction[]
   analyticsEvents         AnalyticsEvent[]
@@ -45,114 +159,153 @@ model User {
   savedSearches           SavedSearch[]
   searchHistory           SearchHistory[]
   collaborations          Collaboration[]
-  followers               Follow[]       @relation("Follower")
-  following               Follow[]       @relation("Following")
+  followers               Follow[]                 @relation("Follower")
+  following               Follow[]                 @relation("Following")
   activityFeed            ActivityFeed[]
-  collections             Collection[]
-  downloads               Download[]     @relation("Downloads")
-  tips_given              Tip[]          @relation("TipsGiven")
+  collections             Collection[]             @relation("CollectionOwner_collections")
+  downloads               Download[]               @relation("Downloads")
+  tipsGiven               Tip[]                    @relation("TipsGiven")
+  seriesFollows           SeriesFollow[]
+  churnPrediction         ChurnPrediction?
+  retentionCampaigns      RetentionCampaign[]
+  creator                 Creator?
 
-  twoFactorEnabled Boolean @default(false)
-  twoFactorSecret  String?  @db.Text
+  // Reports relations (named relations)
+  reports                 Report[]                 @relation("user_reports")      // reports this user made (reporter)
+  reportedReports         Report[]                 @relation("user_reported")     // reports filed _against_ this user (reportedUser)
 
-  @@index([created_at], map: "idx_users_created_at")
-  @@index([deleted_at], map: "idx_users_deleted_at")
+  // Chat messages
+  chatMessages            LiveChatMessage[]        // optional messages (userId is nullable on LiveChatMessage)
+
+  // Other common back relations
+  transactions            Transaction[]
+  notifications           Notification[]
+  likes                   Like[]
+  comments                Comment[]
+  playlists               Playlist[]
+  views                   View[]
+  interactiveResponses    InteractiveResponse[]
+  commentLikes            CommentLike[]
+  subscriptions           Subscription[]
+
+  @@index([createdAt], map: "idx_users_created_at")
+  @@index([deletedAt], map: "idx_users_deleted_at")
   @@index([email], map: "idx_users_email")
-  @@index([id, created_at], map: "idx_users_id_created_at")
+  @@index([id, createdAt], map: "idx_users_id_created_at")
   @@index([username], map: "idx_users_username")
   @@map("users")
 }
 
 model Creator {
-  id                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                 String           @unique @db.Uuid
-  display_name            String
-  handle                  String           @unique
-  avatar                  String?
-  banner                  String?
-  bio                     String?
-  location                String?
-  website                 String?
-  is_verified             Boolean?         @default(false)
-  verified_at             DateTime?        @db.Timestamp(6)
-  verification_badge      String?
-  follower_count          Int?             @default(0)
-  following_count         Int?             @default(0)
-  content_count           Int?             @default(0)
-  total_views             BigInt?          @default(0)
-  total_likes             Int?             @default(0)
-  total_comments          Int?             @default(0)
-  is_monetized            Boolean?         @default(false)
-  monetization_enabled_at DateTime?        @db.Timestamp(6)
-  payout_email            String?
-  payout_method           String?
-  stripe_account_id       String?          @map("stripe_account_id") // Connected Stripe account for payouts (legacy)
-  razorpay_account_id     String?          @map("razorpay_account_id") // Connected Razorpay account for payouts
-  status                  creator_status?  @default(PENDING)
-  created_at              DateTime?        @default(now()) @db.Timestamp(6)
-  updated_at              DateTime?        @default(now()) @db.Timestamp(6)
-  deleted_at              DateTime?        @db.Timestamp(6)
-  version                 Int?             @default(0)
-  content                 Content[]
-  live_streams            LiveStream[]
-  subscriptions           Subscription[]
-  creator_earnings        CreatorEarnings?
-  tips_received           Tip[]
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String           @unique @map("user_id") @db.Uuid
+  displayName           String           @map("display_name")
+  handle                String           @unique
+  avatar                String?
+  banner                String?
+  bio                   String?
+  location              String?
+  website               String?
+  isVerified            Boolean?         @default(false) @map("is_verified")
+  verifiedAt            DateTime?        @map("verified_at") @db.Timestamp(6)
+  verificationBadge     String?          @map("verification_badge")
+  followerCount         Int?             @default(0) @map("follower_count")
+  followingCount        Int?             @default(0) @map("following_count")
+  contentCount          Int?             @default(0) @map("content_count")
+  totalViews            BigInt?          @default(0) @map("total_views")
+  totalLikes            Int?             @default(0) @map("total_likes")
+  totalComments         Int?             @default(0) @map("total_comments")
+  isMonetized           Boolean?         @default(false) @map("is_monetized")
+  monetizationEnabledAt DateTime?        @map("monetization_enabled_at") @db.Timestamp(6)
+  payoutEmail           String?          @map("payout_email")
+  payoutMethod          String?          @map("payout_method")
+  stripeAccountId       String?          @map("stripe_account_id")
+  razorpayAccountId     String?          @map("razorpay_account_id")
+  status                creator_status?  @default(PENDING)
+  createdAt             DateTime?        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime?        @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt             DateTime?        @map("deleted_at") @db.Timestamp(6)
+  version               Int?             @default(0)
 
-  @@index([created_at], map: "idx_creators_created_at")
-  @@index([deleted_at], map: "idx_creators_deleted_at")
+  // Relations
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content               Content[]
+  liveStreams           LiveStream[]
+  subscriptions         Subscription[]
+  creatorEarnings       CreatorEarnings?
+  tipsReceived          Tip[]
+  series                Series[]
+  categories            CreatorCategory[]
+
+  // Creator followers back-relation for polymorphic follow design
+  followers             Follow[]         @relation("FollowingCreator")
+
+  @@index([createdAt], map: "idx_creators_created_at")
+  @@index([deletedAt], map: "idx_creators_deleted_at")
   @@index([handle], map: "idx_creators_handle")
-  @@index([is_verified], map: "idx_creators_is_verified")
+  @@index([isVerified], map: "idx_creators_is_verified")
   @@index([status], map: "idx_creators_status")
-  @@index([user_id], map: "idx_creators_user_id")
-  @@index([user_id, created_at], map: "idx_creators_user_created")
+  @@index([userId], map: "idx_creators_user_id")
+  @@index([userId, createdAt], map: "idx_creators_user_created")
   @@map("creators")
 }
 
 model Content {
-  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creatorId      String            @map("creator_id") @db.Uuid
-  title          String
-  description    String?
-  type           content_type
-  status         content_status?   @default(DRAFT)
-  thumbnail      String?
-  thumbnailBlur  String?           @map("thumbnail_blur") // Base64 blur placeholder
-  mediaUrl       String            @map("media_url")
-  mediaType      String?           @map("media_type")
-  duration       Int?
-  fileSize       BigInt?           @map("file_size")
-  resolution     String?
-  isVR           Boolean?          @default(false) @map("is_vr")
-  viewCount      Int?              @default(0) @map("view_count")
-  likeCount      Int?              @default(0) @map("like_count")
-  commentCount   Int?              @default(0) @map("comment_count")
-  shareCount     Int?              @default(0) @map("share_count")
-  isPublic       Boolean?          @default(true) @map("is_public")
-  isNSFW         Boolean?          @default(false) @map("is_nsfw")
-  ageRestricted  Boolean?          @default(false) @map("age_restricted")
-  allowComments  Boolean?          @default(true) @map("allow_comments")
-  allowDownloads Boolean?          @default(false) @map("allow_downloads")
-  isPremium      Boolean?          @default(false) @map("is_premium")
-  price          Decimal?          @db.Decimal(10, 2)
-  currency       String?           @default("USD")
-  publishedAt    DateTime?         @map("published_at") @db.Timestamp(6)
-  scheduledAt    DateTime?         @map("scheduled_at") @db.Timestamp(6)
-  createdAt      DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt      DateTime?         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  deletedAt      DateTime?         @map("deleted_at") @db.Timestamp(6)
-  version        Int?              @default(0)
-  content_flags  ContentFlag[]
-  scheduledContent ScheduledContent?
-  thumbnailTest   ThumbnailTest?
-  collaborations  Collaboration[]
-  collectionItems CollectionItem[]
-  downloads       Download[]       @relation("Downloads")
-  creator        Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  views          View[]
-  categories     ContentCategory[]
-  tags           ContentTag[]
-  likes          Like[]
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorId           String               @map("creator_id") @db.Uuid
+  title               String
+  description         String?
+  type                content_type
+  status              content_status?      @default(DRAFT)
+  thumbnail           String?
+  thumbnailBlur       String?              @map("thumbnail_blur")
+  mediaUrl            String               @map("media_url")
+  mediaType           String?              @map("media_type")
+  duration            Int?
+  fileSize            BigInt?              @map("file_size")
+  resolution          String?
+  isVR                Boolean?             @default(false) @map("is_vr")
+  viewCount           Int?                 @default(0) @map("view_count")
+  likeCount           Int?                 @default(0) @map("like_count")
+  commentCount        Int?                 @default(0) @map("comment_count")
+  shareCount          Int?                 @default(0) @map("share_count")
+  isPublic            Boolean?             @default(true) @map("is_public")
+  isNSFW              Boolean?             @default(false) @map("is_nsfw")
+  ageRestricted       Boolean?             @default(false) @map("age_restricted")
+  allowComments       Boolean?             @default(true) @map("allow_comments")
+  allowDownloads      Boolean?             @default(false) @map("allow_downloads")
+  isPremium           Boolean?             @default(false) @map("is_premium")
+  price               Decimal?             @db.Decimal(10, 2)
+  currency            String?              @default("USD")
+  publishedAt         DateTime?            @map("published_at") @db.Timestamp(6)
+  scheduledAt         DateTime?            @map("scheduled_at") @db.Timestamp(6)
+  moderationNote      String?              @map("moderation_note") @db.Text
+  createdAt           DateTime?            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime?            @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt           DateTime?            @map("deleted_at") @db.Timestamp(6)
+  version             Int?                 @default(0)
+
+  // Relations
+  content_flags       ContentFlag[]
+  scheduledContent    ScheduledContent?
+  thumbnailTest       ThumbnailTest?
+  collaborations      Collaboration[]
+  collectionItems     CollectionItem[]
+  downloads           Download[]           @relation("Downloads")
+  interactiveElements InteractiveElement[]
+  creator             Creator              @relation(fields: [creatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  views               View[]
+  categories          ContentCategory[]
+  tags                ContentTag[]
+  likes               Like[]
+  comments            Comment[]
+  playlistItems       PlaylistItem[]
+  episode             Episode?
+  restrictions        ContentRestriction[]
+  multiAngle          MultiAngleContent?
+
+  // optional: if you want to query reports by content
+  reports             Report[]
 
   @@index([status], map: "idx_content_status")
   @@index([type], map: "idx_content_type")
@@ -167,34 +320,39 @@ model Content {
 }
 
 model Category {
-  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String            @unique
-  slug        String            @unique
-  description String?
-  icon        String?
-  color       String?
-  is_active   Boolean?          @default(true)
-  sort_order  Int?              @default(0)
-  created_at  DateTime?         @default(now()) @db.Timestamp(6)
-  updated_at  DateTime?         @default(now()) @db.Timestamp(6)
-  deleted_at  DateTime?         @db.Timestamp(6)
-  contents    ContentCategory[]
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String            @unique
+  slug            String            @unique
+  description     String?
+  icon            String?
+  color           String?
+  isActive        Boolean?          @default(true) @map("is_active")
+  sortOrder       Int?              @default(0) @map("sort_order")
+  createdAt       DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime?         @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamp(6)
+
+  contents          ContentCategory[]
+  series            Series[]
+  regionalContent   RegionalContent[]
+  creatorCategories CreatorCategory[]
 
   @@index([slug], map: "idx_categories_slug")
   @@map("categories")
 }
 
 model Tag {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String       @unique
-  slug        String       @unique
-  usage_count Int?         @default(0)
-  created_at  DateTime?    @default(now()) @db.Timestamp(6)
-  updated_at  DateTime?    @default(now()) @db.Timestamp(6)
-  contents    ContentTag[]
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String       @unique
+  slug       String       @unique
+  usageCount Int?         @default(0) @map("usage_count")
+  createdAt  DateTime?    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime?    @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  contents   ContentTag[]
 
   @@index([slug], map: "idx_tags_slug")
-  @@index([usage_count], map: "idx_tags_usage_count")
+  @@index([usageCount], map: "idx_tags_usage_count")
   @@map("tags")
 }
 
@@ -203,6 +361,7 @@ model ContentCategory {
   contentId  String    @map("content_id") @db.Uuid
   categoryId String    @map("category_id") @db.Uuid
   createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
   content    Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
   category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
@@ -218,6 +377,7 @@ model ContentTag {
   contentId String    @map("content_id") @db.Uuid
   tagId     String    @map("tag_id") @db.Uuid
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
   content   Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
   tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
@@ -232,6 +392,9 @@ model CreatorCategory {
   creatorId  String    @map("creator_id") @db.Uuid
   categoryId String    @map("category_id") @db.Uuid
   createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  creator    Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([creatorId, categoryId], map: "creator_categories_unique")
   @@index([categoryId], map: "idx_creator_categories_category")
@@ -248,7 +411,9 @@ model View {
   duration  Int?
   watchedAt DateTime? @default(now()) @map("watched_at") @db.Timestamp(6)
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
   content   Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([contentId], map: "idx_views_content")
   @@index([contentId, createdAt], map: "idx_views_content_created")
@@ -263,7 +428,9 @@ model Like {
   contentId String    @map("content_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
   content   Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([contentId, userId], map: "likes_unique")
   @@index([contentId], map: "idx_likes_content")
@@ -274,30 +441,43 @@ model Like {
 }
 
 model Comment {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  contentId  String    @map("content_id") @db.Uuid
-  userId     String    @map("user_id") @db.Uuid
-  text       String
-  parentId   String?   @map("parent_id") @db.Uuid
-  likes      Int?      @default(0)
-  isEdited   Boolean?  @default(false) @map("is_edited")
-  is_deleted Boolean?  @default(false)
-  deletedAt  DateTime? @map("deleted_at") @db.Timestamp(6)
-  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  version    Int?      @default(0)
-  dislikes   Int?      @default(0)
-  isPinned   Boolean?  @default(false) @map("is_pinned")
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId String    @map("content_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  text      String
+  parentId  String?   @map("parent_id") @db.Uuid
+  likes     Int?      @default(0)
+  isEdited  Boolean?  @default(false) @map("is_edited")
+  isDeleted Boolean?  @default(false) @map("is_deleted")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+  version   Int?      @default(0)
+  dislikes  Int?      @default(0)
+  isPinned  Boolean?  @default(false) @map("is_pinned")
 
+  content      Content       @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commentLikes CommentLike[]
+
+  // Self-reference for threading: parent and replies
+  parent       Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      Comment[]     @relation("CommentReplies")
+
+  @@index([parentId], map: "idx_comments_parent")
   @@map("comments")
 }
 
 model CommentLike {
-  id        String    @id @default(cuid()) @db.Uuid
+  // keep cuid() default but remove @db.Uuid mismatch
+  id        String    @id @default(cuid())
   commentId String    @map("comment_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   type      String
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  comment   Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@index([commentId], map: "idx_comment_likes_comment_id")
@@ -306,111 +486,128 @@ model CommentLike {
 }
 
 model UserPreferences {
-  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id               String    @unique @db.Uuid
-  theme                 String?   @default("auto")
-  language              String?   @default("en")
-  region                String?
-  hide_history          Boolean?  @default(false)
-  anonymous_mode        Boolean?  @default(false)
-  allow_personalization Boolean?  @default(true)
-  show_activity_status  Boolean?  @default(true)
-  allow_messages        String?   @default("everyone")
-  show_watch_history    String?   @default("private")
-  show_playlists        String?   @default("public")
-  show_liked_content    String?   @default("private")
-  history_lock_enabled  Boolean?  @default(false)
-  history_lock_pin_hash String?
-  default_quality       String?   @default("auto")
-  autoplay              Boolean?  @default(true)
-  notifications         Json?     @default("{\"push\": {}, \"email\": {}, \"inApp\": {}}")
-  created_at            DateTime? @default(now()) @db.Timestamp(6)
-  updated_at            DateTime? @default(now()) @db.Timestamp(6)
-  users                 User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String    @unique @map("user_id") @db.Uuid
+  theme                String?   @default("auto")
+  language             String?   @default("en")
+  currency             String?   @default("USD")
+  region               String?
+  hideHistory          Boolean?  @default(false) @map("hide_history")
+  anonymousMode        Boolean?  @default(false) @map("anonymous_mode")
+  allowPersonalization Boolean?  @default(true) @map("allow_personalization")
+  showActivityStatus   Boolean?  @default(true) @map("show_activity_status")
+  allowMessages        String?   @default("everyone") @map("allow_messages")
+  showWatchHistory     String?   @default("private") @map("show_watch_history")
+  showPlaylists        String?   @default("public") @map("show_playlists")
+  showLikedContent     String?   @default("private") @map("show_liked_content")
+  historyLockEnabled   Boolean?  @default(false) @map("history_lock_enabled")
+  historyLockPinHash   String?   @map("history_lock_pin_hash")
+  defaultQuality       String?   @default("auto") @map("default_quality")
+  autoplay             Boolean?  @default(true)
+  notifications        Json?     @default("{\"push\": {}, \"email\": {}, \"inApp\": {}}")
+  createdAt            DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  @@index([user_id], map: "idx_user_preferences_user_id")
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_user_preferences_user_id")
   @@map("user_preferences")
 }
 
 model AccountDeletion {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id       String    @unique @db.Uuid
-  requested_at  DateTime? @default(now()) @db.Timestamp(6)
-  scheduled_for DateTime  @db.Timestamp(6)
-  reason        String?
-  status        String?   @default("pending")
-  completed_at  DateTime? @db.Timestamp(6)
-  created_at    DateTime? @default(now()) @db.Timestamp(6)
-  updated_at    DateTime? @default(now()) @db.Timestamp(6)
-  users         User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @unique @map("user_id") @db.Uuid
+  requestedAt  DateTime? @default(now()) @map("requested_at") @db.Timestamp(6)
+  scheduledFor DateTime  @map("scheduled_for") @db.Timestamp(6)
+  reason       String?
+  status       String?   @default("pending")
+  completedAt  DateTime? @map("completed_at") @db.Timestamp(6)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  @@index([scheduled_for], map: "idx_account_deletions_scheduled_for")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([scheduledFor], map: "idx_account_deletions_scheduled_for")
   @@index([status], map: "idx_account_deletions_status")
-  @@index([user_id], map: "idx_account_deletions_user_id")
+  @@index([userId], map: "idx_account_deletions_user_id")
   @@map("account_deletions")
 }
 
 model Playlist {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id     String    @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
   name        String
   description String?
   thumbnail   String?
-  is_public   Boolean?  @default(false)
-  sort_order  Int?      @default(0)
-  item_count  Int?      @default(0)
-  view_count  Int?      @default(0)
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  updated_at  DateTime? @default(now()) @db.Timestamp(6)
-  deleted_at  DateTime? @db.Timestamp(6)
+  isPublic    Boolean?  @default(false) @map("is_public")
+  sortOrder   Int?      @default(0) @map("sort_order")
+  itemCount   Int?      @default(0) @map("item_count")
+  viewCount   Int?      @default(0) @map("view_count")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamp(6)
   version     Int?      @default(0)
 
-  @@index([is_public], map: "idx_playlists_is_public")
-  @@index([user_id], map: "idx_playlists_user")
-  @@index([user_id, created_at], map: "idx_playlists_user_created")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       PlaylistItem[]
+
+  @@index([isPublic], map: "idx_playlists_is_public")
+  @@index([userId], map: "idx_playlists_user")
+  @@index([userId, createdAt], map: "idx_playlists_user_created")
   @@map("playlists")
 }
 
 model PlaylistItem {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  playlist_id String    @db.Uuid
-  content_id  String    @db.Uuid
-  sort_order  Int?      @default(0)
-  added_at    DateTime? @default(now()) @db.Timestamp(6)
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playlistId String    @map("playlist_id") @db.Uuid
+  contentId  String    @map("content_id") @db.Uuid
+  sortOrder  Int?      @default(0) @map("sort_order")
+  addedAt    DateTime? @default(now()) @map("added_at") @db.Timestamp(6)
 
-  @@unique([playlist_id, content_id], map: "playlist_items_unique")
-  @@index([content_id], map: "idx_playlist_items_content")
-  @@index([playlist_id], map: "idx_playlist_items_playlist")
-  @@index([playlist_id, sort_order], map: "idx_playlist_items_playlist_order")
+  playlist   Playlist  @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  content    Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, contentId], map: "playlist_items_unique")
+  @@index([contentId], map: "idx_playlist_items_content")
+  @@index([playlistId], map: "idx_playlist_items_playlist")
+  @@index([playlistId, sortOrder], map: "idx_playlist_items_playlist_order")
   @@map("playlist_items")
 }
 
 model Follow {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  followerId          String    @map("follower_id") @db.Uuid
-  followingId         String    @map("following_id") @db.Uuid
-  followingType       String    @default("user") @map("following_type") // creator, user
-  notificationsEnabled Boolean? @default(true) @map("notifications_enabled")
-  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
-  follower            User      @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
-  following           User      @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  followerId           String    @map("follower_id") @db.Uuid
+  followingId          String?   @map("following_id") @db.Uuid
+  followingCreatorId   String?   @map("following_creator_id") @db.Uuid
+  followingType        String    @default("user") @map("following_type") // user | creator
+  notificationsEnabled Boolean?  @default(true) @map("notifications_enabled")
+  createdAt            DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
 
-  @@unique([followerId, followingId], map: "follows_unique")
+  // relations:
+  follower             User      @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following            User?     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingCreator     Creator?  @relation("FollowingCreator", fields: [followingCreatorId], references: [id], onDelete: Cascade)
+
+  // Unique constraints for either user follow or creator follow
+  @@unique([followerId, followingId], map: "follows_user_unique")
+  @@unique([followerId, followingCreatorId], map: "follows_creator_unique")
   @@index([followerId], map: "idx_follows_follower")
   @@index([followingId], map: "idx_follows_following")
+  @@index([followingCreatorId], map: "idx_follows_creator")
   @@map("follows")
 }
 
 model ActivityFeed {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  actorId     String    @map("actor_id") @db.Uuid
-  type        String    // upload, like, comment, follow, playlist_create, collection_create
-  targetType  String    @map("target_type") // content, playlist, user, collection
-  targetId    String    @map("target_id") @db.Uuid
-  metadata    Json?
-  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  actorId    String    @map("actor_id") @db.Uuid
+  type       String
+  targetType String    @map("target_type")
+  targetId   String    @map("target_id") @db.Uuid
+  metadata   Json?
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt], map: "idx_activity_feed_user_created")
   @@index([actorId], map: "idx_activity_feed_actor")
@@ -419,18 +616,19 @@ model ActivityFeed {
 }
 
 model Collection {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name            String
   description     String?
-  ownerId         String            @map("owner_id") @db.Uuid
-  isPublic        Boolean?          @default(true) @map("is_public")
+  ownerId         String           @map("owner_id") @db.Uuid
+  isPublic        Boolean?         @default(true) @map("is_public")
   isCollaborative Boolean?         @default(false) @map("is_collaborative")
-  contributors    String[]          // User IDs who can add
-  followers       Int?              @default(0)
-  thumbnailUrl    String?           @map("thumbnail_url")
-  createdAt       DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt       DateTime?         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  contributors    String[]         @db.Uuid // User IDs who can add
+  followers       Int?             @default(0)
+  thumbnailUrl    String?          @map("thumbnail_url")
+  createdAt       DateTime?        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime?        @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  owner           User             @relation("CollectionOwner_collections", fields: [ownerId], references: [id], onDelete: Cascade)
   items           CollectionItem[]
 
   @@index([isPublic, followers], map: "idx_collections_public_followers")
@@ -440,15 +638,16 @@ model Collection {
 }
 
 model CollectionItem {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  collectionId String   @map("collection_id") @db.Uuid
-  contentId    String   @map("content_id") @db.Uuid
-  addedById    String   @map("added_by_id") @db.Uuid
-  position     Int?      @default(0)
-  note         String?  // Personal note about why added
-  addedAt      DateTime? @default(now()) @map("added_at") @db.Timestamp(6)
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collectionId String     @map("collection_id") @db.Uuid
+  contentId    String     @map("content_id") @db.Uuid
+  addedById    String     @map("added_by_id") @db.Uuid
+  position     Int?       @default(0)
+  note         String?
+  addedAt      DateTime?  @default(now()) @map("added_at") @db.Timestamp(6)
+
   collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  content      Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content      Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@unique([collectionId, contentId], map: "collection_items_unique")
   @@index([collectionId, position], map: "idx_collection_items_collection_position")
@@ -457,131 +656,148 @@ model CollectionItem {
 }
 
 model Subscription {
-  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subscriber_id String               @db.Uuid
-  creator_id    String               @db.Uuid
-  tier          subscription_tier?   @default(BASIC)
-  status        subscription_status? @default(ACTIVE)
-  is_recurring  Boolean?             @default(true)
-  amount        Decimal              @db.Decimal(10, 2)
-  currency      String?              @default("USD")
-  interval      String?              @default("monthly")
-  started_at    DateTime?            @default(now()) @db.Timestamp(6)
-  expires_at    DateTime?            @db.Timestamp(6)
-  canceled_at   DateTime?            @db.Timestamp(6)
-  renewed_at    DateTime?            @db.Timestamp(6)
-  created_at    DateTime?            @default(now()) @db.Timestamp(6)
-  updated_at    DateTime?            @default(now()) @db.Timestamp(6)
-  version       Int?                 @default(0)
-  creator       Creator              @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriberId String               @map("subscriber_id") @db.Uuid
+  creatorId    String               @map("creator_id") @db.Uuid
+  tier         subscription_tier?   @default(BASIC)
+  status       subscription_status? @default(ACTIVE)
+  isRecurring  Boolean?             @default(true) @map("is_recurring")
+  amount       Decimal              @db.Decimal(10, 2)
+  currency     String?              @default("USD")
+  interval     String?              @default("monthly")
+  startedAt    DateTime?            @default(now()) @map("started_at") @db.Timestamp(6)
+  expiresAt    DateTime?            @map("expires_at") @db.Timestamp(6)
+  canceledAt   DateTime?            @map("canceled_at") @db.Timestamp(6)
+  renewedAt    DateTime?            @map("renewed_at") @db.Timestamp(6)
+  createdAt    DateTime?            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime?            @default(now()) @map("updated_at") @db.Timestamp(6)
+  version      Int?                 @default(0)
 
-  @@unique([subscriber_id, creator_id], map: "subscriptions_unique")
-  @@index([creator_id], map: "idx_subscriptions_creator")
+  creator      Creator              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  subscriber   User                 @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriberId, creatorId], map: "subscriptions_unique")
+  @@index([creatorId], map: "idx_subscriptions_creator")
   @@index([status], map: "idx_subscriptions_status")
-  @@index([subscriber_id], map: "idx_subscriptions_subscriber")
-  @@index([subscriber_id, created_at], map: "idx_subscriptions_subscriber_created")
+  @@index([subscriberId], map: "idx_subscriptions_subscriber")
+  @@index([subscriberId, createdAt], map: "idx_subscriptions_subscriber_created")
   @@map("subscriptions")
 }
 
 model Transaction {
-  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           String              @db.Uuid
-  subscription_id   String?             @db.Uuid
-  type              transaction_type
-  status            transaction_status? @default(PENDING)
-  amount            Decimal             @db.Decimal(10, 2)
-  currency          String?             @default("USD")
-  payment_method    String?
-  payment_id        String?
-  stripe_payment_id String?             @map("stripe_payment_id") // Stripe payment intent/charge ID
-  receipt_url       String?
-  description       String?
-  metadata          Json?
-  created_at        DateTime?           @default(now()) @db.Timestamp(6)
-  updated_at        DateTime?           @default(now()) @db.Timestamp(6)
-  version           Int?                @default(0)
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String              @map("user_id") @db.Uuid
+  subscriptionId  String?             @map("subscription_id") @db.Uuid
+  type            transaction_type
+  status          transaction_status? @default(PENDING)
+  amount          Decimal             @db.Decimal(10, 2)
+  currency        String?             @default("USD")
+  paymentMethod   String?             @map("payment_method")
+  paymentId         String?             @map("payment_id")
+  stripePaymentId   String?             @map("stripe_payment_id")
+  razorpayPaymentId String?             @map("razorpay_payment_id")
+  receiptUrl        String?             @map("receipt_url")
+  description     String?
+  metadata        Json?
+  createdAt       DateTime?           @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime?           @default(now()) @map("updated_at") @db.Timestamp(6)
+  version         Int?                @default(0)
+
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Explicit relation to UserSubscription (fixes "Undefined Relations")
+  subscription    UserSubscription?   @relation(fields: [subscriptionId], references: [id])
 
   @@index([status], map: "idx_transactions_status")
-  @@index([subscription_id], map: "idx_transactions_subscription")
+  @@index([subscriptionId], map: "idx_transactions_subscription")
   @@index([type], map: "idx_transactions_type")
-  @@index([user_id], map: "idx_transactions_user")
-  @@index([user_id, created_at], map: "idx_transactions_user_created")
+  @@index([userId], map: "idx_transactions_user")
+  @@index([userId, createdAt], map: "idx_transactions_user_created")
   @@map("transactions")
 }
 
 model Notification {
-  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String            @db.Uuid
-  type       notification_type
-  title      String
-  message    String
-  link       String?
-  is_read    Boolean?          @default(false)
-  read_at    DateTime?         @db.Timestamp(6)
-  metadata   Json?
-  created_at DateTime?         @default(now()) @db.Timestamp(6)
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  type      notification_type
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean?          @default(false) @map("is_read")
+  readAt    DateTime?         @map("read_at") @db.Timestamp(6)
+  metadata  Json?
+  createdAt DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
 
-  @@index([is_read], map: "idx_notifications_is_read")
-  @@index([user_id], map: "idx_notifications_user")
-  @@index([user_id, created_at], map: "idx_notifications_user_created")
-  @@index([user_id, is_read], map: "idx_notifications_user_read")
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isRead], map: "idx_notifications_is_read")
+  @@index([userId], map: "idx_notifications_user")
+  @@index([userId, createdAt], map: "idx_notifications_user_created")
+  @@index([userId, isRead], map: "idx_notifications_user_read")
   @@map("notifications")
 }
 
 model Report {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reporter_id      String         @db.Uuid
-  reported_user_id String?        @db.Uuid
-  content_id       String?        @db.Uuid
-  type             report_type
-  reason           String
-  status           report_status? @default(PENDING)
-  moderator_id     String?        @db.Uuid
-  moderator_notes  String?
-  resolved_at      DateTime?      @db.Timestamp(6)
-  created_at       DateTime?      @default(now()) @db.Timestamp(6)
-  updated_at       DateTime?      @default(now()) @db.Timestamp(6)
-  version          Int?           @default(0)
-  content_type     String?        @default("content")
-  target_id        String?        @db.Uuid
-  description      String?
-  reviewed_by      String?        @db.Uuid
-  reviewed_at      DateTime?      @db.Timestamp(6)
-  action           String?
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId     String         @map("reporter_id") @db.Uuid
+  reportedUserId String?        @map("reported_user_id") @db.Uuid
+  contentId      String?        @map("content_id") @db.Uuid
+  type           report_type
+  reason         String
+  status         report_status? @default(PENDING)
+  moderatorId    String?        @map("moderator_id") @db.Uuid
+  moderatorNotes String?        @map("moderator_notes")
+  resolvedAt     DateTime?      @map("resolved_at") @db.Timestamp(6)
+  createdAt      DateTime?      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime?      @default(now()) @map("updated_at") @db.Timestamp(6)
+  version        Int?           @default(0)
+  contentType    String?        @default("content") @map("content_type")
+  targetId       String?        @map("target_id") @db.Uuid
+  description    String?
+  reviewedBy     String?        @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime?      @map("reviewed_at") @db.Timestamp(6)
+  action         String?
 
-  @@index([content_id], map: "idx_reports_content")
-  @@index([created_at], map: "idx_reports_created_at")
-  @@index([reported_user_id], map: "idx_reports_reported_user")
-  @@index([reporter_id], map: "idx_reports_reporter")
+  // relations (named so User side can reference them cleanly)
+  reporter       User           @relation("user_reports", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User?          @relation("user_reported", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  content        Content?       @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  @@index([contentId], map: "idx_reports_content")
+  @@index([createdAt], map: "idx_reports_created_at")
+  @@index([reportedUserId], map: "idx_reports_reported_user")
+  @@index([reporterId], map: "idx_reports_reporter")
   @@index([status], map: "idx_reports_status")
   @@map("reports")
 }
 
 model ContentFlag {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  content_id  String    @db.Uuid
-  flag_type   String
-  reason      String
-  severity    String
-  is_active   Boolean?  @default(true)
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  resolved_at DateTime? @db.Timestamp(6)
-  content     Content   @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId  String    @map("content_id") @db.Uuid
+  flagType   String    @map("flag_type")
+  reason     String
+  severity   String
+  isActive   Boolean?  @default(true) @map("is_active")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamp(6)
 
-  @@unique([content_id, flag_type, reason], map: "content_flags_unique")
+  content    Content   @relation(fields: [contentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([contentId, flagType, reason], map: "content_flags_unique")
   @@map("content_flags")
 }
 
 model ScheduledContent {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  contentId           String    @unique @map("content_id") @db.Uuid
-  publishAt           DateTime  @map("publish_at") @db.Timestamp(6)
-  status              String    @default("scheduled") // scheduled, published, failed
-  notifyFollowers     Boolean?  @default(true) @map("notify_followers")
-  socialMediaCrosspost Json?    @map("social_media_crosspost") // {twitter: true, instagram: true}
-  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt           DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  content             Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId            String    @unique @map("content_id") @db.Uuid
+  publishAt            DateTime  @map("publish_at") @db.Timestamp(6)
+  status               String    @default("scheduled")
+  notifyFollowers      Boolean?  @default(true) @map("notify_followers")
+  socialMediaCrosspost Json?     @map("social_media_crosspost")
+  createdAt            DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  content              Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@index([publishAt, status], map: "idx_scheduled_content_publish_status")
   @@index([status], map: "idx_scheduled_content_status")
@@ -589,14 +805,15 @@ model ScheduledContent {
 }
 
 model ThumbnailTest {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  contentId   String    @unique @map("content_id") @db.Uuid
-  variants    Json      // [{url: '...', impressions: 0, clicks: 0}]
-  status      String    @default("running") // running, completed, paused
-  winner      String?
-  startedAt   DateTime? @default(now()) @map("started_at") @db.Timestamp(6)
-  endedAt     DateTime? @map("ended_at") @db.Timestamp(6)
-  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId String    @unique @map("content_id") @db.Uuid
+  variants  Json
+  status    String    @default("running")
+  winner    String?
+  startedAt DateTime? @default(now()) @map("started_at") @db.Timestamp(6)
+  endedAt   DateTime? @map("ended_at") @db.Timestamp(6)
+
+  content   Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@index([status], map: "idx_thumbnail_test_status")
   @@map("thumbnail_tests")
@@ -606,10 +823,11 @@ model Collaboration {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   contentId     String    @map("content_id") @db.Uuid
   ownerId       String    @map("owner_id") @db.Uuid
-  collaborators Json      // [{userId, role: 'editor' | 'viewer', permissions: []}]
-  status        String    @default("active") // active, archived
+  collaborators Json
+  status        String    @default("active")
   createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
   content       Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
   owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
@@ -619,292 +837,102 @@ model Collaboration {
   @@map("collaborations")
 }
 
-enum UserRole {
-  USER
-  CREATOR
-  MODERATOR
-  ADMIN
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
-  BANNED
-  INACTIVE
-}
-
-enum CreatorStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  SUSPENDED
-}
-
-enum ContentType {
-  VIDEO
-  PHOTO
-  VR
-  LIVE_STREAM
-  AUDIO
-}
-
-enum ContentStatus {
-  DRAFT
-  PENDING_REVIEW
-  PUBLISHED
-  ARCHIVED
-  REJECTED
-  DELETED
-}
-
-enum SubscriptionTier {
-  BASIC
-  PREMIUM
-  VIP
-  CUSTOM
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  EXPIRED
-  PENDING
-  FAILED
-}
-
-enum TransactionType {
-  SUBSCRIPTION
-  TIP
-  PREMIUM_CONTENT
-  REFUND
-  WITHDRAWAL
-}
-
-enum TransactionStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-  CANCELED
-}
-
-enum NotificationType {
-  NEW_FOLLOWER
-  NEW_COMMENT
-  NEW_LIKE
-  NEW_SUBSCRIBER
-  CONTENT_APPROVED
-  CONTENT_REJECTED
-  PAYMENT_RECEIVED
-  SYSTEM_ANNOUNCEMENT
-  MENTION
-  MESSAGE
-}
-
-enum ReportType {
-  SPAM
-  HARASSMENT
-  INAPPROPRIATE_CONTENT
-  COPYRIGHT_VIOLATION
-  FAKE_ACCOUNT
-  OTHER
-}
-
-enum ReportStatus {
-  PENDING
-  UNDER_REVIEW
-  RESOLVED
-  DISMISSED
-  ACTION_TAKEN
-}
-
-enum content_status {
-  DRAFT
-  PENDING_REVIEW
-  PUBLISHED
-  ARCHIVED
-  REJECTED
-  DELETED
-}
-
-enum content_type {
-  VIDEO
-  PHOTO
-  VR
-  LIVE_STREAM
-  AUDIO
-}
-
-enum creator_status {
-  PENDING
-  APPROVED
-  REJECTED
-  SUSPENDED
-}
-
-enum notification_type {
-  NEW_FOLLOWER
-  NEW_COMMENT
-  NEW_LIKE
-  NEW_SUBSCRIBER
-  NEW_UPLOAD
-  CONTENT_APPROVED
-  CONTENT_REJECTED
-  PAYMENT_RECEIVED
-  SYSTEM_ANNOUNCEMENT
-  MENTION
-  MESSAGE
-}
-
-enum report_status {
-  PENDING
-  UNDER_REVIEW
-  RESOLVED
-  DISMISSED
-  ACTION_TAKEN
-}
-
-enum report_type {
-  SPAM
-  HARASSMENT
-  INAPPROPRIATE_CONTENT
-  COPYRIGHT_VIOLATION
-  FAKE_ACCOUNT
-  OTHER
-}
-
-enum subscription_status {
-  ACTIVE
-  CANCELED
-  EXPIRED
-  PENDING
-  FAILED
-}
-
-enum subscription_tier {
-  BASIC
-  PREMIUM
-  VIP
-  CUSTOM
-}
-
-enum transaction_status {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-  CANCELED
-}
-
-enum transaction_type {
-  SUBSCRIPTION
-  TIP
-  PREMIUM_CONTENT
-  REFUND
-  WITHDRAWAL
-}
-
-enum user_role {
-  USER
-  CREATOR
-  MODERATOR
-  ADMIN
-}
-
-enum user_status {
-  ACTIVE
-  SUSPENDED
-  BANNED
-  INACTIVE
-}
-
 model LiveStream {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creator_id        String            @db.Uuid
-  title             String
-  description       String?
-  thumbnail_url     String?           @map("thumbnail_url")
-  stream_key        String            @unique @map("stream_key")
-  playback_url      String?           @map("playback_url")
-  status            String            @default("idle") // idle, live, ended
-  viewer_count      Int               @default(0) @map("viewer_count")
-  peak_viewer_count Int               @default(0) @map("peak_viewer_count")
-  started_at        DateTime?         @map("started_at") @db.Timestamp(6)
-  ended_at          DateTime?         @map("ended_at") @db.Timestamp(6)
-  scheduled_for     DateTime?         @map("scheduled_for") @db.Timestamp(6)
-  category          String?
-  tags              String[]
-  is_recorded       Boolean           @default(true) @map("is_recorded")
-  recording_url     String?           @map("recording_url")
-  chat_enabled      Boolean           @default(true) @map("chat_enabled")
-  created_at        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
-  updated_at        DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  creator           Creator           @relation(fields: [creator_id], references: [id], onDelete: Cascade)
-  chat_messages     LiveChatMessage[]
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorId       String            @map("creator_id") @db.Uuid
+  title           String
+  description     String?
+  thumbnailUrl    String?           @map("thumbnail_url")
+  streamKey       String            @unique @map("stream_key")
+  playbackUrl     String?           @map("playback_url")
+  status          String            @default("idle")
+  viewerCount     Int               @default(0) @map("viewer_count")
+  peakViewerCount Int               @default(0) @map("peak_viewer_count")
+  startedAt       DateTime?         @map("started_at") @db.Timestamp(6)
+  endedAt         DateTime?         @map("ended_at") @db.Timestamp(6)
+  scheduledFor    DateTime?         @map("scheduled_for") @db.Timestamp(6)
+  category        String?
+  tags            String[]
+  isRecorded      Boolean           @default(true) @map("is_recorded")
+  recordingUrl    String?           @map("recording_url")
+  chatEnabled     Boolean           @default(true) @map("chat_enabled")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime          @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  @@index([creator_id, status], map: "idx_live_streams_creator_status")
-  @@index([status, started_at], map: "idx_live_streams_status_started")
+  creator         Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  chatMessages    LiveChatMessage[]
+
+  @@index([creatorId, status], map: "idx_live_streams_creator_status")
+  @@index([status, startedAt], map: "idx_live_streams_status_started")
   @@map("live_streams")
 }
 
 model LiveChatMessage {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  stream_id  String     @map("stream_id") @db.Uuid
-  user_id    String     @map("user_id") @db.Uuid
-  message    String
-  timestamp  DateTime   @default(now()) @db.Timestamp(6)
-  is_deleted Boolean    @default(false) @map("is_deleted")
-  stream     LiveStream @relation(fields: [stream_id], references: [id], onDelete: Cascade)
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  streamId  String     @map("stream_id") @db.Uuid
+  userId    String?    @map("user_id") @db.Uuid
+  message   String
+  timestamp DateTime   @default(now()) @db.Timestamp(6)
+  isDeleted Boolean    @default(false) @map("is_deleted")
 
-  @@index([stream_id, timestamp], map: "idx_live_chat_stream_timestamp")
+  stream    LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([streamId, timestamp], map: "idx_live_chat_stream_timestamp")
   @@map("live_chat_messages")
 }
 
 model UserSubscription {
-  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                  String    @db.Uuid
-  plan                     String // basic, premium, creator
-  status                   String    @default("active") // active, canceled, expired
-  stripe_subscription_id   String?   @unique @map("stripe_subscription_id") // Legacy Stripe
-  razorpay_subscription_id String?   @unique @map("razorpay_subscription_id") // Razorpay subscription ID
-  current_period_start     DateTime? @map("current_period_start") @db.Timestamp(6)
-  current_period_end       DateTime? @map("current_period_end") @db.Timestamp(6)
-  cancel_at_period_end     Boolean   @default(false) @map("cancel_at_period_end")
-  created_at               DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updated_at               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  user                     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String              @map("user_id") @db.Uuid
+  plan                   String
+  status                 String              @default("active")
+  stripeSubscriptionId   String?             @unique @map("stripe_subscription_id")
+  razorpaySubscriptionId String?             @unique @map("razorpay_subscription_id")
+  currentPeriodStart     DateTime?           @map("current_period_start") @db.Timestamp(6)
+  currentPeriodEnd       DateTime?           @map("current_period_end") @db.Timestamp(6)
+  cancelAtPeriodEnd      Boolean             @default(false) @map("cancel_at_period_end")
+  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime            @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  @@unique([user_id, plan], map: "user_subscriptions_unique")
-  @@index([user_id], map: "idx_user_subscriptions_user")
+  user                   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pauses                 SubscriptionPause[]
+
+  // Back relation for Transaction.subscription
+  transactions           Transaction[]
+
+  @@unique([userId, plan], map: "user_subscriptions_unique")
+  @@index([userId], map: "idx_user_subscriptions_user")
   @@index([status], map: "idx_user_subscriptions_status")
   @@map("user_subscriptions")
 }
 
 model CreatorEarnings {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creator_id          String    @unique @db.Uuid
-  balance             Decimal   @default(0) @db.Decimal(10, 2)
-  lifetime_earnings   Decimal   @default(0) @map("lifetime_earnings") @db.Decimal(10, 2)
-  pending_payout      Decimal   @default(0) @map("pending_payout") @db.Decimal(10, 2)
-  last_payout_at      DateTime? @map("last_payout_at") @db.Timestamp(6)
-  stripe_account_id   String?   @map("stripe_account_id") // Connected Stripe account for payouts (legacy)
-  razorpay_account_id String?   @map("razorpay_account_id") // Connected Razorpay account for payouts
-  created_at          DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updated_at          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  creator             Creator   @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorId         String    @unique @map("creator_id") @db.Uuid
+  balance           Decimal   @default(0) @db.Decimal(10, 2)
+  lifetimeEarnings  Decimal   @default(0) @map("lifetime_earnings") @db.Decimal(10, 2)
+  pendingPayout     Decimal   @default(0) @map("pending_payout") @db.Decimal(10, 2)
+  lastPayoutAt      DateTime? @map("last_payout_at") @db.Timestamp(6)
+  stripeAccountId   String?   @map("stripe_account_id")
+  razorpayAccountId String?   @map("razorpay_account_id")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  @@index([creator_id], map: "idx_creator_earnings_creator")
+  creator           Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId], map: "idx_creator_earnings_creator")
   @@map("creator_earnings")
 }
 
 model GiftCard {
-  id              String    @id @default(cuid())
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code            String    @unique
   amount          Decimal   @db.Decimal(10, 2)
   currency        String    @default("USD")
   purchasedBy     String?   @map("purchased_by") @db.Uuid
   redeemedBy      String?   @map("redeemed_by") @db.Uuid
-  status          String    @default("active") // active, redeemed, expired
+  status          String    @default("active")
   expiresAt       DateTime  @map("expires_at") @db.Timestamp(6)
   redeemedAt      DateTime? @map("redeemed_at") @db.Timestamp(6)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
@@ -920,13 +948,15 @@ model GiftCard {
 }
 
 model UserLoyalty {
-  userId         String   @unique @map("user_id") @db.Uuid
+  // userId is primary key as requested
+  userId         String   @id @map("user_id") @db.Uuid
   points         Int      @default(0)
-  tier           String   @default("bronze") // bronze, silver, gold, platinum
+  tier           String   @default("bronze")
   lifetimePoints Int      @default(0) @map("lifetime_points")
   lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamp(6)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tier], map: "idx_user_loyalty_tier")
@@ -935,13 +965,15 @@ model UserLoyalty {
 }
 
 model LoyaltyTransaction {
-  id        String   @id @default(cuid())
+  // Align id to UUID per request
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
-  type      String // earned, redeemed
+  type      String
   points    Int
-  reason    String // watch_time, referral, daily_login, purchase, reward_redemption, etc.
+  reason    String
   metadata  Json?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt], map: "idx_loyalty_transactions_user_created")
@@ -951,19 +983,20 @@ model LoyaltyTransaction {
 }
 
 model Reward {
-  id          String    @id @default(cuid())
+  // Align id to UUID per request
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String
   description String    @db.Text
   pointsCost  Int       @map("points_cost")
-  type        String // discount, badge, feature_unlock, content_access
-  value       Json // Discount percentage, badge image, feature name, content ID, etc.
+  type        String
+  value       Json
   isActive    Boolean   @default(true) @map("is_active")
-  stock       Int? // Null = unlimited
+  stock       Int?
   imageUrl    String?   @map("image_url")
-  category    String? // discount, badge, feature, content
+  category    String?
   expiresAt   DateTime? @map("expires_at") @db.Timestamp(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
 
   @@index([isActive, pointsCost], map: "idx_rewards_active_cost")
   @@index([type], map: "idx_rewards_type")
@@ -972,10 +1005,11 @@ model Reward {
 }
 
 model AnalyticsEvent {
-  id        String   @id @default(cuid())
+  // Align id to UUID per request
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String?  @map("user_id") @db.Uuid
   sessionId String   @map("session_id")
-  eventType String   @map("event_type") // page_view, video_play, search, click, purchase, etc.
+  eventType String   @map("event_type")
   eventData Json     @map("event_data")
   device    String
   browser   String
@@ -984,6 +1018,7 @@ model AnalyticsEvent {
   city      String?
   referrer  String?
   timestamp DateTime @default(now()) @db.Timestamp(6)
+
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, timestamp], map: "idx_analytics_events_user_timestamp")
@@ -999,12 +1034,12 @@ model DailyStats {
   activeUsers        Int      @default(0) @map("active_users")
   newUsers           Int      @default(0) @map("new_users")
   totalViews         Int      @default(0) @map("total_views")
-  totalWatchTime     Int      @default(0) @map("total_watch_time") // seconds
-  avgSessionDuration Int      @default(0) @map("avg_session_duration") // seconds
-  topContent         Json?    @map("top_content") // [{contentId, views, watchTime}]
+  totalWatchTime     Int      @default(0) @map("total_watch_time")
+  avgSessionDuration Int      @default(0) @map("avg_session_duration")
+  topContent         Json?    @map("top_content")
   topCategories      Json?    @map("top_categories")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   @@index([date], map: "idx_daily_stats_date")
   @@map("daily_stats")
@@ -1014,13 +1049,14 @@ model Affiliate {
   id             String     @id @default(cuid())
   userId         String     @unique @map("user_id") @db.Uuid
   code           String     @unique
-  status         String     @default("pending") // pending, approved, suspended
-  commissionRate Decimal    @default(10) @map("commission_rate") @db.Decimal(5, 2) // percentage
+  status         String     @default("pending")
+  commissionRate Decimal    @default(10) @map("commission_rate") @db.Decimal(5, 2)
   totalReferrals Int        @default(0) @map("total_referrals")
   totalEarnings  Decimal    @default(0) @map("total_earnings") @db.Decimal(10, 2)
   pendingPayout  Decimal    @default(0) @map("pending_payout") @db.Decimal(10, 2)
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt      DateTime   @default(now()) @map("updated_at") @db.Timestamp(6)
+
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   referrals      Referral[]
 
@@ -1033,11 +1069,12 @@ model Referral {
   id               String    @id @default(cuid())
   affiliateId      String    @map("affiliate_id")
   referredUserId   String    @map("referred_user_id") @db.Uuid
-  status           String    @default("pending") // pending, converted, paid
+  status           String    @default("pending")
   commissionAmount Decimal?  @map("commission_amount") @db.Decimal(10, 2)
   conversionDate   DateTime? @map("conversion_date") @db.Timestamp(6)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
   affiliate        Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
   referredUser     User      @relation(fields: [referredUserId], references: [id], onDelete: Cascade)
 
@@ -1053,12 +1090,12 @@ model EmailQueue {
   subject   String
   template  String
   data      Json
-  status    String    @default("pending") // pending, sent, failed
+  status    String    @default("pending")
   sentAt    DateTime? @map("sent_at") @db.Timestamp(6)
   error     String?
   attempts  Int       @default(0)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
 
   @@index([status, createdAt], map: "idx_email_queue_status_created")
   @@index([to], map: "idx_email_queue_to")
@@ -1066,14 +1103,16 @@ model EmailQueue {
 }
 
 model NotificationPreferences {
-  userId          String   @unique @map("user_id") @db.Uuid
+  // userId is primary key per your request
+  userId          String   @id @map("user_id") @db.Uuid
   email           Json     @default("{\"newUpload\": true, \"likes\": true, \"comments\": true, \"tips\": true, \"milestones\": true, \"system\": true}")
   push            Json     @default("{\"newUpload\": true, \"likes\": true, \"comments\": true, \"tips\": true, \"milestones\": true, \"system\": true}")
   inApp           Json     @default("{\"newUpload\": true, \"likes\": true, \"comments\": true, \"tips\": true, \"milestones\": true, \"system\": true}")
-  frequency       String   @default("instant") // instant, daily, weekly, never
+  frequency       String   @default("instant")
   unsubscribedAll Boolean  @default(false) @map("unsubscribed_all")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
@@ -1083,11 +1122,12 @@ model PushSubscription {
   id        String   @id @default(cuid())
   userId    String   @map("user_id") @db.Uuid
   endpoint  String
-  keys      Json // { p256dh, auth }
+  keys      Json
   userAgent String?  @map("user_agent")
   device    String?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, endpoint], map: "push_subscriptions_user_endpoint")
@@ -1098,15 +1138,16 @@ model PushSubscription {
 model Feedback {
   id         String   @id @default(cuid())
   userId     String?  @map("user_id") @db.Uuid
-  type       String // bug_report, feature_request, general_feedback
+  type       String
   message    String   @db.Text
-  screenshot String? // URL to uploaded screenshot
-  url        String? // URL where feedback was submitted
+  screenshot String?
+  url        String?
   userAgent  String?  @map("user_agent")
-  status     String   @default("new") // new, in_progress, resolved, won't_fix
-  metadata   Json? // Additional context (browser, device, etc.)
+  status     String   @default("new")
+  metadata   Json?
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt], map: "idx_feedback_user_created")
@@ -1120,15 +1161,16 @@ model Experiment {
   name        String
   description String?
   hypothesis  String
-  variants    Json // [{name: 'control', weight: 50}, {name: 'variant_a', weight: 50}]
-  metrics     Json // ['conversion_rate', 'watch_time', 'retention']
-  status      String                 @default("draft") // draft, running, paused, completed
+  variants    Json
+  metrics     Json
+  status      String                 @default("draft")
   startDate   DateTime?              @map("start_date") @db.Timestamp(6)
   endDate     DateTime?              @map("end_date") @db.Timestamp(6)
   results     Json?
   winner      String?
   createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt   DateTime               @default(now()) @map("updated_at") @db.Timestamp(6)
+
   assignments ExperimentAssignment[]
 
   @@index([status], map: "idx_experiments_status")
@@ -1141,6 +1183,7 @@ model ExperimentAssignment {
   experimentId String     @map("experiment_id")
   variant      String
   assignedAt   DateTime   @default(now()) @map("assigned_at") @db.Timestamp(6)
+
   experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, experimentId], map: "experiment_assignments_user_experiment_unique")
@@ -1155,9 +1198,9 @@ model FeatureFlag {
   name              String
   description       String?
   enabled           Boolean  @default(false)
-  rolloutPercentage Int      @default(0) // 0-100
-  targetUsers       String[] @default([]) // Specific user IDs
-  targetRoles       String[] @default([]) // User roles
+  rolloutPercentage Int      @default(0)
+  targetUsers       String[] @default([]) @db.Uuid
+  targetRoles       String[] @default([])
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 
@@ -1174,7 +1217,8 @@ model SavedSearch {
   name        String?
   notifyOnNew Boolean  @default(false) @map("notify_on_new")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "idx_saved_searches_user")
@@ -1189,9 +1233,10 @@ model SearchHistory {
   query         String
   resultsCount  Int      @default(0) @map("results_count")
   clickedResult String?  @map("clicked_result") @db.Uuid
-  timeToClick   Int?     @map("time_to_click") // milliseconds
+  timeToClick   Int?     @map("time_to_click")
   filters       Json     @default("{}")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
   user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt], map: "idx_search_history_user_created")
@@ -1203,43 +1248,43 @@ model SearchHistory {
 
 model Tip {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  from_user_id  String   @db.Uuid
-  to_creator_id String   @db.Uuid
+  fromUserId    String   @map("from_user_id") @db.Uuid
+  toCreatorId   String   @map("to_creator_id") @db.Uuid
   amount        Decimal  @db.Decimal(10, 2)
   currency      String   @default("INR")
   message       String?
-  is_anonymous  Boolean  @default(false)
-  status        String   @default("pending") // pending, completed, failed, refunded
-  transaction_id String?
+  isAnonymous   Boolean  @default(false) @map("is_anonymous")
+  status        String   @default("pending")
+  transactionId String?  @map("transaction_id")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  from_user    User     @relation("TipsGiven", fields: [from_user_id], references: [id], onDelete: Cascade)
-  to_creator   Creator  @relation(fields: [to_creator_id], references: [id], onDelete: Cascade)
+  fromUser  User    @relation("TipsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toCreator Creator @relation(fields: [toCreatorId], references: [id], onDelete: Cascade)
 
-  @@index([from_user_id], map: "idx_tips_from_user")
-  @@index([to_creator_id], map: "idx_tips_to_creator")
+  @@index([fromUserId], map: "idx_tips_from_user")
+  @@index([toCreatorId], map: "idx_tips_to_creator")
   @@index([status], map: "idx_tips_status")
   @@index([createdAt], map: "idx_tips_created")
   @@map("tips")
 }
 
 model Download {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  contentId   String    @map("content_id") @db.Uuid
-  quality     String    @default("auto") // auto, 1080p, 720p, 480p, 360p
-  fileSize    BigInt?   @map("file_size") // in bytes
-  filePath    String?   @map("file_path") // Local storage path or CDN URL
-  expiresAt   DateTime  @map("expires_at") @db.Timestamp(6)
-  status      String    @default("pending") // pending, downloading, completed, failed, expired, cancelled
-  progress    Int       @default(0) // 0-100
-  error       String?
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  
-  user        User      @relation("Downloads", fields: [userId], references: [id], onDelete: Cascade)
-  content     Content   @relation("Downloads", fields: [contentId], references: [id], onDelete: Cascade)
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  contentId String   @map("content_id") @db.Uuid
+  quality   String   @default("auto")
+  fileSize  BigInt?  @map("file_size")
+  filePath  String?  @map("file_path")
+  expiresAt DateTime @map("expires_at") @db.Timestamp(6)
+  status    String   @default("pending")
+  progress  Int      @default(0)
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  user    User    @relation("Downloads", fields: [userId], references: [id], onDelete: Cascade)
+  content Content @relation("Downloads", fields: [contentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId], map: "downloads_unique")
   @@index([userId, status], map: "idx_downloads_user_status")
@@ -1247,4 +1292,464 @@ model Download {
   @@index([status], map: "idx_downloads_status")
   @@index([expiresAt], map: "idx_downloads_expires")
   @@map("downloads")
+}
+
+model InteractiveElement {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId String    @map("content_id") @db.Uuid
+  type      String
+  timestamp Int
+  data      Json
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  content   Content               @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  responses InteractiveResponse[]
+
+  @@index([contentId, timestamp], map: "idx_interactive_element_content_timestamp")
+  @@index([contentId], map: "idx_interactive_element_content")
+  @@index([type], map: "idx_interactive_element_type")
+  @@map("interactive_elements")
+}
+
+model InteractiveResponse {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  elementId String    @map("element_id") @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  response  Json
+  timestamp DateTime? @default(now()) @map("timestamp") @db.Timestamp(6)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  element   InteractiveElement @relation(fields: [elementId], references: [id], onDelete: Cascade)
+  user      User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([elementId, userId], map: "idx_interactive_response_element_user")
+  @@index([elementId], map: "idx_interactive_response_element")
+  @@index([userId], map: "idx_interactive_response_user")
+  @@index([timestamp], map: "idx_interactive_response_timestamp")
+  @@map("interactive_responses")
+}
+
+model Series {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String
+  description   String?
+  coverImage    String?   @map("cover_image")
+  creatorId     String    @map("creator_id") @db.Uuid
+  categoryId    String?   @map("category_id") @db.Uuid
+  followers     Int       @default(0)
+  totalEpisodes Int       @default(0) @map("total_episodes")
+  status        String    @default("ongoing")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  creator       Creator        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  seasons       Season[]
+  seriesFollows SeriesFollow[]
+
+  @@index([creatorId, status], map: "idx_series_creator_status")
+  @@index([status], map: "idx_series_status")
+  @@index([categoryId], map: "idx_series_category")
+  @@map("series")
+}
+
+model Season {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seriesId     String    @map("series_id") @db.Uuid
+  seasonNumber Int       @map("season_number")
+  title        String?
+  description  String?
+  coverImage   String?   @map("cover_image")
+  releaseDate  DateTime? @map("release_date") @db.Timestamp(6)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  series   Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  episodes Episode[]
+
+  @@unique([seriesId, seasonNumber], map: "series_seasons_unique")
+  @@index([seriesId], map: "idx_seasons_series")
+  @@index([seriesId, seasonNumber], map: "idx_seasons_series_number")
+  @@map("seasons")
+}
+
+model Episode {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId      String    @map("season_id") @db.Uuid
+  contentId     String    @unique @map("content_id") @db.Uuid
+  episodeNumber Int       @map("episode_number")
+  title         String
+  description   String?
+  duration      Int?
+  releaseDate   DateTime? @map("release_date") @db.Timestamp(6)
+  isPublished   Boolean?  @default(false) @map("is_published")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  season  Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, episodeNumber], map: "season_episodes_unique")
+  @@index([seasonId], map: "idx_episodes_season")
+  @@index([seasonId, episodeNumber], map: "idx_episodes_season_number")
+  @@index([contentId], map: "idx_episodes_content")
+  @@index([isPublished], map: "idx_episodes_published")
+  @@map("episodes")
+}
+
+model SeriesFollow {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  seriesId  String    @map("series_id") @db.Uuid
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seriesId], map: "series_follows_unique")
+  @@index([userId], map: "idx_series_follows_user")
+  @@index([seriesId], map: "idx_series_follows_series")
+  @@map("series_follows")
+}
+
+model PricingRule {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  type       String
+  conditions Json
+  discount   Decimal   @db.Decimal(10, 2)
+  priority   Int       @default(0)
+  isActive   Boolean   @default(true) @map("is_active")
+  startDate  DateTime? @map("start_date") @db.Timestamp(6)
+  endDate    DateTime? @map("end_date") @db.Timestamp(6)
+  usageCount Int       @default(0) @map("usage_count")
+  usageLimit Int?      @map("usage_limit")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([isActive, priority], map: "idx_pricing_rules_active_priority")
+  @@index([type], map: "idx_pricing_rules_type")
+  @@index([startDate, endDate], map: "idx_pricing_rules_dates")
+  @@map("pricing_rules")
+}
+
+model PromoCode {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code               String    @unique
+  description        String?
+  discountType       String    @map("discount_type")
+  discountValue      Decimal   @map("discount_value") @db.Decimal(10, 2)
+  minPurchase        Decimal?  @map("min_purchase") @db.Decimal(10, 2)
+  maxUses            Int?      @map("max_uses")
+  usedCount          Int       @default(0) @map("used_count")
+  validFrom          DateTime  @map("valid_from") @db.Timestamp(6)
+  validUntil         DateTime  @map("valid_until") @db.Timestamp(6)
+  applicableProducts String[]  @map("applicable_products")
+  createdBy          String    @map("created_by") @db.Uuid
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([code, isActive], map: "idx_promo_codes_code_active")
+  @@index([validFrom, validUntil], map: "idx_promo_codes_validity")
+  @@index([isActive], map: "idx_promo_codes_active")
+  @@map("promo_codes")
+}
+
+model FlashSale {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId       String?   @map("product_id") @db.Uuid
+  productType     String    @map("product_type")
+  title           String
+  description     String?
+  discountPercent Int       @map("discount_percent")
+  stock           Int
+  sold            Int       @default(0)
+  startTime       DateTime  @map("start_time") @db.Timestamp(6)
+  endTime         DateTime  @map("end_time") @db.Timestamp(6)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([startTime, endTime, isActive], map: "idx_flash_sales_times_active")
+  @@index([isActive], map: "idx_flash_sales_active")
+  @@index([productId], map: "idx_flash_sales_product")
+  @@map("flash_sales")
+}
+
+model SubscriptionPause {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId String    @map("subscription_id") @db.Uuid
+  pausedAt       DateTime? @default(now()) @map("paused_at") @db.Timestamp(6)
+  resumeAt       DateTime  @map("resume_at") @db.Timestamp(6)
+  reason         String?
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  subscription   UserSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, resumeAt], map: "idx_subscription_pause_sub_resume")
+  @@index([subscriptionId], map: "idx_subscription_pause_sub")
+  @@map("subscription_pauses")
+}
+
+model ChurnPrediction {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @unique @map("user_id") @db.Uuid
+  churnProbability Decimal   @map("churn_probability") @db.Decimal(5, 4)
+  riskFactors      Json      @map("risk_factors")
+  lastCalculated   DateTime? @default(now()) @map("last_calculated") @db.Timestamp(6)
+  interventionSent Boolean   @default(false) @map("intervention_sent")
+  createdAt        DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([churnProbability, interventionSent], map: "idx_churn_prediction_prob_intervention")
+  @@index([userId], map: "idx_churn_prediction_user")
+  @@index([interventionSent], map: "idx_churn_prediction_intervention")
+  @@map("churn_predictions")
+}
+
+model RetentionCampaign {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  campaignType   String    @map("campaign_type")
+  emailSent      Boolean   @default(false) @map("email_sent")
+  emailSentAt    DateTime? @map("email_sent_at") @db.Timestamp(6)
+  emailOpened    Boolean   @default(false) @map("email_opened")
+  emailOpenedAt  DateTime? @map("email_opened_at") @db.Timestamp(6)
+  userReturned   Boolean   @default(false) @map("user_returned")
+  userReturnedAt DateTime? @map("user_returned_at") @db.Timestamp(6)
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_retention_campaigns_user")
+  @@index([campaignType], map: "idx_retention_campaigns_type")
+  @@index([emailSent], map: "idx_retention_campaigns_sent")
+  @@index([userReturned], map: "idx_retention_campaigns_returned")
+  @@map("retention_campaigns")
+}
+
+model UserCohort {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String    @unique
+  definition    Json
+  userIds       String[]  @map("user_ids") @db.Uuid
+  platform      String?
+  country       String?
+  planType      String?   @map("plan_type")
+  signupSource  String?   @map("signup_source")
+  autoGenerated Boolean   @default(false) @map("auto_generated")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  metrics CohortMetrics[]
+
+  @@index([name], map: "idx_user_cohorts_name")
+  @@index([platform], map: "idx_user_cohorts_platform")
+  @@index([country], map: "idx_user_cohorts_country")
+  @@index([planType], map: "idx_user_cohorts_plan_type")
+  @@index([signupSource], map: "idx_user_cohorts_signup_source")
+  @@map("user_cohorts")
+}
+
+model CohortMetrics {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cohortId     String    @map("cohort_id") @db.Uuid
+  date         DateTime  @db.Timestamp(6)
+  activeUsers  Int       @default(0) @map("active_users")
+  newUsers     Int       @default(0) @map("new_users")
+  churnedUsers Int       @default(0) @map("churned_users")
+  avgWatchTime Int       @default(0) @map("avg_watch_time")
+  avgRevenue   Decimal   @default(0) @map("avg_revenue") @db.Decimal(10, 2)
+  retention    Decimal   @default(0) @db.Decimal(5, 4)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  cohort UserCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, date], map: "cohort_metrics_cohort_date_unique")
+  @@index([cohortId, date], map: "idx_cohort_metrics_cohort_date")
+  @@index([date], map: "idx_cohort_metrics_date")
+  @@map("cohort_metrics")
+}
+
+model Funnel {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  steps       Json
+  createdBy   String    @map("created_by") @db.Uuid
+  isActive    Boolean   @default(true) @map("is_active")
+  template    String?
+  variant     String?   @default("control")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  results FunnelResult[]
+
+  @@index([createdBy], map: "idx_funnels_created_by")
+  @@index([isActive], map: "idx_funnels_active")
+  @@map("funnels")
+}
+
+model FunnelResult {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  funnelId       String   @map("funnel_id") @db.Uuid
+  stepIndex      Int      @map("step_index")
+  stepName       String   @map("step_name")
+  eventName      String   @map("event_name")
+  userCount      Int      @default(0) @map("user_count")
+  conversionRate Decimal  @default(0) @map("conversion_rate") @db.Decimal(5, 4)
+  dropoffRate    Decimal? @map("dropoff_rate") @db.Decimal(5, 4)
+  date           DateTime @default(now()) @db.Timestamp(6)
+  segment        String?
+  metadata       Json?
+
+  funnel Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  @@index([funnelId, stepIndex], map: "idx_funnel_results_funnel_step")
+  @@index([funnelId, date], map: "idx_funnel_results_funnel_date")
+  @@index([date], map: "idx_funnel_results_date")
+  @@map("funnel_results")
+}
+
+model ContentRestriction {
+  id        String   @id @default(cuid())
+  contentId String   @map("content_id") @db.Uuid
+  type      String
+  countries String[]
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, type], map: "content_restrictions_unique")
+  @@index([contentId], map: "idx_content_restrictions_content")
+  @@index([type], map: "idx_content_restrictions_type")
+  @@map("content_restrictions")
+}
+
+model RegionalContent {
+  id              String   @id @default(cuid())
+  categoryId      String?  @map("category_id") @db.Uuid
+  region          String
+  featuredContent String[] @map("featured_content") @db.Uuid
+  trendingContent String[] @map("trending_content") @db.Uuid
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, region], map: "regional_content_unique")
+  @@index([region], map: "idx_regional_content_region")
+  @@index([categoryId], map: "idx_regional_content_category")
+  @@map("regional_content")
+}
+
+model MultiAngleContent {
+  id              String   @id @default(cuid())
+  contentId       String   @unique @map("content_id") @db.Uuid
+  mainAngle       String   @map("main_angle")
+  alternateAngles Json     @map("alternate_angles")
+  allowSwitching  Boolean  @default(true) @map("allow_switching")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([contentId], map: "idx_multi_angle_content")
+  @@map("multi_angle_content")
+}
+
+model ContentVersion {
+  id           String    @id @default(cuid())
+  contentId    String    @map("content_id") @db.Uuid
+  version      Int
+  videoUrl     String    @map("video_url")
+  thumbnailUrl String    @map("thumbnail_url")
+  title        String
+  description  String?
+  changes      String?
+  isPublished  Boolean   @default(false) @map("is_published")
+  publishedAt  DateTime? @map("published_at") @db.Timestamp(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@unique([contentId, version], map: "content_versions_unique")
+  @@index([contentId, isPublished], map: "idx_content_versions_content_published")
+  @@index([contentId], map: "idx_content_versions_content")
+  @@map("content_versions")
+}
+
+model ContentExperiment {
+  id              String    @id @default(cuid())
+  contentId       String    @map("content_id") @db.Uuid
+  variants        Json
+  status          String    @default("running")
+  startDate       DateTime  @default(now()) @map("start_date") @db.Timestamp(6)
+  endDate         DateTime? @map("end_date") @db.Timestamp(6)
+  winnerVersionId String?   @map("winner_version_id")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([contentId, status], map: "idx_content_experiments_content_status")
+  @@index([contentId], map: "idx_content_experiments_content")
+  @@index([status], map: "idx_content_experiments_status")
+  @@map("content_experiments")
+}
+
+model ContentReview {
+  id              String    @id @default(cuid())
+  contentId       String    @map("content_id") @db.Uuid
+  reviewerId      String    @map("reviewer_id") @db.Uuid
+  status          String    @default("pending")
+  overallFeedback String?   @map("overall_feedback") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamp(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  comments ContentReviewComment[]
+
+  @@index([contentId, status], map: "idx_content_reviews_content_status")
+  @@index([contentId], map: "idx_content_reviews_content")
+  @@index([reviewerId], map: "idx_content_reviews_reviewer")
+  @@index([status], map: "idx_content_reviews_status")
+  @@map("content_reviews")
+}
+
+model ContentReviewComment {
+  id        String   @id @default(cuid())
+  reviewId  String   @map("review_id")
+  timestamp Int
+  comment   String   @db.Text
+  type      String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  review ContentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, timestamp], map: "idx_content_review_comments_review_timestamp")
+  @@index([reviewId], map: "idx_content_review_comments_review")
+  @@index([resolved], map: "idx_content_review_comments_resolved")
+  @@map("content_review_comments")
+}
+
+model Translation {
+  id           String   @id @default(cuid())
+  entityType   String   @map("entity_type")
+  entityId     String   @map("entity_id")
+  language     String
+  field        String
+  value        String   @db.Text
+  translatedBy String   @map("translated_by")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@unique([entityType, entityId, language, field], map: "translations_unique")
+  @@index([entityType, entityId], map: "idx_translations_entity")
+  @@index([language], map: "idx_translations_language")
+  @@map("translations")
 }

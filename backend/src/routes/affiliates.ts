@@ -57,7 +57,7 @@ router.post(
       data: {
         userId,
         code,
-        status: 'pending',
+        status: 'PENDING',
         commissionRate: req.body.commissionRate ? new Decimal(req.body.commissionRate) : new Decimal(10),
       },
       select: {
@@ -179,7 +179,7 @@ router.get(
               id: true,
               email: true,
               username: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
             },
           },
@@ -241,7 +241,7 @@ router.get(
       prisma.referral.count({
         where: {
           affiliateId: affiliate.id,
-          status: 'pending',
+          status: 'PENDING',
         },
       }),
       prisma.referral.count({
@@ -306,7 +306,7 @@ router.get(
           select: {
             id: true,
             username: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
           },
         },
@@ -377,7 +377,7 @@ router.post(
       data: {
         affiliateId: affiliate.id,
         referredUserId,
-        status: 'pending',
+        status: 'PENDING',
       },
     });
 

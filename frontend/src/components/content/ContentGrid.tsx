@@ -16,12 +16,12 @@ interface ContentGridProps {
   onToggle?: (contentId: string) => void;
 }
 
-export function ContentGrid({ 
-  content, 
-  variant = 'default', 
+export function ContentGrid({
+  content,
+  variant = 'default',
   columns = 4,
-  isLoading = false,
-  skeletonCount = 8,
+  isLoading: _isLoading = false,
+  skeletonCount: _skeletonCount = 8,
   selectable = false,
   selected = [],
   onToggle

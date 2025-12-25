@@ -249,7 +249,7 @@ export async function awardDailyLogin(userId: string): Promise<{ awarded: boolea
 }
 
 // Get tier benefits for a user
-export function getTierBenefits(tier: keyof typeof TIERS): string[] {
+export function getTierBenefits(tier: keyof typeof TIERS): readonly string[] {
   return TIERS[tier].benefits;
 }
 

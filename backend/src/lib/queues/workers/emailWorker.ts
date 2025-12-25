@@ -19,7 +19,7 @@ export interface EmailJob {
  * Create email worker
  */
 export function createEmailWorker() {
-  if (!env.REDIS_URL) {
+  if (!env.REDIS_URL || !redis) {
     console.warn('⚠️  Redis not available. Email worker will not be created.');
     return null;
   }
@@ -35,7 +35,7 @@ export function createEmailWorker() {
         where: {
           to: job.data.to,
           template: job.data.template,
-          status: 'pending',
+          status: 'PENDING',
         },
         orderBy: { createdAt: 'asc' },
         take: 1,
@@ -52,7 +52,7 @@ export function createEmailWorker() {
             subject: job.data.subject,
             template: job.data.template,
             data: job.data.data,
-            status: 'pending',
+            status: 'PENDING',
           },
         });
         await processEmailQueue(email.id);

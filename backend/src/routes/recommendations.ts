@@ -17,6 +17,7 @@ import {
   trackContentLike,
   getSessionBehavior,
 } from '../lib/recommendations/sessionTracking';
+import { getUserAge } from '../lib/auth/ageVerification';
 
 const router = Router();
 
@@ -105,9 +106,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -161,8 +162,8 @@ router.get(
       if (b._score !== a._score) {
         return b._score - a._score;
       }
-      if (b.viewCount !== a.viewCount) {
-        return b.viewCount - a.viewCount;
+      if ((b.viewCount || 0) !== (a.viewCount || 0)) {
+        return (b.viewCount || 0) - (a.viewCount || 0);
       }
       return 0; // Could add rating comparison here if available
     });
@@ -179,13 +180,13 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.viewCount,
       likes: item.likeCount,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.display_name,
+        name: item.creator.displayName,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.is_verified,
+        isVerified: item.creator.isVerified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -231,6 +232,33 @@ function mapContentType(type: string): 'video' | 'photo' | 'gallery' | 'vr' | 'l
     AUDIO: 'video', // Map audio to video for now
   };
   return typeMap[type] || 'video';
+}
+
+/**
+ * Helper function to filter age-restricted content based on user's verified age
+ * Returns content with ageRestricted flag for UI handling
+ */
+async function filterAgeRestrictedContent<T extends { ageRestricted?: boolean; isNSFW?: boolean }>(
+  content: T[],
+  userId: string | undefined
+): Promise<{ content: T[]; userVerified: boolean }> {
+  // If user is not authenticated, filter out age-restricted content
+  if (!userId) {
+    const filtered = content.filter(item => !item.ageRestricted && !item.isNSFW);
+    return { content: filtered, userVerified: false };
+  }
+
+  // Check user's age verification status
+  const userAge = await getUserAge(userId);
+
+  // If user hasn't verified age or is under 18, filter out age-restricted content
+  if (userAge === null || userAge < 18) {
+    const filtered = content.filter(item => !item.ageRestricted && !item.isNSFW);
+    return { content: filtered, userVerified: false };
+  }
+
+  // User is verified 18+, return all content
+  return { content, userVerified: true };
 }
 
 /**
@@ -353,9 +381,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -383,13 +411,13 @@ router.get(
           duration: item.duration ? formatDuration(item.duration) : '0:00',
           views: item.viewCount,
           likes: item.likeCount,
-          createdAt: item.createdAt.toISOString(),
+          createdAt: (item.createdAt || new Date()).toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.display_name,
+            name: item.creator.displayName,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.is_verified,
+            isVerified: item.creator.isVerified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -426,9 +454,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -456,13 +484,13 @@ router.get(
           duration: item.duration ? formatDuration(item.duration) : '0:00',
           views: item.viewCount,
           likes: item.likeCount,
-          createdAt: item.createdAt.toISOString(),
+          createdAt: (item.createdAt || new Date()).toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.display_name,
+            name: item.creator.displayName,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.is_verified,
+            isVerified: item.creator.isVerified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -500,9 +528,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
-              is_verified: true,
+              isVerified: true,
             },
           },
           categories: {
@@ -539,7 +567,7 @@ router.get(
         if (b._score !== a._score) {
           return b._score - a._score;
         }
-        return b.viewCount - a.viewCount;
+        return (b.viewCount || 0) - (a.viewCount || 0);
       });
 
       // Take top results and remove score from response
@@ -554,13 +582,13 @@ router.get(
         duration: item.duration ? formatDuration(item.duration) : '0:00',
         views: item.viewCount,
         likes: item.likeCount,
-        createdAt: item.createdAt.toISOString(),
+        createdAt: (item.createdAt || new Date()).toISOString(),
         creator: {
           id: item.creator.id,
-          name: item.creator.display_name,
+          name: item.creator.displayName,
           username: item.creator.handle,
           avatar: item.creator.avatar || '',
-          isVerified: item.creator.is_verified,
+          isVerified: item.creator.isVerified,
           followers: 0,
           views: 0,
           contentCount: 0,
@@ -618,9 +646,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -669,13 +697,13 @@ router.get(
       duration: item.content.duration ? formatDuration(item.content.duration) : '0:00',
       views: item.content.viewCount,
       likes: item.content.likeCount,
-      createdAt: item.content.createdAt.toISOString(),
+      createdAt: (item.content.createdAt || new Date()).toISOString(),
       creator: {
         id: item.content.creator.id,
-        name: item.content.creator.display_name,
+        name: item.content.creator.displayName,
         username: item.content.creator.handle,
         avatar: item.content.creator.avatar || '',
-        isVerified: item.content.creator.is_verified,
+        isVerified: item.content.creator.isVerified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -721,11 +749,11 @@ router.get(
     // Get creators user follows
     const followedCreators = await prisma.subscription.findMany({
       where: {
-        subscriber_id: userId,
+        subscriberId: userId,
         status: 'ACTIVE',
       },
       select: {
-        creator_id: true,
+        creatorId: true,
       },
     });
 
@@ -736,14 +764,14 @@ router.get(
       });
     }
 
-    const creatorIds = followedCreators.map(s => s.creator_id);
+    const creatorIds = followedCreators.map(s => s.creatorId);
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - daysSince);
 
     // Get new content from followed creators
     const newContent = await prisma.content.findMany({
       where: {
-        creator_id: { in: creatorIds },
+        creatorId: { in: creatorIds },
         status: 'PUBLISHED',
         isPublic: true,
         deletedAt: null,
@@ -756,9 +784,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -787,13 +815,13 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.viewCount,
       likes: item.likeCount,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.display_name,
+        name: item.creator.displayName,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.is_verified,
+        isVerified: item.creator.isVerified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -822,39 +850,45 @@ router.get(
   optionalAuth,
   userRateLimiter,
   asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
     const limit = parseInt(req.query.limit as string) || 20;
     const hours = parseInt(req.query.hours as string) || 24; // Last 24 hours
     const period = hours <= 24 ? 'today' : hours <= 168 ? 'week' : 'today';
 
     // Try cache first
-    const cachedTrending = await getCachedTrendingContent(period);
-    if (cachedTrending && cachedTrending.length > 0) {
-      // Transform cached results
-      const transformedResults = cachedTrending.slice(0, limit).map(item => ({
+    const cachedTrending = await getCachedTrendingContent(period) as any[];
+    if (cachedTrending && Array.isArray(cachedTrending) && cachedTrending.length > 0) {
+      // Filter age-restricted content based on user verification
+      const { content: filteredContent } = await filterAgeRestrictedContent(cachedTrending, userId);
+
+      // Transform cached results - handle both Date objects and string dates from cache
+      const transformedResults = filteredContent.slice(0, limit).map((item: any) => ({
         id: item.id,
         title: item.title,
         description: item.description || undefined,
         thumbnail: item.thumbnail || '',
         duration: item.duration ? formatDuration(item.duration) : '0:00',
-        views: item.viewCount,
-        likes: item.likeCount,
-        createdAt: item.createdAt.toISOString(),
-        creator: {
+        views: item.viewCount ?? 0,
+        likes: item.likeCount ?? 0,
+        createdAt: item.createdAt instanceof Date
+          ? (item.createdAt || new Date()).toISOString()
+          : (typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()),
+        creator: item.creator ? {
           id: item.creator.id,
-          name: item.creator.display_name,
-          username: item.creator.handle,
+          name: item.creator.displayName || item.creator.displayName || '',
+          username: item.creator.handle || item.creator.username || '',
           avatar: item.creator.avatar || '',
-          isVerified: item.creator.is_verified,
+          isVerified: item.creator.isVerified ?? item.creator.isVerified ?? false,
           followers: 0,
           views: 0,
           contentCount: 0,
           bio: '',
-        },
+        } : { id: '', name: 'Unknown', username: '', avatar: '', isVerified: false, followers: 0, views: 0, contentCount: 0, bio: '' },
         type: mapContentType(item.type),
         quality: item.resolution ? [item.resolution] : [],
-        tags: item.tags.map((t: any) => t.tag.name),
-        category: item.categories[0]?.category.name || 'Uncategorized',
-        isPremium: item.isPremium,
+        tags: Array.isArray(item.tags) ? item.tags.map((t: any) => t?.tag?.name || t?.name || '').filter(Boolean) : [],
+        category: item.categories?.[0]?.category?.name || 'Uncategorized',
+        isPremium: item.isPremium ?? false,
       }));
 
       return res.json({
@@ -882,9 +916,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -902,11 +936,15 @@ router.get(
     });
 
     // Calculate trending scores and sort
-    const scoredContent = trendingContent.map(content => ({
+    // Filter age-restricted content based on user verification
+    const filterResult = await filterAgeRestrictedContent(trendingContent as any, userId);
+    const filteredTrending = filterResult.content as typeof trendingContent;
+
+    const scoredContent = filteredTrending.map(content => ({
       ...content,
       _trendingScore: calculateTrendingScore({
-        viewCount: content.viewCount,
-        likeCount: content.likeCount,
+        viewCount: content.viewCount ?? 0,
+        likeCount: content.likeCount ?? 0,
         publishedAt: content.publishedAt,
       }),
     }));
@@ -923,13 +961,13 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.viewCount,
       likes: item.likeCount,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.display_name,
+        name: item.creator.displayName,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.is_verified,
+        isVerified: item.creator.isVerified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -985,9 +1023,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
-              is_verified: true,
+              isVerified: true,
             },
           },
           categories: {
@@ -1015,13 +1053,13 @@ router.get(
         duration: item.duration ? formatDuration(item.duration) : '0:00',
         views: item.viewCount,
         likes: item.likeCount,
-        createdAt: item.createdAt.toISOString(),
+        createdAt: (item.createdAt || new Date()).toISOString(),
         creator: {
           id: item.creator.id,
-          name: item.creator.display_name,
+          name: item.creator.displayName,
           username: item.creator.handle,
           avatar: item.creator.avatar || '',
-          isVerified: item.creator.is_verified,
+          isVerified: item.creator.isVerified,
           followers: 0,
           views: 0,
           contentCount: 0,
@@ -1072,9 +1110,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -1114,13 +1152,13 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.viewCount,
       likes: item.likeCount,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.display_name,
+        name: item.creator.displayName,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.is_verified,
+        isVerified: item.creator.isVerified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -1164,9 +1202,9 @@ router.get(
             select: {
               id: true,
               handle: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
-              is_verified: true,
+              isVerified: true,
             },
           },
           categories: {
@@ -1183,10 +1221,14 @@ router.get(
         orderBy: {
           viewCount: 'desc',
         },
-        take: limit,
+        take: limit * 2, // Get extra to account for filtering
       });
 
-      const transformedResults = trendingContent.map(item => ({
+      // Filter age-restricted content for unauthenticated users
+      const filterResult2 = await filterAgeRestrictedContent(trendingContent as any, undefined);
+      const filteredTrending = filterResult2.content as typeof trendingContent;
+
+      const transformedResults = filteredTrending.slice(0, limit).map(item => ({
         id: item.id,
         title: item.title,
         description: item.description || undefined,
@@ -1194,13 +1236,13 @@ router.get(
         duration: item.duration ? formatDuration(item.duration) : '0:00',
         views: item.viewCount,
         likes: item.likeCount,
-        createdAt: item.createdAt.toISOString(),
+        createdAt: (item.createdAt || new Date()).toISOString(),
         creator: {
           id: item.creator.id,
-          name: item.creator.display_name,
+          name: item.creator.displayName,
           username: item.creator.handle,
           avatar: item.creator.avatar || '',
-          isVerified: item.creator.is_verified,
+          isVerified: item.creator.isVerified,
         },
         type: mapContentType(item.type),
         quality: item.resolution ? [item.resolution] : [],
@@ -1218,13 +1260,17 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 20;
 
     try {
+      // Check user age verification for filtering
+      const userAge = await getUserAge(userId);
+      const canViewAgeRestricted = userAge !== null && userAge >= 18;
+
       // Get collaborative filtering recommendations (50%)
       const collaborativeLimit = Math.floor(limit / 2);
       const userHistory = await getWatchHistory(userId, 100);
-      const similarUsers = userHistory.length > 0 
+      const similarUsers = userHistory.length > 0
         ? await findSimilarUsers(userHistory, userId, 0.1, 50)
         : [];
-      
+
       let collaborativeContent: any[] = [];
       if (similarUsers.length > 0) {
         const recommendations = await prisma.content.findMany({
@@ -1233,6 +1279,11 @@ router.get(
             isPublic: true,
             deletedAt: null,
             id: { notIn: userHistory },
+            // Filter out age-restricted content if user is not verified
+            ...(canViewAgeRestricted ? {} : {
+              ageRestricted: false,
+              isNSFW: false,
+            }),
             views: {
               some: {
                 userId: { in: similarUsers },
@@ -1244,9 +1295,9 @@ router.get(
               select: {
                 id: true,
                 handle: true,
-                display_name: true,
+                displayName: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             categories: {
@@ -1274,13 +1325,13 @@ router.get(
           duration: item.duration ? formatDuration(item.duration) : '0:00',
           views: item.viewCount,
           likes: item.likeCount,
-          createdAt: item.createdAt.toISOString(),
+          createdAt: (item.createdAt || new Date()).toISOString(),
           creator: {
             id: item.creator.id,
-            name: item.creator.display_name,
+            name: item.creator.displayName,
             username: item.creator.handle,
             avatar: item.creator.avatar || '',
-            isVerified: item.creator.is_verified,
+            isVerified: item.creator.isVerified,
             followers: 0,
             views: 0,
             contentCount: 0,
@@ -1321,6 +1372,11 @@ router.get(
               status: 'PUBLISHED',
               isPublic: true,
               deletedAt: null,
+              // Filter out age-restricted content if user is not verified
+              ...(canViewAgeRestricted ? {} : {
+                ageRestricted: false,
+                isNSFW: false,
+              }),
               OR: [
                 { categories: { some: { categoryId: { in: categoryIds } } } },
                 { tags: { some: { tagId: { in: tagIds } } } },
@@ -1332,9 +1388,9 @@ router.get(
                 select: {
                   id: true,
                   handle: true,
-                  display_name: true,
+                  displayName: true,
                   avatar: true,
-                  is_verified: true,
+                  isVerified: true,
                 },
               },
               categories: {
@@ -1362,13 +1418,13 @@ router.get(
             duration: item.duration ? formatDuration(item.duration) : '0:00',
             views: item.viewCount,
             likes: item.likeCount,
-            createdAt: item.createdAt.toISOString(),
+            createdAt: (item.createdAt || new Date()).toISOString(),
             creator: {
               id: item.creator.id,
-              name: item.creator.display_name,
+              name: item.creator.displayName,
               username: item.creator.handle,
               avatar: item.creator.avatar || '',
-              isVerified: item.creator.is_verified,
+              isVerified: item.creator.isVerified,
               followers: 0,
               views: 0,
               contentCount: 0,
@@ -1488,9 +1544,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {
@@ -1518,13 +1574,13 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.viewCount,
       likes: item.likeCount,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
-        name: item.creator.display_name,
+        name: item.creator.displayName,
         username: item.creator.handle,
         avatar: item.creator.avatar || '',
-        isVerified: item.creator.is_verified,
+        isVerified: item.creator.isVerified,
         followers: 0,
         views: 0,
         contentCount: 0,
@@ -1644,9 +1700,9 @@ router.get(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: { include: { category: true } },
@@ -1667,10 +1723,10 @@ router.get(
       createdAt: item.createdAt,
       creator: {
         id: item.creator.id,
-        name: item.creator.display_name,
+        name: item.creator.displayName,
         username: item.creator.handle,
         avatar: item.creator.avatar || undefined,
-        isVerified: item.creator.is_verified || false,
+        isVerified: item.creator.isVerified || false,
       },
       type: mapContentType(item.type),
       quality: item.resolution ? [item.resolution] : [],
@@ -1680,7 +1736,7 @@ router.get(
       baseScore: item.viewCount || 0,
     }));
 
-    const balanced = balanceRecommendations(recommendations, exploreTransformed, limit);
+    const balanced = balanceRecommendations(recommendations, exploreTransformed as any, limit);
 
     // Transform to match frontend format
     const transformedResults = balanced.map(item => ({
@@ -1691,7 +1747,7 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.views,
       likes: item.likes,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
         name: item.creator.name,
@@ -1828,7 +1884,7 @@ router.get(
         duration: item.duration ? formatDuration(item.duration) : '0:00',
         views: item.views,
         likes: item.likes,
-        createdAt: item.createdAt.toISOString(),
+        createdAt: (item.createdAt || new Date()).toISOString(),
         creator: {
           id: item.creator.id,
           name: item.creator.name,
@@ -1868,7 +1924,7 @@ router.get(
       duration: item.duration ? formatDuration(item.duration) : '0:00',
       views: item.views,
       likes: item.likes,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: (item.createdAt || new Date()).toISOString(),
       creator: {
         id: item.creator.id,
         name: item.creator.name,
@@ -1891,6 +1947,90 @@ router.get(
       success: true,
       data: transformedResults,
       isNewUser: true,
+    });
+  })
+);
+
+/**
+ * GET /api/recommendations/smart-homepage
+ * Smart Homepage Algorithm - Generates personalized homepage sections
+ */
+router.get(
+  '/smart-homepage',
+  optionalAuth,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId || null;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    // Get device from user agent
+    const userAgent = req.headers['user-agent'] || '';
+    const device: 'mobile' | 'tablet' | 'desktop' =
+      /Mobile/i.test(userAgent) ? 'mobile' :
+      /Tablet/i.test(userAgent) ? 'tablet' : 'desktop';
+
+    // Get connection speed estimate from headers (if available)
+    const connectionSpeed: 'slow' | 'medium' | 'fast' = 
+      (req.headers['save-data'] === 'on') ? 'slow' :
+      (req.headers['x-connection-speed'] as string) === 'fast' ? 'fast' :
+      (req.headers['x-connection-speed'] as string) === 'slow' ? 'slow' : 'medium';
+
+    // Get location from user preferences or IP (simplified)
+    const location = {
+      country: 'US', // TODO: Get from user preferences or IP geolocation
+      region: undefined,
+    };
+
+    // Import smart homepage service
+    const { generatePersonalizedHomepage } = await import('../lib/recommendations/smartHomepageService');
+    const { getUserContext } = await import('../lib/recommendations/userContextService');
+
+    // Build context
+    const context = await getUserContext(null, {
+      device,
+      connectionSpeed,
+      location,
+    });
+
+    // Generate homepage sections
+    const sections = await generatePersonalizedHomepage(userId, context);
+
+    // Transform sections to match frontend format
+    const transformedSections = sections.map(section => ({
+      type: section.type,
+      title: section.title,
+      description: section.description,
+      items: section.items.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        thumbnail: item.thumbnail || '',
+        duration: item.duration ? formatDuration(item.duration) : '0:00',
+        views: item.views || 0,
+        likes: item.likes || 0,
+        createdAt: item.createdAt instanceof Date ? (item.createdAt || new Date()).toISOString() : item.createdAt,
+        creator: {
+          id: item.creator.id,
+          name: item.creator.name,
+          username: item.creator.username,
+          avatar: item.creator.avatar || '',
+          isVerified: item.creator.isVerified || false,
+          followers: 0,
+          views: 0,
+          contentCount: 0,
+          bio: '',
+        },
+        type: item.type,
+        quality: item.quality || [],
+        tags: item.tags || [],
+        category: item.category || 'Uncategorized',
+        isPremium: item.isPremium || false,
+      })),
+    }));
+
+    res.json({
+      success: true,
+      data: transformedSections,
     });
   })
 );

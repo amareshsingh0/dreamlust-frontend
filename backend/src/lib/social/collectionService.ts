@@ -60,7 +60,7 @@ export async function getCollection(collectionId: string, userId?: string) {
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },
@@ -72,7 +72,7 @@ export async function getCollection(collectionId: string, userId?: string) {
                 select: {
                   id: true,
                   handle: true,
-                  display_name: true,
+                  displayName: true,
                   avatar: true,
                 },
               },
@@ -198,7 +198,7 @@ export async function getFeaturedCollections(limit: number = 10) {
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },
@@ -234,7 +234,7 @@ export async function getTrendingCollections(limit: number = 20) {
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },

@@ -112,6 +112,8 @@ export const EventTypes = {
   // Funnel event types
   VISIT_HOMEPAGE: 'visit_homepage',
   CLICK_SIGNUP: 'click_signup',
+  SIGNUP_STARTED: 'signup_started',
+  SIGNUP_COMPLETED: 'signup_completed',
   FILL_EMAIL: 'fill_email',
   VERIFY_EMAIL: 'verify_email',
   COMPLETE_PROFILE: 'complete_profile',
@@ -128,14 +130,19 @@ export const EventTypes = {
   ENABLE_NOTIFICATIONS: 'enable_notifications',
   SEND_TIP: 'send_tip',
   VIEW_PRICING: 'view_pricing',
+  SUBSCRIPTION_VIEWED: 'subscription_viewed',
   CLICK_SUBSCRIBE: 'click_subscribe',
   SELECT_PLAN: 'select_plan',
+  CHECKOUT_STARTED: 'checkout_started',
   ENTER_PAYMENT: 'enter_payment',
+  CHECKOUT_COMPLETED: 'checkout_completed',
   COMPLETE_PAYMENT: 'complete_payment',
   CLICK_UPLOAD: 'click_upload',
   SELECT_FILE: 'select_file',
   UPLOAD_PROGRESS: 'upload_progress',
   ADD_METADATA: 'add_metadata',
   PUBLISH_CONTENT: 'publish_content',
+  ACTIVATION_STARTED: 'activation_started',
+  ACTIVATION_COMPLETED: 'activation_completed',
 } as const;
 

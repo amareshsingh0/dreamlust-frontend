@@ -133,7 +133,7 @@ export async function queueEmailToSend(
       subject: subject || template.subject,
       template: templateName,
       data,
-      status: 'pending',
+      status: 'PENDING',
     },
   });
 
@@ -207,7 +207,7 @@ export async function processEmailQueue(emailId: string): Promise<void> {
     await prisma.emailQueue.update({
       where: { id: emailId },
       data: {
-        status: 'failed',
+        status: 'FAILED',
         error: error.message,
         attempts: { increment: 1 },
       },

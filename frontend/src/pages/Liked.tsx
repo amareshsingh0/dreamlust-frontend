@@ -32,7 +32,8 @@ const Liked = () => {
         const response = await api.content.getLiked({ page, limit: 20 });
         
         if (response.success && response.data) {
-          const content = response.data.content || [];
+          const data = response.data as { content: Content[] };
+          const content = data.content || [];
           setLikedContent(prev => page === 1 ? content : [...prev, ...content]);
           setHasMore(content.length === 20);
         } else {
@@ -71,7 +72,7 @@ const Liked = () => {
   return (
     <>
       <Helmet>
-        <title>Liked Content - Dreamlust</title>
+        <title>Liked Content - PassionFantasia</title>
         <meta name="description" content="Your liked content" />
       </Helmet>
       

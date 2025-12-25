@@ -47,3 +47,6 @@ backend/.env.local
 
 # Windows reserved names
 nul
+
+bun.lock
+bun.lockb

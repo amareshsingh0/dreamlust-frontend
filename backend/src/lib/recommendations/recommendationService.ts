@@ -156,9 +156,9 @@ async function getCollaborativeFiltering(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: { include: { category: true } },
@@ -204,9 +204,9 @@ async function getCollaborativeFiltering(
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: { include: { category: true } },
@@ -286,9 +286,9 @@ async function getContentBasedFiltering(
         select: {
           id: true,
           handle: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
-          is_verified: true,
+          isVerified: true,
         },
       },
       categories: { include: { category: true } },
@@ -321,9 +321,9 @@ async function getTrendingContent(limit: number): Promise<Content[]> {
         select: {
           id: true,
           handle: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
-          is_verified: true,
+          isVerified: true,
         },
       },
       categories: { include: { category: true } },
@@ -392,9 +392,9 @@ async function getDiverseContent(
         select: {
           id: true,
           handle: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
-          is_verified: true,
+          isVerified: true,
         },
       },
       categories: { include: { category: true } },
@@ -477,9 +477,9 @@ export async function handleNewUser(
         select: {
           id: true,
           handle: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
-          is_verified: true,
+          isVerified: true,
         },
       },
       categories: { include: { category: true } },
@@ -497,7 +497,7 @@ export async function handleNewUser(
  */
 async function getOnboardingPreferences(userId: string): Promise<OnboardingPreferences> {
   const preferences = await prisma.userPreferences.findUnique({
-    where: { user_id: userId },
+    where: { userId: userId },
   });
 
   // If user has preferences, extract categories
@@ -634,10 +634,10 @@ function transformContent(items: any[]): Content[] {
     createdAt: item.createdAt,
     creator: {
       id: item.creator.id,
-      name: item.creator.display_name,
+      name: item.creator.displayName,
       username: item.creator.handle,
       avatar: item.creator.avatar || undefined,
-      isVerified: item.creator.is_verified || false,
+      isVerified: item.creator.isVerified || false,
     },
     type: mapContentType(item.type),
     quality: item.resolution ? [item.resolution] : [],

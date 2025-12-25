@@ -19,6 +19,7 @@ import {
   queueThumbnailGeneration,
   queueNotification,
 } from '../lib/queues/queueManager';
+import { queueVideoProcessing } from '../lib/video/preprocessing';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -156,7 +157,7 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {
@@ -259,12 +260,12 @@ router.post(
     }
 
     // Map lowercase type to uppercase enum value
-    const contentTypeMap: Record<string, 'VIDEO' | 'LIVE_STREAM' | 'VR'> = {
+    const typeMap: Record<string, 'VIDEO' | 'LIVE_STREAM' | 'VR'> = {
       video: 'VIDEO',
       live: 'LIVE_STREAM',
       vr: 'VR',
     };
-    const contentType = contentTypeMap[type] || 'VIDEO';
+    const contentType = typeMap[type] || 'VIDEO';
 
     // Create content (thumbnailBlur will be added in background if needed)
     const content = await prisma.content.create({
@@ -303,7 +304,7 @@ router.post(
           },
           {
             id: creator.id,
-            display_name: creator.display_name,
+            displayName: creator.displayName,
             handle: creator.handle || undefined,
             avatar: creator.avatar || undefined,
           }
@@ -374,6 +375,9 @@ router.post(
 
     // Queue all background jobs asynchronously (don't wait)
     Promise.all([
+      // Queue video preprocessing (thumbnails, metadata, quality check, etc.)
+      isVideo ? queueVideoProcessing(mediaUrl, content.id) : Promise.resolve(),
+      
       // Queue video transcoding job if video
       isVideo ? queueVideoTranscoding({
         contentId: content.id,
@@ -455,7 +459,7 @@ router.post(
 
     // Verify content ownership
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {

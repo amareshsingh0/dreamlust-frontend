@@ -68,7 +68,7 @@ router.get(
           },
           take: 5,
           orderBy: {
-            usage_count: 'desc',
+            usageCount: 'desc',
           },
         }),
 
@@ -79,7 +79,7 @@ router.get(
               { name: { contains: query, mode: 'insensitive' } },
               { slug: { contains: query, mode: 'insensitive' } },
             ],
-            is_active: true,
+            isActive: true,
           },
           select: {
             name: true,

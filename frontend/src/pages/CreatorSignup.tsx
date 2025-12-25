@@ -19,8 +19,8 @@ const CreatorSignup = () => {
   return (
     <>
       <Helmet>
-        <title>Become a Creator - Dreamlust</title>
-        <meta name="description" content="Join Dreamlust as a creator. Share your content and earn money doing what you love." />
+        <title>Become a Creator - PassionFantasia</title>
+        <meta name="description" content="Join PassionFantasia as a creator. Share your content and earn money doing what you love." />
       </Helmet>
 
       <Layout>
@@ -74,7 +74,7 @@ const CreatorSignup = () => {
                 </div>
                 <div>
                   <label htmlFor="creator-social" className="text-sm font-medium mb-2 block">Social Media Links</label>
-                  <Input id="creator-social" name="creator-social" placeholder="Instagram, Twitter, TikTok, etc." />
+                  <Input id="creator-social" name="creator-social" placeholder="Instagram, Twitter, YouTube, etc." />
                 </div>
                 <div>
                   <label htmlFor="creator-bio" className="text-sm font-medium mb-2 block">Tell us about yourself</label>

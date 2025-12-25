@@ -80,7 +80,7 @@ export async function createDownload(
       quality: options.quality || 'auto',
       fileSize: content.fileSize ? BigInt(content.fileSize.toString()) : null,
       expiresAt,
-      status: 'pending',
+      status: 'PENDING',
       progress: 0,
     },
   });
@@ -159,7 +159,7 @@ export async function getUserDownloads(
             duration: true,
             creator: {
               select: {
-                display_name: true,
+                displayName: true,
                 handle: true,
               },
             },

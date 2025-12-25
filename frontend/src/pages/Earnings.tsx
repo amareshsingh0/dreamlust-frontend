@@ -4,22 +4,19 @@ import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Calendar, 
-  Gift, 
+import {
+  DollarSign,
+  TrendingUp,
+  Calendar,
+  Gift,
   CreditCard,
   Download,
-  Filter,
-  ArrowUpRight,
-  ArrowDownRight
+  ArrowUpRight
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
 
 interface EarningsData {
   summary: {
@@ -140,7 +137,7 @@ export default function Earnings() {
   return (
     <>
       <Helmet>
-        <title>Earnings Dashboard - Dreamlust</title>
+        <title>Earnings Dashboard - PassionFantasia</title>
         <meta name="description" content="View your earnings, tips, and revenue statistics" />
       </Helmet>
 

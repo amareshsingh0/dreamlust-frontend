@@ -28,24 +28,8 @@ router.get(
       // Get user's playlists
       const playlists = await prisma.playlist.findMany({
         where: {
-          userId,
+          userId: userId,
           deletedAt: null,
-        },
-        include: {
-          items: {
-            include: {
-              content: {
-                select: {
-                  id: true,
-                  thumbnail: true,
-                },
-              },
-            },
-            orderBy: {
-              position: 'asc',
-            },
-            take: 4, // For thumbnail generation
-          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -62,30 +46,6 @@ router.get(
         where: {
           isPublic: true,
           deletedAt: null,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatar: true,
-            },
-          },
-          items: {
-            include: {
-              content: {
-                select: {
-                  id: true,
-                  thumbnail: true,
-                },
-              },
-            },
-            orderBy: {
-              position: 'asc',
-            },
-            take: 4,
-          },
         },
         orderBy: {
           viewCount: 'desc',
@@ -119,37 +79,8 @@ router.get(
         deletedAt: null,
         OR: [
           { isPublic: true },
-          userId ? { userId } : { id: 'none' }, // Only show private if it's the owner
+          userId ? { userId: userId } : { id: 'none' }, // Only show private if it's the owner
         ],
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatar: true,
-          },
-        },
-        items: {
-          include: {
-            content: {
-              include: {
-                creator: {
-                  select: {
-                    id: true,
-                    handle: true,
-                    displayName: true,
-                    avatar: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: {
-            position: 'asc',
-          },
-        },
       },
     });
 
@@ -189,15 +120,12 @@ router.post(
 
     const playlist = await prisma.playlist.create({
       data: {
-        userId,
+        userId: userId,
         name,
         description,
-        isPublic,
+        isPublic: isPublic ?? false,
         itemCount: 0,
         viewCount: 0,
-      },
-      include: {
-        items: true,
       },
     });
 
@@ -221,13 +149,13 @@ router.put(
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.userId;
-    const updateData = req.body;
+    const { name, description, isPublic } = req.body;
 
     // Check if playlist exists and user owns it
     const playlist = await prisma.playlist.findFirst({
       where: {
         id,
-        userId,
+        userId: userId,
         deletedAt: null,
       },
     });
@@ -236,24 +164,15 @@ router.put(
       throw new NotFoundError('Playlist not found');
     }
 
+    // Build update data with snake_case field names
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
+
     const updated = await prisma.playlist.update({
       where: { id },
       data: updateData,
-      include: {
-        items: {
-          include: {
-            content: {
-              select: {
-                id: true,
-                thumbnail: true,
-              },
-            },
-          },
-          orderBy: {
-            position: 'asc',
-          },
-        },
-      },
     });
 
     res.json({
@@ -280,7 +199,7 @@ router.delete(
     const playlist = await prisma.playlist.findFirst({
       where: {
         id,
-        userId,
+        userId: userId,
         deletedAt: null,
       },
     });
@@ -321,7 +240,7 @@ router.post(
     const playlist = await prisma.playlist.findFirst({
       where: {
         id,
-        userId,
+        userId: userId,
         deletedAt: null,
       },
     });
@@ -339,13 +258,11 @@ router.post(
       throw new NotFoundError('Content not found');
     }
 
-    // Check if item already exists
-    const existing = await prisma.playlistItem.findUnique({
+    // Check if item already exists using the unique constraint
+    const existing = await prisma.playlistItem.findFirst({
       where: {
-        playlistId_contentId: {
-          playlistId: id,
-          contentId,
-        },
+        playlistId: id,
+        contentId: contentId,
       },
     });
 
@@ -353,24 +270,24 @@ router.post(
       throw new ForbiddenError('Content already in playlist');
     }
 
-    // Get max position if not specified
+    // Get max sortOrder if not specified
     let itemPosition = position;
     if (itemPosition === undefined) {
       const maxPosition = await prisma.playlistItem.findFirst({
         where: { playlistId: id },
-        orderBy: { position: 'desc' },
-        select: { position: true },
+        orderBy: { sortOrder: 'desc' },
+        select: { sortOrder: true },
       });
-      itemPosition = maxPosition ? maxPosition.position + 1 : 0;
+      itemPosition = maxPosition?.sortOrder ? maxPosition.sortOrder + 1 : 0;
     } else {
       // Shift other items if position is specified
       await prisma.playlistItem.updateMany({
         where: {
           playlistId: id,
-          position: { gte: itemPosition },
+          sortOrder: { gte: itemPosition },
         },
         data: {
-          position: { increment: 1 },
+          sortOrder: { increment: 1 },
         },
       });
     }
@@ -379,22 +296,8 @@ router.post(
     const item = await prisma.playlistItem.create({
       data: {
         playlistId: id,
-        contentId,
-        position: itemPosition,
-      },
-      include: {
-        content: {
-          include: {
-            creator: {
-              select: {
-                id: true,
-                handle: true,
-                displayName: true,
-                avatar: true,
-              },
-            },
-          },
-        },
+        contentId: contentId,
+        sortOrder: itemPosition,
       },
     });
 
@@ -405,30 +308,6 @@ router.post(
         itemCount: { increment: 1 },
       },
     });
-
-    // Auto-generate thumbnail from first 4 items if not set
-    if (!playlist.thumbnail) {
-      const items = await prisma.playlistItem.findMany({
-        where: { playlistId: id },
-        include: {
-          content: {
-            select: { thumbnail: true },
-          },
-        },
-        orderBy: { position: 'asc' },
-        take: 4,
-      });
-
-      if (items.length > 0) {
-        // Use first item's thumbnail as playlist thumbnail
-        await prisma.playlist.update({
-          where: { id },
-          data: {
-            thumbnail: items[0].content.thumbnail || null,
-          },
-        });
-      }
-    }
 
     res.status(201).json({
       success: true,
@@ -454,7 +333,7 @@ router.delete(
     const playlist = await prisma.playlist.findFirst({
       where: {
         id,
-        userId,
+        userId: userId,
         deletedAt: null,
       },
     });
@@ -484,10 +363,10 @@ router.delete(
     await prisma.playlistItem.updateMany({
       where: {
         playlistId: id,
-        position: { gt: item.position },
+        sortOrder: { gt: item.sortOrder ?? 0 },
       },
       data: {
-        position: { decrement: 1 },
+        sortOrder: { decrement: 1 },
       },
     });
 
@@ -524,7 +403,7 @@ router.put(
     const playlist = await prisma.playlist.findFirst({
       where: {
         id,
-        userId,
+        userId: userId,
         deletedAt: null,
       },
     });
@@ -533,12 +412,12 @@ router.put(
       throw new NotFoundError('Playlist not found');
     }
 
-    // Update positions in transaction
+    // Update sortOrder in transaction
     await prisma.$transaction(
       items.map((item: { id: string; position: number }) =>
         prisma.playlistItem.update({
           where: { id: item.id },
-          data: { position: item.position },
+          data: { sortOrder: item.position },
         })
       )
     );

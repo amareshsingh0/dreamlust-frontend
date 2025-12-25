@@ -37,15 +37,15 @@ export async function checkUploadLimit(userId: string): Promise<{
   // Get user account age
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { created_at: true },
+    select: { createdAt: true },
   });
 
-  if (!user || !user.created_at) {
+  if (!user || !user.createdAt) {
     return { flagged: false, uploadCount: 0, limit };
   }
 
   // Check if account is less than 7 days old (new account)
-  const accountAge = Date.now() - user.created_at.getTime();
+  const accountAge = Date.now() - user.createdAt.getTime();
   const isNewAccount = accountAge < 7 * 24 * 60 * 60 * 1000; // 7 days
 
   if (!isNewAccount) {
@@ -54,7 +54,7 @@ export async function checkUploadLimit(userId: string): Promise<{
 
   // Count uploads in last 24 hours
   const creator = await prisma.creator.findUnique({
-    where: { user_id: userId },
+    where: { userId: userId },
     select: { id: true },
   });
 
@@ -176,11 +176,11 @@ export async function autoFlagContent(contentId: string, creatorId: string): Pro
   // Check upload limit
   const creator = await prisma.creator.findUnique({
     where: { id: creatorId },
-    select: { user_id: true },
+    select: { userId: true },
   });
 
   if (creator) {
-    const uploadCheck = await checkUploadLimit(creator.user_id);
+    const uploadCheck = await checkUploadLimit(creator.userId);
     if (uploadCheck.flagged) {
       flags.push({
         type: 'auto',
@@ -236,10 +236,10 @@ export async function autoFlagContent(contentId: string, creatorId: string): Pro
       // Use raw SQL for composite unique constraint
       try {
         await prisma.$executeRaw`
-          INSERT INTO content_flags (id, content_id, flag_type, reason, severity, is_active, created_at)
+          INSERT INTO content_flags (id, contentId, flagType, reason, severity, isActive, createdAt)
           VALUES (gen_random_uuid(), ${contentId}::uuid, ${flag.type}, ${flag.reason}, ${flag.severity}, true, NOW())
-          ON CONFLICT (content_id, flag_type, reason)
-          DO UPDATE SET severity = ${flag.severity}, is_active = true, resolved_at = NULL
+          ON CONFLICT (contentId, flagType, reason)
+          DO UPDATE SET severity = ${flag.severity}, isActive = true, resolvedAt = NULL
         `;
       } catch (error) {
         console.error('Error creating content flag:', error);

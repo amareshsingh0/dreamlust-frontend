@@ -3,7 +3,6 @@ import { Users, Video, Check } from 'lucide-react';
 import { Creator } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 
 interface CreatorCardProps {
   creator: Creator;
@@ -19,14 +18,14 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function CreatorCard({ 
-  creator, 
+export function CreatorCard({
+  creator,
   variant = 'default',
-  showFollowButton = true,
-  isFollowing = false,
+  showFollowButton: _showFollowButton = true,
+  isFollowing: _isFollowing = false,
   onFollow
 }: CreatorCardProps) {
-  const handleFollow = (e: React.MouseEvent) => {
+  const _handleFollow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (onFollow) {
@@ -44,7 +43,7 @@ export function CreatorCard({
         variant === 'compact' ? 'p-4' : 'p-6'
       )}
     >
-      <div className="flex flex-col items-center text-center space-y-4">
+      <div className="flex flex-col items-center text-center space-y-1">
         {/* Avatar with Verification Badge */}
         <div className="relative">
           <Avatar 
@@ -111,7 +110,7 @@ export function CreatorCard({
             "hover:border-primary hover:bg-primary/10 hover:text-primary",
             "hover:shadow-md hover:shadow-primary/20",
             "font-semibold text-sm",
-            "px-4 py-2.5",
+            "px-4 py-2",
             "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
             "active:scale-[0.98]"
           )}

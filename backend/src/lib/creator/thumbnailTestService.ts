@@ -66,8 +66,8 @@ export async function getThumbnail(contentId: string, userId: string): Promise<s
   }
 
   // Assign variant based on user hash (consistent assignment)
-  const variantIndex = hashCode(userId + contentId) % (test.variants as ThumbnailVariant[]).length;
-  const variant = (test.variants as ThumbnailVariant[])[variantIndex];
+  const variantIndex = hashCode(userId + contentId) % (test.variants as unknown as ThumbnailVariant[]).length;
+  const variant = (test.variants as unknown as ThumbnailVariant[])[variantIndex];
 
   // Track impression
   await trackThumbnailImpression(contentId, variant.url);
@@ -87,7 +87,7 @@ export async function trackThumbnailImpression(contentId: string, thumbnailUrl: 
     return;
   }
 
-  const variants = test.variants as ThumbnailVariant[];
+  const variants = test.variants as unknown as ThumbnailVariant[];
   const variantIndex = variants.findIndex(v => v.url === thumbnailUrl);
 
   if (variantIndex === -1) {
@@ -120,7 +120,7 @@ export async function trackThumbnailClick(contentId: string, thumbnailUrl: strin
     return;
   }
 
-  const variants = test.variants as ThumbnailVariant[];
+  const variants = test.variants as unknown as ThumbnailVariant[];
   const variantIndex = variants.findIndex(v => v.url === thumbnailUrl);
 
   if (variantIndex === -1) {
@@ -153,7 +153,7 @@ export async function determineThumbnailWinner(contentId: string) {
     return;
   }
 
-  const variants = test.variants as ThumbnailVariant[];
+  const variants = test.variants as unknown as ThumbnailVariant[];
   const totalImpressions = variants.reduce((sum, v) => sum + v.impressions, 0);
 
   if (totalImpressions < 1000) {
@@ -171,7 +171,7 @@ export async function determineThumbnailWinner(contentId: string) {
   await prisma.thumbnailTest.update({
     where: { contentId },
     data: {
-      status: 'completed',
+      status: 'COMPLETED',
       winner: winner.url,
       endedAt: new Date(),
     },

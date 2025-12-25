@@ -15,8 +15,8 @@ const Analytics = () => {
   return (
     <>
       <Helmet>
-        <title>Creator Analytics - Dreamlust</title>
-        <meta name="description" content="Track your performance and grow your audience with Dreamlust creator analytics." />
+        <title>Creator Analytics - PassionFantasia</title>
+        <meta name="description" content="Track your performance and grow your audience with PassionFantasia creator analytics." />
       </Helmet>
 
       <Layout>

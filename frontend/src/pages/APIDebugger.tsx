@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 
 interface EndpointTest {
@@ -38,13 +38,13 @@ const APIDebugger = () => {
           method: 'GET',
         });
         testResults.serverReachable = healthCheck.ok;
-      } catch (e) {
+      } catch (e: unknown) {
         testResults.serverReachable = false;
-        testResults.serverError = e.message;
+        testResults.serverError = e instanceof Error ? e.message : 'Unknown error';
       }
 
       // Test 2: Test the failing endpoint
-      const creatorsTest = {
+      const creatorsTest: EndpointTest = {
         endpoint: '/api/creators',
         url: `${baseUrl}/api/creators?page=1&limit=20`,
         method: 'GET',
@@ -70,14 +70,14 @@ const APIDebugger = () => {
         } catch (jsonError) {
           creatorsTest.response = await response.text();
         }
-      } catch (error) {
-        creatorsTest.error = error.message;
+      } catch (error: unknown) {
+        creatorsTest.error = error instanceof Error ? error.message : 'Unknown error';
       }
 
-      testResults.endpoints.push(creatorsTest);
+      (testResults.endpoints as EndpointTest[]).push(creatorsTest);
 
       // Test 3: Try without query params
-      const creatorsNoParamsTest = {
+      const creatorsNoParamsTest: EndpointTest = {
         endpoint: '/api/creators (no params)',
         url: `${baseUrl}/api/creators`,
         method: 'GET',
@@ -103,17 +103,17 @@ const APIDebugger = () => {
         } catch (jsonError) {
           creatorsNoParamsTest.response = await response.text();
         }
-      } catch (error) {
-        creatorsNoParamsTest.error = error.message;
+      } catch (error: unknown) {
+        creatorsNoParamsTest.error = error instanceof Error ? error.message : 'Unknown error';
       }
 
-      testResults.endpoints.push(creatorsNoParamsTest);
+      (testResults.endpoints as EndpointTest[]).push(creatorsNoParamsTest);
 
       setResults(testResults);
-    } catch (error) {
+    } catch (error: unknown) {
       setResults({
         ...testResults,
-        generalError: error.message,
+        generalError: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 

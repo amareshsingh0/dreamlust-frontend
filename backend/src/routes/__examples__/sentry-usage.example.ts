@@ -7,7 +7,7 @@
 
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { captureException, captureEndpointError, addApiBreadcrumb } from '../../lib/monitoring/sentry';
+import { captureException, addBreadcrumb } from '../../lib/monitoring/sentry';
 
 const router = Router();
 
@@ -31,7 +31,6 @@ router.get(
           user: req.user ? {
             id: req.user.userId,
             email: req.user.email,
-            username: req.user.username,
           } : undefined,
           extra: {
             query: req.query,
@@ -55,15 +54,22 @@ router.post(
       const { searchQuery } = req.body;
       
       // Add breadcrumb for debugging
-      addApiBreadcrumb('Search operation started', { query: searchQuery });
+      addBreadcrumb({
+        category: 'api',
+        message: 'Search operation started',
+        data: { query: searchQuery },
+      });
       
       const results = await searchDatabase(searchQuery);
       
       res.json({ success: true, data: results });
     } catch (error) {
-      // Helper function automatically adds endpoint context
+      // Capture error with endpoint context
       if (error instanceof Error) {
-        captureEndpointError(error, req, { searchQuery: req.body.searchQuery });
+        captureException(error, {
+          tags: { endpoint: '/api/example2' },
+          extra: { searchQuery: req.body.searchQuery },
+        });
       }
       
       res.status(500).json({ error: 'Search failed' });
@@ -120,7 +126,11 @@ router.post(
       const { action, data } = req.body;
       
       // Add breadcrumb
-      addApiBreadcrumb(`Processing ${action}`, { action, dataSize: data?.length });
+      addBreadcrumb({
+        category: 'api',
+        message: `Processing ${action}`,
+        data: { action, dataSize: data?.length },
+      });
       
       await processAction(action, data);
       
@@ -155,7 +165,10 @@ router.get(
   '/example5',
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      addApiBreadcrumb('Calling external API');
+      addBreadcrumb({
+        category: 'api',
+        message: 'Calling external API',
+      });
       
       const response = await fetch('https://api.external.com/data');
       

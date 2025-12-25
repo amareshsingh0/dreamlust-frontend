@@ -98,15 +98,12 @@ export async function getCachedSearch(
       skip: offset,
       include: {
         creator: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatar: true,
-              },
-            },
+          select: {
+            id: true,
+            handle: true,
+            displayName: true,
+            avatar: true,
+            isVerified: true,
           },
         },
         categories: {

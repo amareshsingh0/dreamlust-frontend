@@ -2,19 +2,19 @@ import { api } from '../api';
 
 // Client-side analytics tracker
 export class AnalyticsTracker {
-  private sessionId: string;
-  private userId: string | null = null;
+  private _sessionId: string;
+  private _userId: string | null = null;
 
   constructor() {
     // Get or create session ID
-    this.sessionId = this.getOrCreateSessionId();
-    
+    this._sessionId = this.getOrCreateSessionId();
+
     // Try to get user ID from localStorage or auth context
     try {
       const userData = localStorage.getItem('user');
       if (userData) {
         const user = JSON.parse(userData);
-        this.userId = user.id || null;
+        this._userId = user.id || null;
       }
     } catch (error) {
       // Ignore errors
@@ -25,7 +25,7 @@ export class AnalyticsTracker {
     let sessionId = sessionStorage.getItem('analytics_session_id');
     
     if (!sessionId) {
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       sessionStorage.setItem('analytics_session_id', sessionId);
     }
     
@@ -33,12 +33,12 @@ export class AnalyticsTracker {
   }
 
   setUserId(userId: string | null) {
-    this.userId = userId;
+    this._userId = userId;
   }
 
   async track(eventType: string, eventData?: any): Promise<void> {
     try {
-      await api.analytics.track({
+      await (api.analytics.track as any)({
         eventType,
         eventData: eventData || {},
       });

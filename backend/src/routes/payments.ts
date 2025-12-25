@@ -55,7 +55,7 @@ router.post(
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, display_name: true, username: true },
+      select: { id: true, email: true, displayName: true, username: true },
     });
 
     if (!user) {
@@ -66,7 +66,7 @@ router.post(
     const customer = await getOrCreateCustomer(
       userId,
       user.email,
-      user.display_name || user.username
+      user.displayName || user.username
     );
 
     // Create payment intent
@@ -78,12 +78,12 @@ router.post(
     // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
-        user_id: userId,
+        userId: userId,
         type: metadata?.type === 'tip' ? 'TIP' : 'PREMIUM_CONTENT',
         amount: amount,
         currency: currency.toUpperCase(),
         status: 'PENDING',
-        stripe_payment_id: paymentIntent.id,
+        stripePaymentId: paymentIntent.id,
         metadata: metadata || {},
       },
     });
@@ -122,8 +122,8 @@ router.post(
     // Find transaction
     const transaction = await prisma.transaction.findFirst({
       where: {
-        stripe_payment_id: paymentIntentId,
-        user_id: userId,
+        stripePaymentId: paymentIntentId,
+        userId: userId,
       },
     });
 
@@ -145,8 +145,8 @@ router.post(
       where: { id: transaction.id },
       data: {
         status,
-        payment_id: paymentIntent.id,
-        receipt_url: paymentIntent.charges?.data[0]?.receipt_url || null,
+        paymentId: paymentIntent.id,
+        receiptUrl: (paymentIntent as any).charges?.data[0]?.receiptUrl || null,
       },
     });
 
@@ -156,15 +156,15 @@ router.post(
       if (metadata.creatorId && status === 'COMPLETED') {
         // Update creator earnings
         await prisma.creatorEarnings.upsert({
-          where: { creator_id: metadata.creatorId },
+          where: { creatorId: metadata.creatorId },
           create: {
-            creator_id: metadata.creatorId,
-            balance: { increment: transaction.amount },
-            lifetime_earnings: transaction.amount,
+            creatorId: metadata.creatorId,
+            balance: transaction.amount,
+            lifetimeEarnings: transaction.amount,
           },
           update: {
             balance: { increment: transaction.amount },
-            lifetime_earnings: { increment: transaction.amount },
+            lifetimeEarnings: { increment: transaction.amount },
           },
         });
       }
@@ -200,8 +200,8 @@ router.post(
     // Find transaction
     const transaction = await prisma.transaction.findFirst({
       where: {
-        stripe_payment_id: paymentIntentId,
-        user_id: userId,
+        stripePaymentId: paymentIntentId,
+        userId: userId,
       },
     });
 
@@ -219,12 +219,12 @@ router.post(
     // Create refund transaction
     await prisma.transaction.create({
       data: {
-        user_id: userId,
+        userId: userId,
         type: 'REFUND',
         amount: amount || transaction.amount,
         currency: transaction.currency || 'USD',
         status: refund.status === 'succeeded' ? 'COMPLETED' : 'FAILED',
-        stripe_payment_id: refund.id,
+        stripePaymentId: refund.id,
         metadata: {
           originalTransactionId: transaction.id,
           originalPaymentIntentId: paymentIntentId,
@@ -263,13 +263,13 @@ router.get(
 
     const [transactions, total] = await Promise.all([
       prisma.transaction.findMany({
-        where: { user_id: userId },
-        orderBy: { created_at: 'desc' },
+        where: { userId: userId },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
       prisma.transaction.count({
-        where: { user_id: userId },
+        where: { userId: userId },
       }),
     ]);
 
@@ -306,8 +306,8 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
-      select: { id: true, stripe_account_id: true },
+      where: { userId: userId },
+      select: { id: true, stripeAccountId: true },
     });
 
     if (!creator) {
@@ -315,8 +315,8 @@ router.post(
     }
 
     // If already connected, return existing account
-    if (creator.stripe_account_id) {
-      const account = await stripe.accounts.retrieve(creator.stripe_account_id);
+    if (creator.stripeAccountId) {
+      const account = await stripe.accounts.retrieve(creator.stripeAccountId);
       return res.json({
         success: true,
         data: {
@@ -343,7 +343,7 @@ router.post(
     await prisma.creator.update({
       where: { id: creator.id },
       data: {
-        stripe_account_id: account.id,
+        stripeAccountId: account.id,
       },
     });
 
@@ -386,10 +386,10 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: {
         id: true,
-        stripe_account_id: true,
+        stripeAccountId: true,
       },
     });
 
@@ -397,22 +397,22 @@ router.post(
       throw new NotFoundError('Creator profile not found');
     }
 
-    if (!creator.stripe_account_id) {
+    if (!creator.stripeAccountId) {
       throw new ValidationError('Stripe account not connected. Please connect your account first.');
     }
 
     // Get or create earnings record
     let earnings = await prisma.creatorEarnings.findUnique({
-      where: { creator_id: creator.id },
+      where: { creatorId: creator.id },
     });
 
     if (!earnings) {
       earnings = await prisma.creatorEarnings.create({
         data: {
-          creator_id: creator.id,
+          creatorId: creator.id,
           balance: 0,
-          lifetime_earnings: 0,
-          pending_payout: 0,
+          lifetimeEarnings: 0,
+          pendingPayout: 0,
         },
       });
     }
@@ -423,7 +423,7 @@ router.post(
 
     // Transfer to connected account
     const transfer = await transferToConnectedAccount(
-      creator.stripe_account_id,
+      creator.stripeAccountId,
       amount,
       'usd',
       {
@@ -434,23 +434,23 @@ router.post(
 
     // Update earnings
     await prisma.creatorEarnings.update({
-      where: { creator_id: creator.id },
+      where: { creatorId: creator.id },
       data: {
         balance: { decrement: amount },
-        pending_payout: { increment: amount },
-        last_payout_at: new Date(),
+        pendingPayout: { increment: amount },
+        lastPayoutAt: new Date(),
       },
     });
 
     // Create transaction record
     await prisma.transaction.create({
       data: {
-        user_id: userId,
+        userId: userId,
         type: 'WITHDRAWAL',
         amount: amount,
         currency: 'USD',
         status: 'COMPLETED',
-        stripe_payment_id: transfer.id,
+        stripePaymentId: transfer.id,
         metadata: {
           creatorId: creator.id,
           transferId: transfer.id,
@@ -483,7 +483,7 @@ router.get(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: { id: true },
     });
 
@@ -493,12 +493,12 @@ router.get(
 
     // Get or create earnings
     const earnings = await prisma.creatorEarnings.upsert({
-      where: { creator_id: creator.id },
+      where: { creatorId: creator.id },
       create: {
-        creator_id: creator.id,
+        creatorId: creator.id,
         balance: 0,
-        lifetime_earnings: 0,
-        pending_payout: 0,
+        lifetimeEarnings: 0,
+        pendingPayout: 0,
       },
       update: {},
     });

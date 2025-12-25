@@ -3,10 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Gift, CheckCircle2, XCircle } from 'lucide-react';
+import { Gift, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
 
 interface GiftCardRedeemProps {
   onSuccess?: (newBalance: string) => void;
@@ -30,9 +29,10 @@ export function GiftCardRedeem({ onSuccess }: GiftCardRedeemProps) {
 
       if (response.success) {
         toast.success('Gift card redeemed successfully!');
-        setRedeemedAmount(response.data?.amount || null);
+        const data = response.data as { amount?: string; newBalance?: string } | undefined;
+        setRedeemedAmount(data?.amount || null);
         setCode('');
-        onSuccess?.(response.data?.newBalance || '0');
+        onSuccess?.(data?.newBalance || '0');
         
         // Clear success message after 5 seconds
         setTimeout(() => {

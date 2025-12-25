@@ -28,8 +28,8 @@ const Guidelines = () => {
   return (
     <>
       <Helmet>
-        <title>Creator Guidelines - Dreamlust</title>
-        <meta name="description" content="Guidelines for Dreamlust creators. Learn the rules and best practices for success." />
+        <title>Creator Guidelines - PassionFantasia</title>
+        <meta name="description" content="Guidelines for PassionFantasia creators. Learn the rules and best practices for success." />
       </Helmet>
 
       <Layout>

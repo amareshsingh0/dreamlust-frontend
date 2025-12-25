@@ -5,7 +5,7 @@
 
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi, expect } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import React from 'react';
 
 // Note: vitest-axe doesn't export toHaveNoViolations directly

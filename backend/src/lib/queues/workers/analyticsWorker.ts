@@ -124,7 +124,7 @@ async function aggregateDailyStats(startTime: Date, endTime: Date) {
     // Count new users (users created in this period)
     const newUsers = await prisma.user.count({
       where: {
-        created_at: {
+        createdAt: {
           gte: startTime,
           lte: endTime,
         },
@@ -269,7 +269,7 @@ async function aggregateCreatorStats(views: Array<{ contentId: string; duration:
         await prisma.creator.update({
           where: { id: creatorId },
           data: {
-            total_views: { increment: BigInt(stats.views) },
+            totalViews: { increment: BigInt(stats.views) },
             // Note: We might want to track watch time separately
           },
         });
@@ -289,7 +289,7 @@ async function aggregateCreatorStats(views: Array<{ contentId: string; duration:
  * Create analytics worker
  */
 export function createAnalyticsWorker() {
-  if (!env.REDIS_URL) {
+  if (!env.REDIS_URL || !redis) {
     console.warn('⚠️  Redis not available. Analytics worker will not be created.');
     return null;
   }
@@ -304,7 +304,9 @@ export function createAnalyticsWorker() {
           await aggregateViewEvents(job);
           break;
         case 'aggregate-daily':
-          await aggregateViewEvents({ ...job, data: { ...job.data, type: 'daily' } });
+          // Create a modified job data object for daily aggregation
+          const dailyJobData = { ...job.data, type: 'daily' as const };
+          await aggregateViewEvents({ ...job, data: dailyJobData } as typeof job);
           break;
         default:
           console.warn(`[Analytics Worker] Unknown job type: ${job.name}`);

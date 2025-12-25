@@ -137,7 +137,7 @@ class MonitoringService {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });
 
-      const data = await response.json();
+      const data = await response.json() as { status?: string; checks?: unknown };
       const isHealthy = response.ok && data.status === 'healthy';
 
       if (!isHealthy) {

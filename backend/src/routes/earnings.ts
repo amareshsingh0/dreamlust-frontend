@@ -26,10 +26,10 @@ router.get(
 
     // Get creator profile with earnings
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: { 
         id: true,
-        creator_earnings: true,
+        creatorEarnings: true,
       },
     });
 
@@ -53,9 +53,9 @@ router.get(
     }
 
     const whereClause: any = {
-      to_creator_id: creator.id,
-      status: 'completed', // Only count completed payments
-      ...(Object.keys(dateFilter).length > 0 && { created_at: dateFilter }),
+      toCreatorId: creator.id,
+      status: 'COMPLETED', // Only count completed payments
+      ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
     };
 
     // Get tips
@@ -68,16 +68,16 @@ router.get(
         message: true,
         isAnonymous: true,
         createdAt: true,
-        from_user: {
+        fromUser: {
           select: {
             id: true,
             username: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
           },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Get subscriptions (if needed)
@@ -115,11 +115,11 @@ router.get(
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
     const monthlyTips = await prisma.tip.groupBy({
-      by: ['created_at'],
+      by: ['createdAt'],
       where: {
-        to_creator_id: creator.id,
-        status: 'completed',
-        created_at: { gte: twelveMonthsAgo },
+        toCreatorId: creator.id,
+        status: 'COMPLETED',
+        createdAt: { gte: twelveMonthsAgo },
       },
       _sum: {
         amount: true,
@@ -129,16 +129,16 @@ router.get(
     // Group by month
     const monthlyEarnings: Record<string, number> = {};
     monthlyTips.forEach((item) => {
-      const month = new Date(item.created_at).toISOString().slice(0, 7); // YYYY-MM
+      const month = new Date(item.createdAt).toISOString().slice(0, 7); // YYYY-MM
       monthlyEarnings[month] = (monthlyEarnings[month] || 0) + Number(item._sum.amount || 0);
     });
 
     // Get creator earnings summary
-    const earnings = creator.creator_earnings || {
+    const earnings = creator.creatorEarnings || {
       balance: 0,
-      lifetime_earnings: 0,
-      pending_payout: 0,
-      last_payout_at: null,
+      lifetimeEarnings: 0,
+      pendingPayout: 0,
+      lastPayoutAt: null,
     };
 
     res.json({
@@ -146,9 +146,9 @@ router.get(
       data: {
         earnings: {
           balance: Number(earnings.balance || 0),
-          lifetimeEarnings: Number(earnings.lifetime_earnings || 0),
-          pendingPayout: Number(earnings.pending_payout || 0),
-          lastPayoutAt: earnings.last_payout_at,
+          lifetimeEarnings: Number(earnings.lifetimeEarnings || 0),
+          pendingPayout: Number(earnings.pendingPayout || 0),
+          lastPayoutAt: earnings.lastPayoutAt,
         },
         summary: {
           totalEarnings: totalEarnings,
@@ -159,7 +159,7 @@ router.get(
         },
         tips: tips.map(tip => ({
           ...tip,
-          from_user: tip.is_anonymous ? null : tip.from_user,
+          fromUser: tip.isAnonymous ? null : tip.fromUser,
         })),
         subscriptions,
         monthlyEarnings: Object.entries(monthlyEarnings).map(([month, amount]) => ({
@@ -183,7 +183,7 @@ router.get(
     const userId = req.user!.userId;
 
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: { id: true },
     });
 
@@ -202,36 +202,36 @@ router.get(
     const [todayTips, weekTips, monthTips, yearTips] = await Promise.all([
       prisma.tip.aggregate({
         where: {
-          to_creator_id: creator.id,
-          status: 'completed',
-          created_at: { gte: today },
+          toCreatorId: creator.id,
+          status: 'COMPLETED',
+          createdAt: { gte: today },
         },
         _sum: { amount: true },
         _count: true,
       }),
       prisma.tip.aggregate({
         where: {
-          to_creator_id: creator.id,
-          status: 'completed',
-          created_at: { gte: thisWeek },
+          toCreatorId: creator.id,
+          status: 'COMPLETED',
+          createdAt: { gte: thisWeek },
         },
         _sum: { amount: true },
         _count: true,
       }),
       prisma.tip.aggregate({
         where: {
-          to_creator_id: creator.id,
-          status: 'completed',
-          created_at: { gte: thisMonth },
+          toCreatorId: creator.id,
+          status: 'COMPLETED',
+          createdAt: { gte: thisMonth },
         },
         _sum: { amount: true },
         _count: true,
       }),
       prisma.tip.aggregate({
         where: {
-          to_creator_id: creator.id,
-          status: 'completed',
-          created_at: { gte: thisYear },
+          toCreatorId: creator.id,
+          status: 'COMPLETED',
+          createdAt: { gte: thisYear },
         },
         _sum: { amount: true },
         _count: true,

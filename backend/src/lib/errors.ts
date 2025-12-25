@@ -20,6 +20,13 @@ export class ValidationError extends AppError {
   }
 }
 
+export class BadRequestError extends AppError {
+  constructor(message: string, details?: unknown) {
+    super(ErrorCode.INVALID_INPUT, message, HTTP_STATUS.BAD_REQUEST, details);
+    this.name = 'BadRequestError';
+  }
+}
+
 export class UnauthorizedError extends AppError {
   constructor(message: string = 'Unauthorized') {
     super(ErrorCode.UNAUTHORIZED, message, HTTP_STATUS.UNAUTHORIZED);

@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Download, Clock, Heart, PlaySquare, BookOpen } from 'lucide-react';
+import { Download, Clock, Heart, PlaySquare } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DownloadManager } from '@/components/downloads/DownloadManager';
@@ -26,7 +26,7 @@ export default function Library() {
   return (
     <Layout>
       <Helmet>
-        <title>Library - DreamLust</title>
+        <title>Library - PassionFantasia</title>
         <meta name="description" content="Your saved content, downloads, and playlists" />
       </Helmet>
       

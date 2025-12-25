@@ -3,15 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Copy, 
-  Check, 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Copy,
+  Check,
+  Users,
+  DollarSign,
   Clock,
-  ExternalLink,
   Percent
 } from 'lucide-react';
 import { BannerDownloads } from './BannerDownloads';
@@ -20,7 +17,16 @@ import { EmbedCodeGenerator } from './EmbedCodeGenerator';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { formatDate } from '@/lib/utils';
+import { format } from 'date-fns';
+
+// Helper function to format dates
+const formatDate = (dateString: string): string => {
+  try {
+    return format(new Date(dateString), 'MMM d, yyyy');
+  } catch {
+    return dateString;
+  }
+};
 
 interface AffiliateData {
   id: string;
@@ -62,7 +68,7 @@ export function AffiliateDashboard() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [referralsPage, setReferralsPage] = useState(1);
+  const [referralsPage, _setReferralsPage] = useState(1);
   const [referrals, setReferrals] = useState<any[]>([]);
   const [referralsLoading, setReferralsLoading] = useState(false);
 
@@ -112,7 +118,7 @@ export function AffiliateDashboard() {
         limit: 20,
       });
       if (response.success && response.data) {
-        setReferrals(response.data.referrals || []);
+        setReferrals((response.data as any).referrals || []);
       }
     } catch (error) {
       console.error('Failed to load referrals:', error);

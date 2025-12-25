@@ -178,10 +178,7 @@ router.post(
 
     // Invalidate all user sessions (force re-login)
     const { sessionStore } = await import('../lib/auth/session');
-    const userSessions = sessionStore.getUserSessions(userId);
-    for (const sessionId of userSessions) {
-      sessionStore.delete(sessionId);
-    }
+    await sessionStore.deleteAllForUser(userId);
 
     res.json({
       success: true,

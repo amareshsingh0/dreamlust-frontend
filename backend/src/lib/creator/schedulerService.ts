@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../prisma';
+import { Prisma } from '@prisma/client';
 import { queueNotification } from '../queues/queueManager';
 import logger from '../logger';
 
@@ -26,7 +27,7 @@ export async function scheduleContent(input: ScheduleContentInput) {
       contentId: input.contentId,
       publishAt: input.publishAt,
       notifyFollowers: input.notifyFollowers ?? true,
-      socialMediaCrosspost: input.socialMediaCrosspost || null,
+      socialMediaCrosspost: input.socialMediaCrosspost || Prisma.JsonNull,
       status: 'scheduled',
     },
     include: {
@@ -86,7 +87,10 @@ export async function publishScheduledContent(scheduledId: string) {
 
     // Crosspost to social media if configured
     if (scheduled.socialMediaCrosspost) {
-      await crosspostToSocial(scheduled.contentId, scheduled.socialMediaCrosspost);
+      await crosspostToSocial(
+        scheduled.contentId,
+        scheduled.socialMediaCrosspost as { twitter?: boolean; instagram?: boolean }
+      );
     }
 
     // Update scheduled content status
@@ -100,7 +104,7 @@ export async function publishScheduledContent(scheduledId: string) {
     // Mark as failed
     await prisma.scheduledContent.update({
       where: { id: scheduledId },
-      data: { status: 'failed' },
+      data: { status: 'FAILED' },
     });
 
     logger.error('Failed to publish scheduled content', { scheduledId, error });
@@ -115,18 +119,18 @@ async function notifyFollowers(contentId: string, creatorId: string) {
   // Get creator's followers
   const followers = await prisma.subscription.findMany({
     where: {
-      creator_id: creatorId,
+      creatorId: creatorId,
       status: 'ACTIVE',
     },
     select: {
-      subscriber_id: true,
+      subscriberId: true,
     },
   });
 
   // Queue notifications for each follower
   for (const follower of followers) {
     await queueNotification({
-      userId: follower.subscriber_id,
+      userId: follower.subscriberId,
       type: 'NEW_UPLOAD',
       title: 'New Content Available',
       message: 'A creator you follow has published new content',
@@ -207,7 +211,7 @@ export async function cancelScheduledContent(contentId: string) {
   if (scheduled) {
     await prisma.scheduledContent.update({
       where: { id: scheduled.id },
-      data: { status: 'failed' }, // Mark as failed/cancelled
+      data: { status: 'FAILED' }, // Mark as failed/cancelled
     });
 
     await prisma.content.update({

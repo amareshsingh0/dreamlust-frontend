@@ -62,11 +62,11 @@ class VideoStorageService {
     );
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as { errors?: Array<{ message?: string }> };
       throw new Error(`Cloudflare Stream upload failed: ${error.errors?.[0]?.message || 'Unknown error'}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { result: any };
     const video = data.result;
 
     return {
@@ -103,11 +103,11 @@ class VideoStorageService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as { error?: { message?: string } };
       throw new Error(`Mux upload failed: ${error.error?.message || 'Unknown error'}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { data: any };
     const asset = data.data;
 
     return {
@@ -176,7 +176,7 @@ class VideoStorageService {
         return 'error';
       }
 
-      const data = await response.json();
+      const data = await response.json() as { result: { status: string } };
       return data.result.status === 'ready' ? 'ready' : 'processing';
     } else if (this.provider === 'mux') {
       const credentials = Buffer.from(`${env.MUX_TOKEN_ID}:${env.MUX_TOKEN_SECRET}`).toString('base64');
@@ -190,7 +190,7 @@ class VideoStorageService {
         return 'error';
       }
 
-      const data = await response.json();
+      const data = await response.json() as { data: { status: string } };
       return data.data.status === 'ready' ? 'ready' : 'processing';
     }
 

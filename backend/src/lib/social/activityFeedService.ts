@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../prisma';
+import { Prisma } from '@prisma/client';
 import logger from '../logger';
 
 export interface CreateActivityInput {
@@ -26,7 +27,7 @@ export async function createActivity(input: CreateActivityInput) {
       type: input.type,
       targetType: input.targetType,
       targetId: input.targetId,
-      metadata: input.metadata || null,
+      metadata: input.metadata || Prisma.JsonNull,
     },
   });
 
@@ -63,7 +64,7 @@ export async function getActivityFeed(
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },
@@ -83,7 +84,7 @@ export async function getActivityFeed(
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       });
@@ -102,7 +103,7 @@ export async function getActivityFeed(
  * Get activity text for display
  */
 export function getActivityText(activity: any): string {
-  const actorName = activity.actor?.display_name || activity.actor?.username || 'Someone';
+  const actorName = activity.actor?.displayName || activity.actor?.username || 'Someone';
   
   switch (activity.type) {
     case 'upload':
@@ -129,7 +130,7 @@ export async function trackUploadActivity(contentId: string, creatorId: string) 
   // Get creator's user ID
   const creator = await prisma.creator.findUnique({
     where: { id: creatorId },
-    select: { user_id: true },
+    select: { userId: true },
   });
 
   if (!creator) return;
@@ -137,7 +138,7 @@ export async function trackUploadActivity(contentId: string, creatorId: string) 
   // Get creator's followers
   const followers = await prisma.follow.findMany({
     where: {
-      followingId: creator.user_id,
+      followingId: creator.userId,
       notificationsEnabled: true,
     },
     select: {
@@ -150,7 +151,7 @@ export async function trackUploadActivity(contentId: string, creatorId: string) 
     followers.map(follower =>
       createActivity({
         userId: follower.followerId,
-        actorId: creator.user_id,
+        actorId: creator.userId,
         type: 'upload',
         targetType: 'content',
         targetId: contentId,
@@ -166,14 +167,14 @@ export async function trackLikeActivity(contentId: string, userId: string, conte
   // Get content creator's user ID
   const creator = await prisma.creator.findUnique({
     where: { id: contentCreatorId },
-    select: { user_id: true },
+    select: { userId: true },
   });
 
   if (!creator) return;
 
   // Create activity for content creator
   await createActivity({
-    userId: creator.user_id,
+    userId: creator.userId,
     actorId: userId,
     type: 'like',
     targetType: 'content',

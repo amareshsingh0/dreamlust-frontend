@@ -21,7 +21,7 @@ export async function processAccountDeletions(): Promise<{
     // Find all pending deletions scheduled for today or earlier
     const pendingDeletions = await prisma.accountDeletion.findMany({
       where: {
-        status: 'pending',
+        status: 'PENDING',
         scheduledFor: {
           lte: now,
         },
@@ -59,7 +59,7 @@ export async function processAccountDeletions(): Promise<{
         await prisma.accountDeletion.update({
           where: { id: deletion.id },
           data: {
-            status: 'completed',
+            status: 'COMPLETED',
             completedAt: now,
           },
         });

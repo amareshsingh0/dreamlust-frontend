@@ -25,13 +25,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
@@ -53,7 +46,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
   
   // Get user from auth context - widget works with or without authenticated user
   const authContext = useAuth();
-  const user = authContext?.user || null;
+  const _user = authContext?.user || null;
 
   const feedbackTypes = [
     {
@@ -117,12 +110,13 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
   const uploadScreenshot = async (file: File): Promise<string | undefined> => {
     try {
       // Upload screenshot to S3/R2 via API
-      const response = await api.feedback.uploadScreenshot<{ success: boolean; data: { url: string } }>(file);
-      
-      if (response.success && response.data?.url) {
-        return response.data.url;
+      const response = await api.feedback.uploadScreenshot(file);
+      const data = response.data as { url?: string } | undefined;
+
+      if (response.success && data?.url) {
+        return data.url;
       }
-      
+
       throw new Error('Failed to upload screenshot');
     } catch (error) {
       console.error('Failed to upload screenshot:', error);

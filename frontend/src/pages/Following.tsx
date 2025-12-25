@@ -31,7 +31,8 @@ const Following = () => {
         const response = await api.creators.getFollowing({ page, limit: 20 });
         
         if (response.success && response.data) {
-          const creators = response.data.creators || [];
+          const data = response.data as { creators: Creator[] };
+          const creators = data.creators || [];
           setFollowing(prev => page === 1 ? creators : [...prev, ...creators]);
           setHasMore(creators.length === 20);
         } else {
@@ -85,7 +86,7 @@ const Following = () => {
   return (
     <>
       <Helmet>
-        <title>Following - Dreamlust</title>
+        <title>Following - PassionFantasia</title>
         <meta name="description" content="Creators you're following" />
       </Helmet>
       
@@ -138,26 +139,26 @@ const Following = () => {
                     <CardHeader>
                       <div className="flex items-center gap-4">
                         <Avatar className="h-16 w-16">
-                          <AvatarImage src={creator.avatar} alt={creator.displayName || creator.handle ? `${creator.displayName || creator.handle} avatar` : 'Creator avatar'} />
-                          <AvatarFallback>{creator.displayName?.[0] || creator.handle?.[0] || 'C'}</AvatarFallback>
+                          <AvatarImage src={creator.avatar} alt={creator.name || creator.username ? `${creator.name || creator.username} avatar` : 'Creator avatar'} />
+                          <AvatarFallback>{creator.name?.[0] || creator.username?.[0] || 'C'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <CardTitle>{creator.displayName || creator.handle}</CardTitle>
+                            <CardTitle>{creator.name || creator.username}</CardTitle>
                             {creator.isVerified && (
                               <Badge variant="default" className="text-xs">✓</Badge>
                             )}
                           </div>
-                          <CardDescription>@{creator.handle}</CardDescription>
+                          <CardDescription>@{creator.username}</CardDescription>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {creator.followerCount?.toLocaleString() || 0} followers
+                            {creator.followers?.toLocaleString() || 0} followers
                           </p>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="flex gap-2">
                       <Button variant="outline" className="flex-1" asChild>
-                        <Link to={`/creator/${creator.handle}`}>View Profile</Link>
+                        <Link to={`/creator/${creator.username}`}>View Profile</Link>
                       </Button>
                       <Button 
                         variant="secondary" 

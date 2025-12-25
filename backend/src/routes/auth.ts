@@ -19,6 +19,8 @@ import { ConflictError, UnauthorizedError, ValidationError } from '../lib/errors
 import { UserRole } from '../config/constants';
 import cookieParser from 'cookie-parser';
 import { awardDailyLogin } from '../lib/loyalty/points';
+import { markUserReturned } from '../lib/analytics/retentionAnalytics';
+import { trackEvent, EventTypes } from '../lib/analytics/tracker';
 // Session caching is now handled in sessionStore
 
 const router = Router();
@@ -35,13 +37,19 @@ router.post(
   strictRateLimiter,
   validateBody(registerSchema),
   asyncHandler(async (req: Request, res: Response) => {
-    const { email, username, password, displayName } = req.body;
+    const { email, username, password, displayName, birthDate } = req.body;
+
+    // Track signup started event
+    await trackEvent(req, EventTypes.SIGNUP_STARTED, {
+      email,
+      username,
+    }).catch(() => {}); // Non-blocking
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email }, { username }],
-        deleted_at: null,
+        deletedAt: null,
       },
     });
 
@@ -70,16 +78,17 @@ router.post(
         email,
         username,
         password: hashedPassword,
-        display_name: displayName || username,
+        displayName: displayName || username,
         role: UserRole.USER,
+        birthDate: birthDate ? new Date(birthDate) : null,
       },
       select: {
         id: true,
         email: true,
         username: true,
-        display_name: true,
+        displayName: true,
         role: true,
-        created_at: true,
+        createdAt: true,
       },
     });
 
@@ -104,7 +113,7 @@ router.post(
               data: {
                 affiliateId: affiliate.id,
                 referredUserId: user.id,
-                status: 'pending',
+                status: 'PENDING',
               },
             });
 
@@ -132,7 +141,7 @@ router.post(
     const tokens = generateTokenPair({
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role || 'USER',
     });
 
     // Create session
@@ -153,6 +162,13 @@ router.post(
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
+
+    // Track signup completed event
+    await trackEvent(req, EventTypes.SIGNUP_COMPLETED, {
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+    }, user.id).catch(() => {}); // Non-blocking
 
     res.status(201).json({
       success: true,
@@ -188,13 +204,13 @@ router.post(
         password: true,
         role: true,
         status: true,
-        deleted_at: true,
+        deletedAt: true,
         twoFactorEnabled: true,
         twoFactorSecret: true,
       },
     });
 
-    if (!user || user.deleted_at) {
+    if (!user || user.deletedAt) {
       throw new UnauthorizedError('Invalid email or password');
     }
 
@@ -226,7 +242,7 @@ router.post(
     const tokens = generateTokenPair({
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role || 'USER',
     });
 
     // Create session
@@ -256,6 +272,11 @@ router.post(
     // Award daily login bonus (async, don't wait)
     awardDailyLogin(user.id).catch((error) => {
       console.error('Failed to award daily login bonus:', error);
+    });
+
+    // Mark user as returned for retention tracking (non-blocking)
+    markUserReturned(user.id).catch((error) => {
+      console.error('Failed to mark user returned:', error);
     });
 
     res.json({
@@ -305,11 +326,11 @@ router.post(
         email: true,
         role: true,
         status: true,
-        deleted_at: true,
+        deletedAt: true,
       },
     });
 
-    if (!user || user.deleted_at || user.status !== 'ACTIVE') {
+    if (!user || user.deletedAt || user.status !== 'ACTIVE') {
       throw new UnauthorizedError('User not found or inactive');
     }
 
@@ -317,7 +338,7 @@ router.post(
     const tokens = generateTokenPair({
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role || 'USER',
     });
 
     res.json({
@@ -417,12 +438,17 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
       id: true,
       email: true,
       username: true,
-      display_name: true,
+      displayName: true,
       avatar: true,
       bio: true,
       role: true,
-      is_creator: true,
-      created_at: true,
+      isCreator: true,
+      createdAt: true,
+      creator: {
+        select: {
+          banner: true,
+        },
+      },
     },
   });
 
@@ -435,6 +461,174 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
     data: { user },
   });
 }));
+
+/**
+ * PUT /api/auth/me
+ * Update current user profile
+ */
+router.put(
+  '/me',
+  authenticate,
+  csrfProtect,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { displayName, username, bio } = req.body;
+
+    // Build update data
+    const updateData: any = {};
+
+    if (displayName !== undefined) {
+      if (displayName.length < 2 || displayName.length > 50) {
+        throw new ValidationError('Display name must be between 2 and 50 characters');
+      }
+      if (!/^[a-zA-Z0-9\s_-]+$/.test(displayName)) {
+        throw new ValidationError('Display name can only contain letters, numbers, spaces, underscores, and hyphens');
+      }
+      updateData.displayName = displayName;
+    }
+
+    if (username !== undefined) {
+      if (username.length < 3 || username.length > 30) {
+        throw new ValidationError('Username must be between 3 and 30 characters');
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        throw new ValidationError('Username can only contain letters, numbers, and underscores');
+      }
+
+      // Check if username is already taken by another user
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          username,
+          id: { not: userId },
+          deletedAt: null,
+        },
+      });
+
+      if (existingUser) {
+        throw new ConflictError('Username already taken');
+      }
+
+      updateData.username = username;
+    }
+
+    if (bio !== undefined) {
+      if (bio.length > 500) {
+        throw new ValidationError('Bio must be at most 500 characters');
+      }
+      updateData.bio = bio;
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        avatar: true,
+        bio: true,
+        role: true,
+        isCreator: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { user: updatedUser },
+    });
+  })
+);
+
+/**
+ * PUT /api/auth/me/avatar
+ * Update current user avatar
+ */
+router.put(
+  '/me/avatar',
+  authenticate,
+  csrfProtect,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { avatar } = req.body;
+
+    if (!avatar || typeof avatar !== 'string') {
+      throw new ValidationError('Avatar URL is required');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { avatar },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        avatar: true,
+        bio: true,
+        role: true,
+        isCreator: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { user: updatedUser },
+    });
+  })
+);
+
+/**
+ * PUT /api/auth/me/banner
+ * Update current user banner
+ */
+router.put(
+  '/me/banner',
+  authenticate,
+  csrfProtect,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { banner } = req.body;
+
+    if (!banner || typeof banner !== 'string') {
+      throw new ValidationError('Banner URL is required');
+    }
+
+    // Update the creator's banner (banner is on Creator model, not User)
+    const updatedCreator = await prisma.creator.update({
+      where: { userId: userId },
+      data: { banner },
+      select: {
+        id: true,
+        banner: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            displayName: true,
+            avatar: true,
+            bio: true,
+            role: true,
+            isCreator: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        user: updatedCreator.user,
+        banner: updatedCreator.banner,
+      },
+    });
+  })
+);
 
 /**
  * GET /api/auth/csrf-token

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
@@ -170,7 +169,7 @@ export default function AdminDashboard() {
           setStats(data.stats);
         }
       },
-      'admin:new_report': (data) => {
+      'admin:new_report': (_data) => {
         toast({
           title: 'New Report',
           description: 'A new report has been submitted',
@@ -196,15 +195,15 @@ export default function AdminDashboard() {
       ]);
 
       if (statsRes.success && statsRes.data) {
-        setStats(statsRes.data);
+        setStats(statsRes.data as DashboardStats);
       }
 
       if (chartsRes.success && chartsRes.data) {
-        setChartData(chartsRes.data);
+        setChartData(chartsRes.data as ChartData);
       }
 
       if (activityRes.success && activityRes.data) {
-        setRecentActivity(activityRes.data);
+        setRecentActivity(activityRes.data as ActivityItem[]);
       }
     } catch (error: any) {
       toast({
@@ -234,7 +233,7 @@ export default function AdminDashboard() {
   return (
     <>
       <Helmet>
-        <title>Admin Dashboard - Dreamlust</title>
+        <title>Admin Dashboard - PassionFantasia</title>
         <meta name="description" content="Admin dashboard" />
       </Helmet>
 

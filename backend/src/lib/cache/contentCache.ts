@@ -11,27 +11,24 @@ import { prisma } from '../prisma';
  */
 export async function getCachedContent(contentId: string) {
   const cacheKey = `content:${contentId}`;
-  
+
   // Try cache first
   const cached = await CacheService.get(cacheKey);
   if (cached) {
     return cached;
   }
-  
+
   // Fetch from database
   const content = await prisma.content.findUnique({
     where: { id: contentId },
     include: {
       creator: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatar: true,
-            },
-          },
+        select: {
+          id: true,
+          handle: true,
+          displayName: true,
+          avatar: true,
+          isVerified: true,
         },
       },
       categories: {
@@ -48,17 +45,16 @@ export async function getCachedContent(contentId: string) {
         select: {
           views: true,
           likes: true,
-          comments: true,
         },
       },
     },
   });
-  
+
   if (content) {
     // Cache for 15 minutes
     await CacheService.set(cacheKey, content, CacheTTL.CREATOR);
   }
-  
+
   return content;
 }
 
@@ -67,17 +63,17 @@ export async function getCachedContent(contentId: string) {
  */
 export async function getCachedTrending(period: 'today' | 'week' | 'month' = 'today') {
   const cacheKey = CacheKeys.trending(period);
-  
+
   // Try cache first
   const cached = await CacheService.get(cacheKey);
   if (cached) {
     return cached;
   }
-  
+
   // Calculate date range
   const now = new Date();
   const startDate = new Date();
-  
+
   if (period === 'today') {
     startDate.setHours(0, 0, 0, 0);
   } else if (period === 'week') {
@@ -85,11 +81,12 @@ export async function getCachedTrending(period: 'today' | 'week' | 'month' = 'to
   } else {
     startDate.setDate(now.getDate() - 30);
   }
-  
-  // Fetch trending content
+
+  // Fetch trending content with all relations needed by recommendations routes
   const trending = await prisma.content.findMany({
     where: {
       status: 'PUBLISHED',
+      isPublic: true,
       publishedAt: {
         gte: startDate,
       },
@@ -101,23 +98,30 @@ export async function getCachedTrending(period: 'today' | 'week' | 'month' = 'to
     take: 50,
     include: {
       creator: {
+        select: {
+          id: true,
+          handle: true,
+          displayName: true,
+          avatar: true,
+          isVerified: true,
+        },
+      },
+      categories: {
         include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatar: true,
-            },
-          },
+          category: true,
+        },
+      },
+      tags: {
+        include: {
+          tag: true,
         },
       },
     },
   });
-  
+
   // Cache for 1 hour
   await CacheService.set(cacheKey, trending, CacheTTL.TRENDING);
-  
+
   return trending;
 }
 
@@ -136,11 +140,11 @@ export async function getCachedCategories() {
   // Fetch from database
   const categories = await prisma.category.findMany({
     where: {
-      is_active: true,
+      isActive: true,
       deletedAt: null,
     },
     orderBy: {
-      sort_order: 'asc',
+      sortOrder: 'asc',
     },
   });
   

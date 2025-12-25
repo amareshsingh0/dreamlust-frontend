@@ -123,7 +123,7 @@ export async function createNotification(params: CreateNotificationParams) {
   const shouldCreateInApp = inAppPrefs[prefKey] !== false;
 
   // Create in-app notification
-  let notification = null;
+  let notification: any = null;
   if (shouldCreateInApp) {
     // Map notification type to enum
     const typeMap: Record<NotificationType, string> = {
@@ -139,13 +139,13 @@ export async function createNotification(params: CreateNotificationParams) {
 
     notification = await prisma.notification.create({
       data: {
-        user_id: userId,
+        userId: userId,
         type: (typeMap[type] || 'SYSTEM_ANNOUNCEMENT') as any,
         title,
         message,
         link,
         metadata: metadata || {},
-        is_read: false,
+        isRead: false,
       },
     });
   }
@@ -230,11 +230,11 @@ export async function markNotificationAsRead(notificationId: string, userId: str
   return prisma.notification.updateMany({
     where: {
       id: notificationId,
-      user_id: userId,
+      userId: userId,
     },
     data: {
-      is_read: true,
-      read_at: new Date(),
+      isRead: true,
+      readAt: new Date(),
     },
   });
 }
@@ -245,12 +245,12 @@ export async function markNotificationAsRead(notificationId: string, userId: str
 export async function markAllNotificationsAsRead(userId: string) {
   return prisma.notification.updateMany({
     where: {
-      user_id: userId,
-      is_read: false,
+      userId: userId,
+      isRead: false,
     },
     data: {
-      is_read: true,
-      read_at: new Date(),
+      isRead: true,
+      readAt: new Date(),
     },
   });
 }
@@ -261,8 +261,8 @@ export async function markAllNotificationsAsRead(userId: string) {
 export async function getUnreadCount(userId: string): Promise<number> {
   return prisma.notification.count({
     where: {
-      user_id: userId,
-      is_read: false,
+      userId: userId,
+      isRead: false,
     },
   });
 }

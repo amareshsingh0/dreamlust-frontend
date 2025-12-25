@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/authorize';
+import { requireAdmin } from '../middleware/admin';
 import { userRateLimiter } from '../middleware/rateLimit';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ValidationError } from '../lib/errors';

@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/authorize';
+import { requireAdmin } from '../middleware/admin';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { CacheService, isRedisAvailable, CacheKeys, CacheTTL } from '../lib/redis';
 import { getCachedContent, getCachedTrending, getCachedCategories } from '../lib/cache/contentCache';
@@ -117,7 +117,7 @@ if (env.NODE_ENV === 'development') {
         success: true,
         data: {
           period,
-          count: trending1?.length || 0,
+          count: (trending1 as any)?.length || 0,
           firstRequest: {
             time: `${time1}ms`,
             source: 'database',
@@ -154,7 +154,7 @@ if (env.NODE_ENV === 'development') {
       res.json({
         success: true,
         data: {
-          count: categories1?.length || 0,
+          count: (categories1 as any)?.length || 0,
           firstRequest: {
             time: `${time1}ms`,
             source: 'database',
@@ -194,7 +194,7 @@ if (env.NODE_ENV === 'development') {
         success: true,
         data: {
           query,
-          results: search1?.total || 0,
+          results: (search1 as any)?.total || 0,
           firstRequest: {
             time: `${time1}ms`,
             source: 'database',

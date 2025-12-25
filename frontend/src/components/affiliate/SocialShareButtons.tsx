@@ -89,7 +89,7 @@ export function SocialShareButtons({ affiliateLink, affiliateCode }: SocialShare
           <Mail className="h-4 w-4" />
           Email
         </Button>
-        {navigator.share && (
+        {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
           <Button
             variant="outline"
             size="sm"

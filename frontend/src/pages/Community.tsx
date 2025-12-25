@@ -31,8 +31,8 @@ const Community = () => {
   return (
     <>
       <Helmet>
-        <title>Community - Dreamlust</title>
-        <meta name="description" content="Join the Dreamlust community. Connect with creators and viewers worldwide." />
+        <title>Community - PassionFantasia</title>
+        <meta name="description" content="Join the PassionFantasia community. Connect with creators and viewers worldwide." />
       </Helmet>
 
       <Layout>
@@ -44,7 +44,7 @@ const Community = () => {
               <span className="text-sm font-medium">Join 2M+ community members</span>
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-6">
-              Welcome to the <span className="gradient-text">Dreamlust Community</span>
+              Welcome to the <span className="gradient-text">PassionFantasia Community</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
               Connect with creators, discover new content, and be part of something special.

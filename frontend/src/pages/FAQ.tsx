@@ -11,12 +11,12 @@ const faqData = [
         a: "Click the 'Sign Up' button in the top right corner. You can register using your email address or sign in with Google, Apple, or other social accounts."
       },
       {
-        q: "Is Dreamlust free to use?",
-        a: "Yes! Dreamlust offers a free tier with access to a wide range of content. Premium subscriptions unlock exclusive content, higher quality streams, and ad-free viewing."
+        q: "Is PassionFantasia free to use?",
+        a: "Yes! PassionFantasia offers a free tier with access to a wide range of content. Premium subscriptions unlock exclusive content, higher quality streams, and ad-free viewing."
       },
       {
         q: "What devices can I use to watch content?",
-        a: "Dreamlust works on web browsers, iOS and Android mobile apps, smart TVs, gaming consoles, and streaming devices like Roku and Fire TV."
+        a: "PassionFantasia works on web browsers, iOS and Android mobile apps, smart TVs, gaming consoles, and streaming devices like Roku and Fire TV."
       },
     ]
   },
@@ -77,8 +77,8 @@ const FAQ = () => {
   return (
     <>
       <Helmet>
-        <title>FAQ - Dreamlust</title>
-        <meta name="description" content="Frequently asked questions about Dreamlust. Find answers to common questions." />
+        <title>FAQ - PassionFantasia</title>
+        <meta name="description" content="Frequently asked questions about PassionFantasia. Find answers to common questions." />
       </Helmet>
 
       <Layout>

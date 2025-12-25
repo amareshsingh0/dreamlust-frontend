@@ -147,10 +147,10 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
         await prisma.liveStream.update({
           where: { id: streamId },
           data: {
-            viewer_count: viewerCount,
-            peak_viewer_count: stream.peak_viewer_count < viewerCount 
+            viewerCount: viewerCount,
+            peakViewerCount: stream.peakViewerCount < viewerCount 
               ? viewerCount 
-              : stream.peak_viewer_count,
+              : stream.peakViewerCount,
           },
         });
 
@@ -203,7 +203,7 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
           return;
         }
 
-        if (!stream.chat_enabled) {
+        if (!stream.chatEnabled) {
           socket.emit('error', { message: 'Chat is disabled for this stream' });
           return;
         }
@@ -214,7 +214,7 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
           select: {
             id: true,
             username: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
           },
         });
@@ -227,8 +227,8 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
         // Create chat message
         const chatMessage = await prisma.liveChatMessage.create({
           data: {
-            stream_id: streamId,
-            user_id: socket.userId,
+            streamId: streamId,
+            userId: socket.userId,
             message: message.trim(),
           },
         });
@@ -241,7 +241,7 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
           user: {
             id: user.id,
             username: user.username,
-            displayName: user.display_name,
+            displayName: user.displayName,
             avatar: user.avatar,
           },
         };
@@ -271,7 +271,7 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
             await prisma.liveStream.update({
               where: { id: streamId },
               data: {
-                viewer_count: Math.max(0, viewerCount),
+                viewerCount: Math.max(0, viewerCount),
               },
             });
 
@@ -305,7 +305,7 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
             await prisma.liveStream.update({
               where: { id: streamId },
               data: {
-                viewer_count: Math.max(0, viewerCount),
+                viewerCount: Math.max(0, viewerCount),
               },
             });
 
@@ -331,8 +331,11 @@ export function initializeSocketServer(httpServer: HTTPServer): SocketIOServer {
   setSocketInstance(io);
 
   // Initialize admin broadcast service
-  const { initializeAdminBroadcast } = require('../lib/websocket/adminBroadcast');
-  initializeAdminBroadcast(io);
+  import('../lib/websocket/adminBroadcast').then(({ initializeAdminBroadcast }) => {
+    initializeAdminBroadcast(io);
+  }).catch(err => {
+    console.warn('Failed to initialize admin broadcast:', err);
+  });
 
   return io;
 }

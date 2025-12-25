@@ -102,7 +102,7 @@ export async function assignVariant(
   }
 
   // Weighted random assignment
-  const variants = experiment.variants as ExperimentVariant[];
+  const variants = experiment.variants as unknown as ExperimentVariant[];
   const random = Math.random() * 100;
   let cumulativeWeight = 0;
   let assignedVariant = variants[0].name; // Fallback to first variant
@@ -210,7 +210,7 @@ export async function completeExperiment(
   const updated = await prisma.experiment.update({
     where: { id: experimentId },
     data: {
-      status: 'completed',
+      status: 'COMPLETED',
       endDate: new Date(),
       results: results as any,
       winner,
@@ -243,7 +243,7 @@ export async function analyzeExperimentResults(
     throw new Error('Experiment not found');
   }
 
-  const variants = experiment.variants as ExperimentVariant[];
+  const variants = experiment.variants as unknown as ExperimentVariant[];
   const metrics = experiment.metrics as string[];
   const results: Record<string, ExperimentResult> = {};
 

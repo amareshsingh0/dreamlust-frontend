@@ -55,7 +55,7 @@ export function DatePicker({
               onChange?.(date || null);
               setOpen(false);
             }}
-            disabled={disabled ? (date) => true : undefined}
+            disabled={disabled ? (_date) => true : undefined}
             initialFocus
             {...(minDate && { fromDate: minDate })}
             {...(maxDate && { toDate: maxDate })}

@@ -193,7 +193,7 @@ async function processDownload(job: Job<DownloadJobData>) {
     await prisma.download.update({
       where: { id: downloadId },
       data: {
-        status: 'completed',
+        status: 'COMPLETED',
         progress: 100,
         filePath: finalPath,
         fileSize: BigInt(fileSizeBytes),
@@ -215,7 +215,7 @@ async function processDownload(job: Job<DownloadJobData>) {
     await prisma.download.update({
       where: { id: downloadId },
       data: {
-        status: 'failed',
+        status: 'FAILED',
         error: errorMessage,
         updatedAt: new Date(),
       },

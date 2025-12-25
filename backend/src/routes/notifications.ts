@@ -43,17 +43,17 @@ router.get(
     const skip = (page - 1) * limit;
 
     const where: any = {
-      user_id: userId,
+      userId: userId,
     };
 
     if (unreadOnly) {
-      where.is_read = false;
+      where.isRead = false;
     }
 
     const [notifications, total, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
@@ -70,10 +70,10 @@ router.get(
           title: n.title,
           message: n.message,
           link: n.link,
-          isRead: n.is_read,
+          isRead: n.isRead,
           metadata: n.metadata,
-          createdAt: n.created_at,
-          readAt: n.read_at,
+          createdAt: n.createdAt,
+          readAt: n.readAt,
         })),
         pagination: {
           page,
@@ -162,7 +162,7 @@ router.delete(
     const deleted = await prisma.notification.deleteMany({
       where: {
         id,
-        user_id: userId,
+        userId: userId,
       },
     });
 

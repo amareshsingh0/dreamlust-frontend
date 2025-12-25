@@ -35,7 +35,7 @@ export async function createCollaboration(input: CreateCollaborationInput) {
 
   // Verify owner is the content creator
   const creator = await prisma.creator.findUnique({
-    where: { user_id: input.ownerId },
+    where: { userId: input.ownerId },
     select: { id: true },
   });
 
@@ -43,18 +43,29 @@ export async function createCollaboration(input: CreateCollaborationInput) {
     throw new UnauthorizedError('Only content owner can manage collaborations');
   }
 
-  const collaboration = await prisma.collaboration.upsert({
+  // Check if collaboration already exists
+  const existingCollaboration = await prisma.collaboration.findFirst({
     where: { contentId: input.contentId },
-    create: {
-      contentId: input.contentId,
-      ownerId: input.ownerId,
-      collaborators: input.collaborators as any,
-      status: 'active',
-    },
-    update: {
-      collaborators: input.collaborators as any,
-    },
   });
+
+  let collaboration;
+  if (existingCollaboration) {
+    collaboration = await prisma.collaboration.update({
+      where: { id: existingCollaboration.id },
+      data: {
+        collaborators: input.collaborators as any,
+      },
+    });
+  } else {
+    collaboration = await prisma.collaboration.create({
+      data: {
+        contentId: input.contentId,
+        ownerId: input.ownerId,
+        collaborators: input.collaborators as any,
+        status: 'active',
+      },
+    });
+  }
 
   logger.info('Collaboration created/updated', {
     contentId: input.contentId,
@@ -68,14 +79,14 @@ export async function createCollaboration(input: CreateCollaborationInput) {
  * Get collaboration for content
  */
 export async function getCollaboration(contentId: string) {
-  const collaboration = await prisma.collaboration.findUnique({
+  const collaboration = await prisma.collaboration.findFirst({
     where: { contentId },
     include: {
       owner: {
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       },
@@ -87,7 +98,7 @@ export async function getCollaboration(contentId: string) {
   }
 
   // Enrich collaborators with user data
-  const collaborators = collaboration.collaborators as Collaborator[];
+  const collaborators = collaboration.collaborators as unknown as Collaborator[];
   const enrichedCollaborators = await Promise.all(
     collaborators.map(async (collab) => {
       const user = await prisma.user.findUnique({
@@ -95,7 +106,7 @@ export async function getCollaboration(contentId: string) {
         select: {
           id: true,
           username: true,
-          display_name: true,
+          displayName: true,
           avatar: true,
         },
       });
@@ -121,12 +132,12 @@ export async function addCollaborator(
   ownerId: string,
   collaborator: Collaborator
 ) {
-  const collaboration = await prisma.collaboration.findUnique({
+  const collaboration = await prisma.collaboration.findFirst({
     where: { contentId },
   });
 
   const collaborators = collaboration
-    ? (collaboration.collaborators as Collaborator[])
+    ? (collaboration.collaborators as unknown as Collaborator[])
     : [];
 
   // Check if collaborator already exists
@@ -153,7 +164,7 @@ export async function updateCollaborator(
   role: 'editor' | 'viewer',
   permissions?: string[]
 ) {
-  const collaboration = await prisma.collaboration.findUnique({
+  const collaboration = await prisma.collaboration.findFirst({
     where: { contentId },
   });
 
@@ -161,7 +172,7 @@ export async function updateCollaborator(
     throw new NotFoundError('Collaboration not found');
   }
 
-  const collaborators = collaboration.collaborators as Collaborator[];
+  const collaborators = collaboration.collaborators as unknown as Collaborator[];
   const collaboratorIndex = collaborators.findIndex(c => c.userId === userId);
 
   if (collaboratorIndex === -1) {
@@ -189,7 +200,7 @@ export async function removeCollaborator(
   ownerId: string,
   userId: string
 ) {
-  const collaboration = await prisma.collaboration.findUnique({
+  const collaboration = await prisma.collaboration.findFirst({
     where: { contentId },
   });
 
@@ -197,7 +208,7 @@ export async function removeCollaborator(
     throw new NotFoundError('Collaboration not found');
   }
 
-  const collaborators = (collaboration.collaborators as Collaborator[]).filter(
+  const collaborators = (collaboration.collaborators as unknown as Collaborator[]).filter(
     c => c.userId !== userId
   );
 
@@ -217,7 +228,7 @@ export async function canUserEditContent(contentId: string, userId: string): Pro
     where: { id: contentId },
     include: {
       creator: {
-        select: { user_id: true },
+        select: { userId: true },
       },
     },
   });
@@ -226,12 +237,12 @@ export async function canUserEditContent(contentId: string, userId: string): Pro
     return false;
   }
 
-  if (content.creator.user_id === userId) {
+  if (content.creator.userId === userId) {
     return true;
   }
 
   // Check if user is a collaborator with editor role
-  const collaboration = await prisma.collaboration.findUnique({
+  const collaboration = await prisma.collaboration.findFirst({
     where: { contentId },
   });
 
@@ -239,7 +250,7 @@ export async function canUserEditContent(contentId: string, userId: string): Pro
     return false;
   }
 
-  const collaborators = collaboration.collaborators as Collaborator[];
+  const collaborators = collaboration.collaborators as unknown as Collaborator[];
   const collaborator = collaborators.find(c => c.userId === userId);
 
   return collaborator?.role === 'editor' || false;
@@ -253,7 +264,7 @@ export async function canUserViewContent(contentId: string, userId: string): Pro
     where: { id: contentId },
     include: {
       creator: {
-        select: { user_id: true },
+        select: { userId: true },
       },
     },
   });
@@ -268,12 +279,12 @@ export async function canUserViewContent(contentId: string, userId: string): Pro
   }
 
   // Owner can always view
-  if (content.creator.user_id === userId) {
+  if (content.creator.userId === userId) {
     return true;
   }
 
   // Check if user is a collaborator
-  const collaboration = await prisma.collaboration.findUnique({
+  const collaboration = await prisma.collaboration.findFirst({
     where: { contentId },
   });
 
@@ -281,7 +292,7 @@ export async function canUserViewContent(contentId: string, userId: string): Pro
     return false;
   }
 
-  const collaborators = collaboration.collaborators as Collaborator[];
+  const collaborators = collaboration.collaborators as unknown as Collaborator[];
   return collaborators.some(c => c.userId === userId);
 }
 

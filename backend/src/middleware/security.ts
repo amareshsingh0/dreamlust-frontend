@@ -35,8 +35,6 @@ export const securityHeaders = helmet({
   crossOriginResourcePolicy: { policy: 'same-origin' },
   // DNS Prefetch Control
   dnsPrefetchControl: true,
-  // Expect-CT (deprecated but some browsers still use it)
-  expectCt: false,
   // Frameguard (X-Frame-Options)
   frameguard: { action: 'sameorigin' },
   // Hide Powered-By
@@ -53,23 +51,6 @@ export const securityHeaders = helmet({
   noSniff: true,
   // Origin Agent Cluster
   originAgentCluster: true,
-  // Permissions Policy (formerly Feature-Policy)
-  permissionsPolicy: {
-    camera: [],
-    microphone: [],
-    geolocation: [],
-    interestCohort: [], // FLoC
-    payment: ["'self'"], // Allow PayPal payments
-    usb: [],
-    magnetometer: [],
-    gyroscope: [],
-    accelerometer: [],
-    ambientLightSensor: [],
-    autoplay: ["'self'"],
-    encryptedMedia: ["'self'"],
-    fullscreen: ["'self'"],
-    pictureInPicture: ["'self'"],
-  },
   // Referrer Policy
   referrerPolicy: {
     policy: 'strict-origin-when-cross-origin',

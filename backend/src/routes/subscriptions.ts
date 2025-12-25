@@ -14,6 +14,7 @@ import {
   razorpay,
 } from '../lib/razorpay';
 import { getPlanById } from '../lib/plans';
+import { trackEvent, EventTypes } from '../lib/analytics/tracker';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.post(
     // Check if user already has an active subscription for this plan
     const existingSubscription = await prisma.userSubscription.findFirst({
       where: {
-        user_id: userId,
+        userId: userId,
         plan,
         status: 'active',
       },
@@ -59,7 +60,7 @@ router.post(
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, display_name: true, username: true },
+      select: { id: true, email: true, displayName: true, username: true },
     });
 
     if (!user) {
@@ -76,7 +77,7 @@ router.post(
     const customer = await getOrCreateCustomer(
       userId,
       user.email,
-      user.display_name || user.username
+      user.displayName || user.username
     );
 
     // Create subscription in Razorpay
@@ -100,13 +101,13 @@ router.post(
     // Create subscription record
     const userSubscription = await prisma.userSubscription.create({
       data: {
-        user_id: userId,
+        userId: userId,
         plan,
         status: subscription.status === 'active' ? 'active' : 'canceled',
-        razorpay_subscription_id: subscription.id,
-        current_period_start: currentPeriodStart,
-        current_period_end: currentPeriodEnd,
-        cancel_at_period_end: false,
+        razorpaySubscriptionId: subscription.id,
+        currentPeriodStart: currentPeriodStart,
+        currentPeriodEnd: currentPeriodEnd,
+        cancelAtPeriodEnd: false,
       },
     });
 
@@ -116,12 +117,12 @@ router.post(
     if (amount > 0) {
       await prisma.transaction.create({
         data: {
-          user_id: userId,
+          userId: userId,
           type: 'SUBSCRIPTION',
           amount: amount,
           currency: planConfig.currency || 'INR',
           status: subscription.status === 'active' ? 'COMPLETED' : 'PENDING',
-          razorpay_payment_id: subscription.id,
+          razorpayPaymentId: subscription.id,
           metadata: {
             subscriptionId: subscription.id,
             plan,
@@ -155,11 +156,11 @@ router.get(
 
     const subscriptions = await prisma.userSubscription.findMany({
       where: {
-        user_id: userId,
+        userId: userId,
         status: 'active',
       },
       orderBy: {
-        created_at: 'desc',
+        createdAt: 'desc',
       },
     });
 
@@ -190,30 +191,30 @@ router.get(
       throw new NotFoundError('Subscription not found');
     }
 
-    if (subscription.user_id !== userId) {
+    if (subscription.userId !== userId) {
       throw new ValidationError('You do not have permission to view this subscription');
     }
 
-    // Get latest info from Stripe if available
-    let stripeSubscription = null;
-    if (subscription.stripe_subscription_id && stripe) {
+    // Get latest info from Razorpay if available
+    let razorpaySubscription: any = null;
+    if (subscription.razorpaySubscriptionId && razorpay) {
       try {
-        stripeSubscription = await getSubscription(subscription.stripe_subscription_id);
-        
+        razorpaySubscription = await getSubscription(subscription.razorpaySubscriptionId);
+
         // Update local record if status changed
-        if (stripeSubscription.status !== subscription.status) {
+        if (razorpaySubscription && razorpaySubscription.status !== subscription.status) {
           await prisma.userSubscription.update({
             where: { id },
             data: {
-              status: stripeSubscription.status === 'active' ? 'active' : 'canceled',
-              current_period_start: new Date(stripeSubscription.current_period_start * 1000),
-              current_period_end: new Date(stripeSubscription.current_period_end * 1000),
-              cancel_at_period_end: stripeSubscription.cancel_at_period_end || false,
+              status: razorpaySubscription.status === 'active' ? 'active' : 'canceled',
+              currentPeriodStart: razorpaySubscription.current_start ? new Date(razorpaySubscription.current_start * 1000) : undefined,
+              currentPeriodEnd: razorpaySubscription.current_end ? new Date(razorpaySubscription.current_end * 1000) : undefined,
+              cancelAtPeriodEnd: razorpaySubscription.cancel_at_cycle_end || false,
             },
           });
         }
       } catch (error) {
-        console.error('Error fetching Stripe subscription:', error);
+        console.error('Error fetching Razorpay subscription:', error);
       }
     }
 
@@ -221,7 +222,7 @@ router.get(
       success: true,
       data: {
         ...subscription,
-        stripeSubscription,
+        razorpaySubscription,
       },
     });
   })
@@ -253,7 +254,7 @@ router.post(
       throw new NotFoundError('Subscription not found');
     }
 
-    if (subscription.user_id !== userId) {
+    if (subscription.userId !== userId) {
       throw new ValidationError('You do not have permission to cancel this subscription');
     }
 
@@ -261,13 +262,13 @@ router.post(
       throw new ValidationError('Subscription is not active');
     }
 
-    if (!subscription.razorpay_subscription_id) {
+    if (!subscription.razorpaySubscriptionId) {
       throw new ValidationError('Razorpay subscription ID not found');
     }
 
     // Cancel in Razorpay
     const canceledSubscription = await cancelSubscription(
-      subscription.razorpay_subscription_id,
+      subscription.razorpaySubscriptionId,
       cancelAtPeriodEnd
     );
 
@@ -276,7 +277,7 @@ router.post(
       where: { id },
       data: {
         status: cancelAtPeriodEnd ? 'active' : 'canceled',
-        cancel_at_period_end: cancelAtPeriodEnd,
+        cancelAtPeriodEnd: cancelAtPeriodEnd,
       },
     });
 
@@ -289,7 +290,7 @@ router.post(
         subscription: {
           ...subscription,
           status: cancelAtPeriodEnd ? 'active' : 'canceled',
-          cancel_at_period_end: cancelAtPeriodEnd,
+          cancelAtPeriodEnd: cancelAtPeriodEnd,
         },
       },
     });

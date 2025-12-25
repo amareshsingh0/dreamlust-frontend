@@ -51,13 +51,12 @@ router.post(
   searchRateLimiter,
   validateBody(searchSchema),
   asyncHandler(async (req: Request, res: Response) => {
-      const {
-        query = '',
-        filters = {},
-        sort = 'trending',
-        page = 1,
-        limit = 20,
-      } = req.body as SearchRequest;
+      const body = req.body as SearchRequest;
+      const query = body.query || '';
+      const filters = body.filters || {};
+      const sort = body.sort || 'trending';
+      const page = body.page || 1;
+      const limit = body.limit || 20;
 
       const skip = (page - 1) * limit;
 
@@ -85,7 +84,7 @@ router.post(
           },
           {
             creator: {
-              display_name: { contains: query, mode: 'insensitive' },
+              displayName: { contains: query, mode: 'insensitive' },
             },
           },
           {
@@ -97,8 +96,8 @@ router.post(
       }
 
       // Content type filter
-      if (filters.contentType && filters.contentType.length > 0) {
-        where.type = { in: filters.contentType };
+      if (filters.type && filters.type.length > 0) {
+        where.type = { in: filters.type };
       }
 
       // Categories filter
@@ -219,10 +218,10 @@ router.post(
             creator: {
               select: {
                 id: true,
-                display_name: true,
+                displayName: true,
                 handle: true,
                 avatar: true,
-                is_verified: true,
+                isVerified: true,
               },
             },
             tags: {
@@ -261,8 +260,8 @@ router.post(
         const scoredResults = results.map(content => ({
           ...content,
           _trendingScore: calculateTrendingScore({
-            viewCount: content.viewCount,
-            likeCount: content.likeCount,
+            viewCount: content.viewCount || 0,
+            likeCount: content.likeCount || 0,
             publishedAt: content.publishedAt,
           }),
         }));
@@ -286,8 +285,8 @@ router.post(
         matchingContentIds.length > 0
           ? prisma.category.findMany({
               where: {
-                deleted_at: null,
-                is_active: true,
+                deletedAt: null,
+                isActive: true,
                 contents: {
                   some: {
                     contentId: { in: matchingContentIds },
@@ -342,7 +341,7 @@ router.post(
                 },
               },
               orderBy: {
-                usage_count: 'desc',
+                usageCount: 'desc',
               },
               take: 50, // Limit to top 50 tags
             }).then(tags =>
@@ -363,20 +362,20 @@ router.post(
         duration: content.duration ? `${Math.floor(content.duration / 60)}:${String(content.duration % 60).padStart(2, '0')}` : '0:00',
         views: content.viewCount,
         likes: content.likeCount,
-        createdAt: content.createdAt.toISOString(),
+        createdAt: (content.createdAt || new Date()).toISOString(),
         creator: {
           id: content.creator.id,
-          name: content.creator.display_name,
+          name: content.creator.displayName,
           username: content.creator.handle,
           avatar: content.creator.avatar || '',
-          isVerified: content.creator.is_verified || false,
+          isVerified: content.creator.isVerified || false,
         },
         type: content.type.toLowerCase().replace('_stream', '').replace('_', '') as 'video' | 'photo' | 'vr' | 'live' | 'audio',
         quality: content.resolution ? [content.resolution] : [],
         tags: content.tags.map((ct) => ct.tag.name),
         category: content.categories[0]?.category.name || '',
         description: content.description || undefined,
-        isLive: content.type === 'LIVE_STREAM' || content.type === 'live_stream',
+        isLive: content.type === 'LIVE_STREAM',
         isPremium: content.isPremium,
       }));
 

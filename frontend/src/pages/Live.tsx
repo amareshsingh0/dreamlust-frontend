@@ -6,8 +6,6 @@ import { LiveStreamCard } from "@/components/content/LiveStreamCard";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 
 interface LiveStream {
   id: string;
@@ -45,13 +43,15 @@ const Live = () => {
         // Fetch live streams
         const liveResponse = await api.live.getAll({ status: 'live', limit: 20 });
         if (liveResponse.success && liveResponse.data) {
-          setLiveStreams(liveResponse.data.streams || []);
+          const data = liveResponse.data as { streams: LiveStream[] };
+          setLiveStreams(data.streams || []);
         }
 
         // Fetch upcoming streams
         const upcomingResponse = await api.live.getAll({ status: 'upcoming', limit: 20 });
         if (upcomingResponse.success && upcomingResponse.data) {
-          setUpcomingStreams(upcomingResponse.data.streams || []);
+          const data = upcomingResponse.data as { streams: LiveStream[] };
+          setUpcomingStreams(data.streams || []);
         }
       } catch (error: any) {
         console.error("Error fetching live streams:", error);
@@ -96,9 +96,13 @@ const Live = () => {
       username: stream.creator.username,
       avatar: stream.creator.avatar || '',
       isVerified: stream.creator.isVerified,
+      bio: '',
+      followers: 0,
+      views: 0,
+      contentCount: 0,
     },
     type: 'live' as const,
-    quality: [],
+    quality: [] as string[],
     tags: stream.tags,
     category: stream.category || '',
     description: stream.description,
@@ -110,7 +114,7 @@ const Live = () => {
   return (
     <>
       <Helmet>
-        <title>Live Streams - Dreamlust</title>
+        <title>Live Streams - PassionFantasia</title>
         <meta name="description" content="Watch live streams from your favorite creators" />
       </Helmet>
       

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -34,7 +34,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Helmet } from 'react-helmet-async';
@@ -289,7 +288,7 @@ export default function PlaylistDetail() {
   return (
     <>
       <Helmet>
-        <title>{playlist.name} - DreamLust</title>
+        <title>{playlist.name} - PassionFantasia</title>
         <meta name="description" content={playlist.description || `Playlist: ${playlist.name}`} />
       </Helmet>
       
@@ -426,7 +425,7 @@ export default function PlaylistDetail() {
             </Card>
           ) : (
             <div className="space-y-2">
-              {items.map((item, index) => (
+              {items.map((item) => (
                 <Card
                   key={item.id}
                   className={cn(

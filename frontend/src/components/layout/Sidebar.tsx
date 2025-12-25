@@ -1,14 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Home, 
-  Compass, 
-  TrendingUp, 
-  Clock, 
-  Heart, 
-  PlaySquare, 
-  Users, 
-  Settings,
-  Zap,
+import {
+  Home,
+  Compass,
+  TrendingUp,
+  Clock,
+  Heart,
+  PlaySquare,
+  Users,
   Star,
   Radio
 } from 'lucide-react';

@@ -7,8 +7,8 @@ const Cookies = () => {
   return (
     <>
       <Helmet>
-        <title>Cookie Policy - Dreamlust</title>
-        <meta name="description" content="Learn about how Dreamlust uses cookies and similar technologies." />
+        <title>Cookie Policy - PassionFantasia</title>
+        <meta name="description" content="Learn about how PassionFantasia uses cookies and similar technologies." />
       </Helmet>
 
       <Layout>

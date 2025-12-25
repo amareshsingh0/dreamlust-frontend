@@ -82,7 +82,7 @@ export async function analyzeFunnel(
 ): Promise<FunnelAnalysis> {
   const funnel = FUNNELS[funnelName];
   
-  if (!funnel || funnel.length === 0) {
+  if (!funnel) {
     throw new Error(`Invalid funnel: ${funnelName}`);
   }
 

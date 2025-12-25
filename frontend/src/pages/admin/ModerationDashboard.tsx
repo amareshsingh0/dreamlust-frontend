@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -10,14 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
-  Trash2, 
-  Ban,
+import {
+  Shield,
+  AlertTriangle,
+  Eye,
   MessageSquare,
   User,
   FileVideo,
@@ -39,16 +35,6 @@ interface Report {
   moderator_notes?: string;
   created_at: string;
   reviewed_at?: string;
-}
-
-interface ContentFlag {
-  id: string;
-  content_id: string;
-  flag_type: string;
-  reason: string;
-  severity: string;
-  is_active: boolean;
-  created_at: string;
 }
 
 export default function ModerationDashboard() {
@@ -84,8 +70,9 @@ export default function ModerationDashboard() {
         limit: 20,
       });
       if (response.success && response.data) {
-        setReports(response.data.reports || []);
-        setTotalPages(response.data.pagination?.totalPages || 1);
+        const data = response.data as { reports: Report[]; pagination?: { totalPages: number } };
+        setReports(data.reports || []);
+        setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error: any) {
       toast({
@@ -152,7 +139,7 @@ export default function ModerationDashboard() {
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 
-  const getSeverityBadge = (severity: string) => {
+  const _getSeverityBadge = (severity: string) => {
     const colors: Record<string, string> = {
       low: 'bg-blue-500',
       medium: 'bg-yellow-500',
@@ -182,7 +169,7 @@ export default function ModerationDashboard() {
   return (
     <>
       <Helmet>
-        <title>Moderation Dashboard - Dreamlust</title>
+        <title>Moderation Dashboard - PassionFantasia</title>
         <meta name="description" content="Admin moderation dashboard" />
       </Helmet>
 

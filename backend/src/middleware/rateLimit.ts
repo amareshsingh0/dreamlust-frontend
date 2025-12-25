@@ -1,7 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { RATE_LIMITS } from '../config/constants';
 import { RateLimitError } from '../lib/errors';
+
+// Helper to get client IP
+function getClientIp(req: Request): string {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    const ips = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0];
+    return ips.trim();
+  }
+  return req.ip || req.socket.remoteAddress || 'unknown';
+}
 
 /**
  * Rate limiter for authenticated users (100 req/min)
@@ -12,12 +22,13 @@ export const userRateLimiter = rateLimit({
   message: 'Too many requests from this user, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   keyGenerator: (req: Request) => {
     // Use user ID if authenticated, otherwise IP
     if (req.user?.userId) {
       return req.user.userId;
     }
-    return ipKeyGenerator(req);
+    return getClientIp(req);
   },
   handler: (req: Request, res: Response, next: NextFunction) => {
     const error = new RateLimitError('Rate limit exceeded. Please try again later.');
@@ -34,7 +45,8 @@ export const ipRateLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: ipKeyGenerator,
+  validate: false,
+  keyGenerator: getClientIp,
   handler: (req: Request, res: Response, next: NextFunction) => {
     const error = new RateLimitError('Rate limit exceeded. Please try again later.');
     next(error);
@@ -65,12 +77,13 @@ export const searchRateLimiter = rateLimit({
   message: 'Too many search requests. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   keyGenerator: (req: Request) => {
     // Use user ID if authenticated, otherwise IP
     if (req.user?.userId) {
       return req.user.userId;
     }
-    return ipKeyGenerator(req);
+    return getClientIp(req);
   },
   handler: (req: Request, res: Response, next: NextFunction) => {
     const error = new RateLimitError('Search rate limit exceeded. Please try again later.');
@@ -87,12 +100,13 @@ export const commentsRateLimiter = rateLimit({
   message: 'Too many comment requests. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   keyGenerator: (req: Request) => {
     // Use user ID if authenticated, otherwise IP
     if (req.user?.userId) {
       return req.user.userId;
     }
-    return ipKeyGenerator(req);
+    return getClientIp(req);
   },
   handler: (req: Request, res: Response, next: NextFunction) => {
     const error = new RateLimitError('Comment rate limit exceeded. Please try again later.');
@@ -109,10 +123,11 @@ export const uploadRateLimiter = rateLimit({
   message: 'Too many upload requests. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   keyGenerator: (req: Request) => {
     // Use user ID for authenticated users (creators)
     if (!req.user?.userId) {
-      return ipKeyGenerator(req);
+      return getClientIp(req);
     }
     return `upload:${req.user.userId}`;
   },
@@ -132,6 +147,7 @@ export const loginRateLimiter = rateLimit({
   message: 'Too many login attempts. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   keyGenerator: (req: Request) => {
     // Use email from body if available and parsed, otherwise use IP
     // Body might not be parsed yet when rate limiter runs
@@ -142,7 +158,7 @@ export const loginRateLimiter = rateLimit({
     } catch {
       // Body not available yet, fall back to IP
     }
-    return `login:${ipKeyGenerator(req)}`;
+    return `login:${getClientIp(req)}`;
   },
   handler: (req: Request, res: Response, next: NextFunction) => {
     const error = new RateLimitError('Too many login attempts. Please try again later.');
@@ -160,12 +176,13 @@ export const tipRateLimiter = rateLimit({
   message: 'Too many tip requests. You can send up to 10 tips per hour.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   keyGenerator: (req: Request) => {
     // Use user ID for authenticated users, otherwise IP
     if (req.user?.userId) {
       return `tip:${req.user.userId}`;
     }
-    return `tip:${ipKeyGenerator(req)}`;
+    return `tip:${getClientIp(req)}`;
   },
   handler: (req: Request, res: Response, next: NextFunction) => {
     const error = new RateLimitError('Tip rate limit exceeded. You can send up to 10 tips per hour. Please try again later.');

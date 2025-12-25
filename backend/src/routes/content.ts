@@ -2,13 +2,14 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { userRateLimiter } from '../middleware/rateLimit';
-import { NotFoundError } from '../lib/errors';
+import { NotFoundError, ForbiddenError } from '../lib/errors';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validation';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { awardPoints } from '../lib/loyalty/points';
 import { trackLikeActivity } from '../lib/social/activityFeedService';
 import { getCachedContent, invalidateContentCache } from '../lib/cache/contentCache';
+import { verifyUserAge } from '../lib/auth/ageVerification';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.post(
   optionalAuth,
   userRateLimiter,
   validateBody(trackViewSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user?.userId;
     const { duration } = req.body;
@@ -40,13 +41,30 @@ router.post(
       throw new NotFoundError('Content not found');
     }
 
+    // Check age restriction for age-restricted or NSFW content
+    if (content.ageRestricted || content.isNSFW) {
+      if (!userId) {
+        throw new ForbiddenError(
+          'This content is age-restricted. Please sign in and verify your age to access it.'
+        );
+      }
+
+      // Verify user meets age requirement (18+)
+      const ageVerification = await verifyUserAge(userId, 18);
+      if (!ageVerification.allowed) {
+        throw new ForbiddenError(
+          ageVerification.reason || 'You must be 18 or older to view this content.'
+        );
+      }
+    }
+
     // Check user preferences if authenticated
     let shouldRecordHistory = true;
     let shouldTrackAnalytics = true;
 
     if (userId) {
       const preferences = await prisma.userPreferences.findUnique({
-        where: { userId }, // Prisma Client maps user_id to userId
+        where: { userId: userId },
       });
 
       if (preferences) {
@@ -110,7 +128,7 @@ router.post(
         analyticsTracked: shouldTrackAnalytics,
       },
     });
-  }
+  })
 );
 
 /**
@@ -231,9 +249,9 @@ router.get(
                 select: {
                   id: true,
                   handle: true,
-                  display_name: true,
+                  displayName: true,
                   avatar: true,
-                  is_verified: true,
+                  isVerified: true,
                 },
               },
               categories: {
@@ -297,9 +315,9 @@ router.get(
                 select: {
                   id: true,
                   handle: true,
-                  display_name: true,
+                  displayName: true,
                   avatar: true,
-                  is_verified: true,
+                  isVerified: true,
                 },
               },
               categories: {
@@ -364,15 +382,12 @@ router.get(
         where: { id },
         include: {
           creator: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  displayName: true,
-                  avatar: true,
-                },
-              },
+            select: {
+              id: true,
+              handle: true,
+              displayName: true,
+              avatar: true,
+              isVerified: true,
             },
           },
           tags: {
@@ -393,6 +408,26 @@ router.get(
       }
     }
 
+    // Type assertion for content with age restriction fields
+    const contentData = content as any;
+
+    // Check age restriction for age-restricted or NSFW content
+    if (contentData.ageRestricted || contentData.isNSFW) {
+      if (!userId) {
+        throw new ForbiddenError(
+          'This content is age-restricted. Please sign in and verify your age to access it.'
+        );
+      }
+
+      // Verify user meets age requirement (18+)
+      const ageVerification = await verifyUserAge(userId, 18);
+      if (!ageVerification.allowed) {
+        throw new ForbiddenError(
+          ageVerification.reason || 'You must be 18 or older to view this content.'
+        );
+      }
+    }
+
     // Check if user liked this content
     let isLiked = false;
     if (userId) {
@@ -408,7 +443,7 @@ router.get(
     res.json({
       success: true,
       data: {
-        ...content,
+        ...contentData,
         isLiked,
       },
     });

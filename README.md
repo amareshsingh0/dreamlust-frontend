@@ -1,4 +1,4 @@
-# Dreamlust Project
+# PassionFantasia Project
 
 A comprehensive video/content platform with authentication, content management, and moderation features.
 
@@ -50,7 +50,7 @@ See `FIXES_APPLIED.md` and `README_FIXES.md` for complete details.
 ## 📁 Project Structure
 
 ```
-dreamlust-project/
+PassionFantasia-project/
 ├── backend/          # Express.js backend
 │   ├── src/
 │   ├── prisma/

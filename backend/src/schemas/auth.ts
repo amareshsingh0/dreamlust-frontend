@@ -15,6 +15,17 @@ export const registerSchema = z.object({
       return password.length >= 6;
     }, 'Password must be at least 6 characters'),
   displayName: z.string().min(1).max(100).optional(),
+  birthDate: z.string().refine((date) => {
+    if (!date) return true; // Optional for now, but recommended
+    const birth = new Date(date);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age >= 13 && age <= 120;
+  }, 'You must be at least 13 years old and enter a valid date of birth').optional(),
 });
 
 // Login schema

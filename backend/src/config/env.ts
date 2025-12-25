@@ -57,16 +57,20 @@ const envSchema = z.object({
   S3_REGION: z.string().optional(),
   S3_CDN_URL: z.string().url().optional(), // CDN URL for serving assets
   
-  // Cloudflare R2 (alternative to S3)
-  R2_ACCOUNT_ID: z.string().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  // Cloudflare (R2 Storage & Stream Video)
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_ACCESS_KEY_ID: z.string().optional(),
+  CLOUDFLARE_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET_NAME: z.string().optional(),
   R2_PUBLIC_URL: z.string().url().optional(),
   
+  // Legacy R2 variable names (deprecated - use CLOUDFLARE_* instead)
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  
   // Cloudflare Stream (for video hosting)
   CLOUDFLARE_STREAM_API_TOKEN: z.string().optional(),
-  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
   
   // Mux (alternative video hosting)
   MUX_TOKEN_ID: z.string().optional(),

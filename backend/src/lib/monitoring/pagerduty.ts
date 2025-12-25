@@ -81,7 +81,7 @@ export async function sendPagerDutyAlert(
       throw new Error(`PagerDuty API error: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as { dedup_key?: string };
     logger.info('PagerDuty alert sent successfully', {
       alert: alert.name,
       dedup_key: result.dedup_key,

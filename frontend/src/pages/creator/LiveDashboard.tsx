@@ -25,7 +25,6 @@ import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { cn } from "@/lib/utils";
 
 interface LiveStream {
   id: string;
@@ -94,7 +93,7 @@ const LiveDashboard = () => {
     // Check if user is a creator
     const checkCreator = async () => {
       try {
-        const response = await api.creators.getCurrent();
+        const response = await api.creators.getByHandle('me');
         if (!response.success || !response.data) {
           toast.error("You need to be a creator to access live streaming");
           navigate("/creator-signup");
@@ -148,18 +147,19 @@ const LiveDashboard = () => {
       });
 
       if (response.success && response.data) {
+        const data = response.data as any;
         setStream({
-          id: response.data.id,
-          title: response.data.title,
-          description: response.data.description,
-          streamKey: response.data.streamKey,
-          status: response.data.status,
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          streamKey: data.streamKey,
+          status: data.status,
           viewerCount: 0,
           peakViewerCount: 0,
           tags: tagsArray,
           category: category,
-          chatEnabled: response.data.chatEnabled,
-          isRecorded: response.data.isRecorded,
+          chatEnabled: data.chatEnabled,
+          isRecorded: data.isRecorded,
         });
         toast.success("Stream created successfully!");
       } else {
@@ -207,11 +207,12 @@ const LiveDashboard = () => {
       });
 
       if (response.success && response.data) {
+        const data = response.data as any;
         setStream(prev => prev ? {
           ...prev,
           status: 'live',
-          playbackUrl: response.data.playbackUrl,
-          startedAt: response.data.startedAt,
+          playbackUrl: data.playbackUrl,
+          startedAt: data.startedAt,
         } : null);
         toast.success("Stream is now live!");
         
@@ -237,11 +238,12 @@ const LiveDashboard = () => {
       const response = await api.live.end(stream.id);
 
       if (response.success && response.data) {
+        const data = response.data as any;
         setStream(prev => prev ? {
           ...prev,
           status: 'ended',
-          endedAt: response.data.endedAt,
-          recordingUrl: response.data.recordingUrl,
+          endedAt: data.endedAt,
+          recordingUrl: data.recordingUrl,
         } : null);
         toast.success("Stream ended successfully");
         
@@ -270,7 +272,7 @@ const LiveDashboard = () => {
     }
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = async (_messageId: string) => {
     if (!stream) return;
     
     try {
@@ -278,7 +280,7 @@ const LiveDashboard = () => {
       // For now, we'll just show a toast
       toast.success("Message deleted");
       // Refresh chat messages
-      const chatResponse = await api.live.getChat(stream.id, 50);
+      const chatResponse = await api.live.getChat<{ messages: ChatMessage[] }>(stream.id, 50);
       if (chatResponse.success && chatResponse.data) {
         setChatMessages(chatResponse.data.messages || []);
       }
@@ -287,7 +289,7 @@ const LiveDashboard = () => {
     }
   };
 
-  const handleBanUser = async (userId: string) => {
+  const handleBanUser = async (_userId: string) => {
     if (!stream) return;
     
     try {
@@ -305,18 +307,19 @@ const LiveDashboard = () => {
       if (!stream || stream.status !== 'live') return;
 
       try {
-        const response = await api.live.get(stream.id);
+        const response = await api.live.get<LiveStream>(stream.id);
         if (response.success && response.data) {
+          const data = response.data;
           setStream(prev => prev ? {
             ...prev,
-            viewerCount: response.data.viewerCount,
-            peakViewerCount: response.data.peakViewerCount,
+            viewerCount: data.viewerCount,
+            peakViewerCount: data.peakViewerCount,
           } : null);
         }
 
         // Fetch chat messages
         if (stream.chatEnabled) {
-          const chatResponse = await api.live.getChat(stream.id, 50);
+          const chatResponse = await api.live.getChat<{ messages: ChatMessage[] }>(stream.id, 50);
           if (chatResponse.success && chatResponse.data) {
             setChatMessages(chatResponse.data.messages || []);
             setChatMessageCount(chatResponse.data.messages?.length || 0);
@@ -366,7 +369,7 @@ const LiveDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Live Dashboard - Dreamlust</title>
+        <title>Live Dashboard - PassionFantasia</title>
         <meta name="description" content="Manage your live streams" />
       </Helmet>
       
@@ -400,9 +403,9 @@ const LiveDashboard = () => {
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => copyToClipboard(stream.streamKey!)}
+                          onClick={() => copyToClipboard(stream.streamKey!, 'streamKey')}
                         >
-                          {copied ? (
+                          {copiedField === 'streamKey' ? (
                             <Check className="h-4 w-4" />
                           ) : (
                             <Copy className="h-4 w-4" />

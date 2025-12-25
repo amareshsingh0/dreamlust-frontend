@@ -2,7 +2,7 @@
  * Points System Tests
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { calculatePoints, awardPoints, checkTierUpgrade, getTierBenefits } from '../../loyalty/points';
 import { prisma } from '../../prisma';
 

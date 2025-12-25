@@ -69,7 +69,7 @@ router.post(
       where: { id: contentId },
       include: {
         creator: {
-          select: { user_id: true },
+          select: { userId: true },
         },
       },
     });
@@ -78,7 +78,7 @@ router.post(
       throw new NotFoundError('Content not found');
     }
 
-    if (content.creator.user_id !== userId) {
+    if (content.creator.userId !== userId) {
       throw new UnauthorizedError('Only content owner can schedule content');
     }
 
@@ -118,7 +118,7 @@ router.delete(
       where: { id: contentId },
       include: {
         creator: {
-          select: { user_id: true },
+          select: { userId: true },
         },
       },
     });
@@ -127,7 +127,7 @@ router.delete(
       throw new NotFoundError('Content not found');
     }
 
-    if (content.creator.user_id !== userId) {
+    if (content.creator.userId !== userId) {
       throw new UnauthorizedError('Only content owner can cancel scheduled content');
     }
 
@@ -157,7 +157,7 @@ router.get(
 
     // Get creator ID
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: { id: true },
     });
 
@@ -227,7 +227,7 @@ router.post(
       where: { id: contentId },
       include: {
         creator: {
-          select: { user_id: true },
+          select: { userId: true },
         },
       },
     });
@@ -236,7 +236,7 @@ router.post(
       throw new NotFoundError('Content not found');
     }
 
-    if (content.creator.user_id !== userId) {
+    if (content.creator.userId !== userId) {
       throw new UnauthorizedError('Only content owner can create thumbnail tests');
     }
 
@@ -510,7 +510,7 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: { id: true },
     });
 

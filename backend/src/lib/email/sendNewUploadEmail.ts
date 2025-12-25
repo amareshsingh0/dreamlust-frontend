@@ -16,7 +16,7 @@ interface Content {
 
 interface Creator {
   id: string;
-  display_name: string;
+  displayName: string;
   handle?: string;
   avatar?: string;
 }
@@ -27,10 +27,10 @@ interface Creator {
 export async function sendNewUploadEmail(content: Content, creator: Creator) {
   try {
     // Get all active subscriptions (followers) for this creator
-    // Note: Subscription model uses subscriber_id which references User
+    // Note: Subscription model uses subscriberId which references User
     const subscriptions = await prisma.subscription.findMany({
       where: {
-        creator_id: creator.id,
+        creatorId: creator.id,
         status: 'ACTIVE',
       },
     });
@@ -41,7 +41,7 @@ export async function sendNewUploadEmail(content: Content, creator: Creator) {
     }
 
     // Get all subscriber user IDs
-    const subscriberIds = subscriptions.map(s => s.subscriber_id);
+    const subscriberIds = subscriptions.map(s => s.subscriberId);
 
     // Get all subscribers with their notification preferences
     const subscribers = await prisma.user.findMany({
@@ -61,13 +61,13 @@ export async function sendNewUploadEmail(content: Content, creator: Creator) {
     const creatorUser = await prisma.creator.findUnique({
       where: { id: creator.id },
       select: {
-        display_name: true,
+        displayName: true,
         handle: true,
         avatar: true,
       },
     });
 
-    const creatorName = creatorUser?.display_name || creator.display_name;
+    const creatorName = creatorUser?.displayName || creator.displayName;
     const creatorHandle = creatorUser?.handle;
 
     // Process each follower
@@ -94,7 +94,7 @@ export async function sendNewUploadEmail(content: Content, creator: Creator) {
             },
             user: {
               username: subscriber.username,
-              display_name: subscriber.display_name,
+              displayName: subscriber.displayName,
             },
           },
           `${creatorName} uploaded: ${content.title}`
@@ -126,7 +126,7 @@ export async function sendNewUploadEmail(content: Content, creator: Creator) {
             },
             user: {
               username: subscriber.username,
-              display_name: subscriber.display_name,
+              displayName: subscriber.displayName,
             },
           },
           `${creatorName} uploaded: ${content.title}`

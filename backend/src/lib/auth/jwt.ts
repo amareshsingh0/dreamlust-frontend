@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { env } from '../../config/env';
 import { TokenType } from '../../config/constants';
 import { UnauthorizedError } from '../errors';
@@ -30,9 +30,7 @@ export function generateAccessToken(payload: Omit<JWTPayload, 'type' | 'iat' | '
       type: TokenType.ACCESS,
     },
     env.JWT_SECRET,
-    {
-      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
-    }
+    { expiresIn: env.JWT_ACCESS_EXPIRES_IN } as SignOptions
   );
 }
 
@@ -46,9 +44,7 @@ export function generateRefreshToken(payload: Omit<JWTPayload, 'type' | 'iat' | 
       type: TokenType.REFRESH,
     },
     env.JWT_SECRET,
-    {
-      expiresIn: env.JWT_REFRESH_EXPIRES_IN,
-    }
+    { expiresIn: env.JWT_REFRESH_EXPIRES_IN } as SignOptions
   );
 }
 

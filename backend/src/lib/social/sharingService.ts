@@ -31,7 +31,7 @@ export async function generateOGTags(contentId: string): Promise<OGTags> {
     include: {
       creator: {
         select: {
-          display_name: true,
+          displayName: true,
           handle: true,
         },
       },
@@ -48,14 +48,14 @@ export async function generateOGTags(contentId: string): Promise<OGTags> {
 
   const ogTags: OGTags = {
     'og:title': content.title,
-    'og:description': content.description || `${content.creator.display_name} on DreamLust`,
+    'og:description': content.description || `${content.creator.displayName} on DreamLust`,
     'og:image': content.thumbnail || '',
     'og:url': shareUrl,
     'og:type': 'video.other',
     'twitter:card': 'player',
     'twitter:player': embedUrl,
     'twitter:title': content.title,
-    'twitter:description': content.description || `${content.creator.display_name} on DreamLust`,
+    'twitter:description': content.description || `${content.creator.displayName} on DreamLust`,
     'twitter:image': content.thumbnail || '',
   };
 

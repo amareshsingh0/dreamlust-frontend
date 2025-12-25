@@ -15,8 +15,8 @@ export const confirmPaymentSchema = z.object({
 export const tipQuerySchema = z.object({
   creatorId: z.string().optional(),
   status: z.enum(['pending', 'completed', 'failed', 'refunded']).optional(),
-  page: z.string().transform(Number).default('1'),
-  limit: z.string().transform(Number).default('20'),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 export type CreateTipInput = z.infer<typeof createTipSchema>;

@@ -4,7 +4,7 @@
  * Centralized alert management and routing
  */
 
-import { AlertConfig, checkAlert, logAlert, getEnabledAlerts } from './alerts';
+import { AlertConfig, checkAlert, logAlert, getEnabledAlerts, AlertSeverity } from './alerts';
 import { sendDiscordCriticalAlert, sendDiscordAlert } from './discord';
 import logger from '../logger';
 

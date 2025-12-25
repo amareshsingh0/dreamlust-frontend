@@ -63,13 +63,13 @@ router.get(
   validateQuery(
     z.object({
       status: z.enum(['pending', 'downloading', 'completed', 'failed', 'expired', 'cancelled']).optional(),
-      page: z.string().transform(Number).default('1'),
-      limit: z.string().transform(Number).default('20'),
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(20),
     })
   ),
   asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.userId;
-    const { status, page, limit } = req.query as {
+    const { status, page, limit } = req.query as unknown as {
       status?: string;
       page: number;
       limit: number;
@@ -108,7 +108,7 @@ router.get(
             duration: true,
             creator: {
               select: {
-                display_name: true,
+                displayName: true,
                 handle: true,
               },
             },

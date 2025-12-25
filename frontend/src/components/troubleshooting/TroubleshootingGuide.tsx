@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw, Terminal, Server } from 'lucide-react';
+import { CheckCircle, AlertCircle, Play, RefreshCw, Terminal, Server } from 'lucide-react';
 
 const TroubleshootingGuide = () => {
   const [currentStep, setCurrentStep] = useState(0);

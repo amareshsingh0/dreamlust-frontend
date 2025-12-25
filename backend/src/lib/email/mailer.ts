@@ -88,7 +88,7 @@ export async function sendEmail(options: {
 
   try {
     const info = await emailTransporter.sendMail({
-      from: options.from || env.SMTP_FROM || 'noreply@dreamlust.com',
+      from: options.from || env.SMTP_FROM || 'noreply@passionfantasia.com',
       to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
       subject: options.subject,
       text: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
@@ -127,7 +127,7 @@ export async function sendPasswordResetEmail(
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Dreamlust</h1>
+          <h1 style="color: white; margin: 0;">PassionFantasia</h1>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
           <h2 style="color: #333; margin-top: 0;">Reset Your Password</h2>
@@ -146,7 +146,7 @@ export async function sendPasswordResetEmail(
           </p>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
           <p style="color: #999; font-size: 12px; text-align: center;">
-            © ${new Date().getFullYear()} Dreamlust. All rights reserved.
+            © ${new Date().getFullYear()} PassionFantasia. All rights reserved.
           </p>
         </div>
       </body>
@@ -155,7 +155,7 @@ export async function sendPasswordResetEmail(
 
   return await sendEmail({
     to: email,
-    subject: 'Reset Your Password - Dreamlust',
+    subject: 'Reset Your Password - PassionFantasia',
     html,
   });
 }
@@ -173,22 +173,22 @@ export async function sendWelcomeEmail(
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to Dreamlust</title>
+        <title>Welcome to PassionFantasia</title>
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Welcome to Dreamlust!</h1>
+          <h1 style="color: white; margin: 0;">Welcome to PassionFantasia!</h1>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
           <h2 style="color: #333; margin-top: 0;">Hello ${username}!</h2>
-          <p>Thank you for joining Dreamlust. We're excited to have you on board!</p>
+          <p>Thank you for joining PassionFantasia. We're excited to have you on board!</p>
           <p>Start exploring amazing content and connect with creators from around the world.</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${env.FRONTEND_URL}" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Get Started</a>
           </div>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
           <p style="color: #999; font-size: 12px; text-align: center;">
-            © ${new Date().getFullYear()} Dreamlust. All rights reserved.
+            © ${new Date().getFullYear()} PassionFantasia. All rights reserved.
           </p>
         </div>
       </body>
@@ -197,7 +197,7 @@ export async function sendWelcomeEmail(
 
   return await sendEmail({
     to: email,
-    subject: 'Welcome to Dreamlust!',
+    subject: 'Welcome to PassionFantasia!',
     html,
   });
 }

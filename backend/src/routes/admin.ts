@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/authorize';
+import { requireAdmin } from '../middleware/admin';
 import { userRateLimiter, strictRateLimiter } from '../middleware/rateLimit';
 import { validateQuery, validateBody } from '../middleware/validation';
 import { NotFoundError, ValidationError } from '../lib/errors';
@@ -33,19 +33,19 @@ router.get(
       prisma.user.count(),
       prisma.user.count({
         where: {
-          last_active_at: {
+          updatedAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
           },
         },
       }),
       prisma.content.count({
         where: {
-          deleted_at: null,
+          deletedAt: null,
         },
       }),
       prisma.view.count({
         where: {
-          created_at: {
+          createdAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
         },
@@ -53,7 +53,7 @@ router.get(
       prisma.transaction.aggregate({
         where: {
           status: 'COMPLETED',
-          created_at: {
+          createdAt: {
             gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },
         },
@@ -73,7 +73,7 @@ router.get(
       }),
       prisma.user.count({
         where: {
-          created_at: {
+          createdAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
         },
@@ -119,22 +119,22 @@ router.get(
     // User growth data
     const userGrowthData = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
       SELECT 
-        DATE(created_at) as date,
+        DATE(createdAt) as date,
         COUNT(*)::bigint as count
       FROM users
-      WHERE created_at >= ${startDate}
-      GROUP BY DATE(created_at)
+      WHERE createdAt >= ${startDate}
+      GROUP BY DATE(createdAt)
       ORDER BY date ASC
     `;
 
     // Revenue trend
     const revenueData = await prisma.$queryRaw<Array<{ date: string; amount: number }>>`
       SELECT 
-        DATE(created_at) as date,
+        DATE(createdAt) as date,
         COALESCE(SUM(amount), 0) as amount
       FROM transactions
-      WHERE status = 'COMPLETED' AND created_at >= ${startDate}
-      GROUP BY DATE(created_at)
+      WHERE status = 'COMPLETED' AND createdAt >= ${startDate}
+      GROUP BY DATE(createdAt)
       ORDER BY date ASC
     `;
 
@@ -143,7 +143,7 @@ router.get(
       by: ['categoryId'],
       where: {
         content: {
-          created_at: {
+          createdAt: {
             gte: startDate,
           },
         },
@@ -205,12 +205,12 @@ router.get(
     limit: z.coerce.number().int().min(1).max(50).default(20),
   })),
   async (req: Request, res: Response) => {
-    const { limit } = req.query as { limit: number };
+    const { limit } = req.query as unknown as { limit: number };
 
     const [recentReports, recentContent, recentUsers] = await Promise.all([
       prisma.report.findMany({
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           reporter: {
             select: {
@@ -223,7 +223,7 @@ router.get(
       }),
       prisma.content.findMany({
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           creator: {
             include: {
@@ -239,13 +239,13 @@ router.get(
       }),
       prisma.user.findMany({
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           username: true,
           email: true,
           role: true,
-          created_at: true,
+          createdAt: true,
         },
       }),
     ]);
@@ -257,7 +257,7 @@ router.get(
         title: `New report: ${r.type}`,
         description: r.reason,
         user: r.reporter.username || r.reporter.email,
-        timestamp: r.created_at,
+        timestamp: r.createdAt,
       })),
       ...recentContent.map(c => ({
         type: 'content' as const,
@@ -265,7 +265,7 @@ router.get(
         title: `New content: ${c.title}`,
         description: `By ${c.creator.user.username}`,
         user: c.creator.user.username,
-        timestamp: c.created_at,
+        timestamp: c.createdAt,
       })),
       ...recentUsers.map(u => ({
         type: 'user' as const,
@@ -273,10 +273,10 @@ router.get(
         title: `New user: ${u.username || u.email}`,
         description: `Role: ${u.role}`,
         user: u.username || u.email,
-        timestamp: u.created_at,
+        timestamp: u.createdAt,
       })),
     ]
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0))
       .slice(0, limit);
 
     res.json({
@@ -321,12 +321,20 @@ router.get(
         where,
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           _count: {
             select: {
-              content: true,
               reports: true,
+            },
+          },
+          creator: {
+            include: {
+              _count: {
+                select: {
+                  content: true,
+                },
+              },
             },
           },
         },
@@ -363,10 +371,17 @@ router.get(
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
-        creator: true,
+        creator: {
+          include: {
+            _count: {
+              select: {
+                content: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
-            content: true,
             reports: true,
             subscriptions: true,
             transactions: true,
@@ -577,7 +592,7 @@ router.get(
         where,
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           creator: {
             include: {
@@ -643,7 +658,7 @@ router.post(
     await prisma.content.update({
       where: { id },
       data: {
-        deleted_at: new Date(),
+        deletedAt: new Date(),
         status: 'DELETED',
       },
     });
@@ -683,8 +698,8 @@ router.post(
     // Create warning notification
     await prisma.notification.create({
       data: {
-        user_id: creator.user_id,
-        type: 'WARNING',
+        userId: creator.userId,
+        type: 'SYSTEM_ANNOUNCEMENT',
         title: 'Moderation Warning',
         message: reason,
         metadata: {

@@ -6,12 +6,12 @@ Write-Host "Checking port 3001..." -ForegroundColor Cyan
 $connection = Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($connection) {
-    $pid = $connection.OwningProcess
-    $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
-    
+    $processId = $connection.OwningProcess
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+
     if ($process) {
-        Write-Host "Found process using port 3001: $($process.ProcessName) (PID: $pid)" -ForegroundColor Yellow
-        
+        Write-Host "Found process using port 3001: $($process.ProcessName) (PID: $processId)" -ForegroundColor Yellow
+
         # Check if server is responding
         try {
             $response = Invoke-WebRequest -Uri "http://localhost:3001/health" -UseBasicParsing -TimeoutSec 2
@@ -19,8 +19,8 @@ if ($connection) {
             Write-Host "Status: $($response.StatusCode)" -ForegroundColor Green
             exit 0
         } catch {
-            Write-Host "Server is not responding. Killing process $pid..." -ForegroundColor Yellow
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            Write-Host "Server is not responding. Killing process $processId..." -ForegroundColor Yellow
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 2
             Write-Host "✅ Process killed. Port 3001 is now free." -ForegroundColor Green
         }

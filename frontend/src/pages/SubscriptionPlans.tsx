@@ -9,6 +9,8 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useLocale } from "@/contexts/LocaleContext";
+import { formatPrice } from "@/lib/preferences/currencyHelper";
 
 interface Plan {
   id: string;
@@ -27,6 +29,7 @@ interface Plan {
 
 const SubscriptionPlans = () => {
   const { user } = useAuth();
+  const { currency } = useLocale();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,14 +37,20 @@ const SubscriptionPlans = () => {
 
   useEffect(() => {
     fetchPlans();
-  }, []);
+    // Track subscription viewed event
+    if (user) {
+      api.analytics.track('subscription_viewed', {
+        timestamp: new Date().toISOString(),
+      }).catch(() => {}); // Non-blocking
+    }
+  }, [user]);
 
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      const response = await api.plans.getAll<{ data: Plan[] }>();
+      const response = await api.plans.getAll<Plan[]>();
       if (response.success && response.data) {
-        setPlans(response.data);
+        setPlans(response.data as Plan[]);
       }
     } catch (error) {
       console.error("Failed to fetch plans:", error);
@@ -80,11 +89,7 @@ const SubscriptionPlans = () => {
       console.log('Creating Razorpay checkout for plan:', planId);
       
       // Create Razorpay checkout (like Stripe pattern)
-      const response = await api.razorpay.createCheckout<{
-        data: {
-          url: string;
-        };
-      }>({
+      const response = await api.razorpay.createCheckout<{ url: string }>({
         planId: planId,
       });
 
@@ -108,13 +113,15 @@ const SubscriptionPlans = () => {
     }
   };
 
-  const currentPlan = plans.find((p) => p.isSubscribed);
+  // Find current plan for potential future use
+  const _currentPlan = plans.find((p) => p.isSubscribed);
+  void _currentPlan; // Suppress unused variable warning
 
   if (loading) {
     return (
       <Layout>
         <Helmet>
-          <title>Subscription Plans - Dreamlust</title>
+          <title>Subscription Plans - PassionFantasia</title>
         </Helmet>
         <div className="container mx-auto px-4 py-16">
           <div className="flex items-center justify-center min-h-[400px]">
@@ -128,7 +135,7 @@ const SubscriptionPlans = () => {
   return (
     <>
       <Helmet>
-        <title>Subscription Plans - Dreamlust</title>
+        <title>Subscription Plans - PassionFantasia</title>
         <meta name="description" content="Choose the perfect subscription plan for you" />
       </Helmet>
       <Layout>
@@ -178,9 +185,7 @@ const SubscriptionPlans = () => {
                         <span className="text-4xl font-bold">
                           {plan.price === 0
                             ? "Free"
-                            : plan.currency === 'INR'
-                            ? `₹${plan.price % 1 === 0 ? plan.price : plan.price.toFixed(2)}`
-                            : `$${plan.price.toFixed(2)}`}
+                            : formatPrice(plan.price, currency)}
                         </span>
                         {plan.price > 0 && (
                           <span className="text-muted-foreground">

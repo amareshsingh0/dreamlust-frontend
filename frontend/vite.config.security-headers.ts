@@ -46,19 +46,25 @@ export function securityHeadersPlugin(): Plugin {
         
         // Content-Security-Policy (CSP) - Best Practices requirement
         // Allow same-origin, inline scripts (for Vite), and external CDNs
+        // In development, allow localhost backend connections
+        const isDevelopment = process.env.NODE_ENV === 'development' || process.env.DEV === 'true';
+        const connectSrc = isDevelopment
+          ? "'self' http://localhost:3001 http://127.0.0.1:3001 https://api.dreamlust.com https://checkout.razorpay.com https://www.paypal.com wss: ws:"
+          : "'self' https://api.dreamlust.com https://checkout.razorpay.com https://www.paypal.com wss: ws:";
+        
         const cspDirectives = [
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.paypal.com",
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
           "font-src 'self' https://fonts.gstatic.com data:",
           "img-src 'self' data: https: blob:",
-          "connect-src 'self' https://api.dreamlust.com https://checkout.razorpay.com https://www.paypal.com wss: ws:",
+          `connect-src ${connectSrc}`,
           "media-src 'self' https: blob:",
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",
           "frame-ancestors 'self'",
-          "upgrade-insecure-requests"
+          ...(isDevelopment ? [] : ["upgrade-insecure-requests"])
         ].join('; ');
         res.setHeader('Content-Security-Policy', cspDirectives);
         

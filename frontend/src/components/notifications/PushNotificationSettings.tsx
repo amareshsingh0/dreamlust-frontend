@@ -23,7 +23,7 @@ export function PushNotificationSettings() {
   const [supported, setSupported] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
   const [subscriptions, setSubscriptions] = useState<PushSubscription[]>([]);
 

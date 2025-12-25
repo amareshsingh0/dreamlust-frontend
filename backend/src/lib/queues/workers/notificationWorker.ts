@@ -28,7 +28,7 @@ async function sendNotification(job: Job<NotificationJob>) {
     // Create in-app notification
     await prisma.notification.create({
       data: {
-        user_id: userId,
+        userId: userId,
         type: type as any,
         title,
         message,
@@ -40,10 +40,10 @@ async function sendNotification(job: Job<NotificationJob>) {
     // Send email notification if user has email notifications enabled
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { user_preferences: true },
+      include: { userPreferences: true },
     });
 
-    if (user?.user_preferences?.email_notifications) {
+    if (user?.emailNotifications) {
       // Only send email for important notifications
       const emailTypes = ['NEW_SUBSCRIBER', 'PAYMENT_RECEIVED', 'CONTENT_APPROVED', 'CONTENT_REJECTED'];
       if (emailTypes.includes(type)) {

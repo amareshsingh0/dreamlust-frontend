@@ -13,8 +13,8 @@ export async function exampleWithTags(req: any, res: any) {
   // Add custom tags to the current request span
   addTags({
     operation: 'process_payment',
-    user_id: req.user?.id,
-    payment_method: req.body.method,
+    userId: req.user?.id,
+    paymentMethod: req.body.method,
   });
 
   try {
@@ -37,7 +37,7 @@ export async function exampleWithTags(req: any, res: any) {
 // Example 2: Track custom events
 export async function exampleTrackEvent() {
   trackEvent('User Registered', 'New user signed up', {
-    user_id: 'user-123',
+    userId: 'user-123',
     plan: 'free',
   });
 }

@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { Camera, Edit2, Twitter, Instagram, Globe, UserPlus, Check, Upload } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Camera, Edit2, Twitter, Instagram, Globe, UserPlus, Check, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileHeaderProps {
   isOwnProfile?: boolean;
@@ -47,8 +50,103 @@ export function ProfileHeader({
   onFollow,
   onEdit,
 }: ProfileHeaderProps) {
+  const { refreshUser } = useAuth();
   const [isEditingBanner, setIsEditingBanner] = useState(false);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image must be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Image must be less than 10MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBannerPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarPreview) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const response = await api.auth.updateAvatar<{ user: any }>(avatarPreview);
+      if (response.success) {
+        await refreshUser();
+        toast.success("Avatar updated successfully!");
+        setIsEditingAvatar(false);
+        setAvatarPreview(null);
+      } else {
+        toast.error(response.error?.message || "Failed to update avatar");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update avatar");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerUpload = async () => {
+    if (!bannerPreview) return;
+
+    setIsUploadingBanner(true);
+    try {
+      const response = await api.auth.updateBanner<{ user: any }>(bannerPreview);
+      if (response.success) {
+        await refreshUser();
+        toast.success("Banner updated successfully!");
+        setIsEditingBanner(false);
+        setBannerPreview(null);
+      } else {
+        toast.error(response.error?.message || "Failed to update banner");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update banner");
+    } finally {
+      setIsUploadingBanner(false);
+    }
+  };
+
+  const closeAvatarDialog = () => {
+    setIsEditingAvatar(false);
+    setAvatarPreview(null);
+    if (avatarInputRef.current) {
+      avatarInputRef.current.value = '';
+    }
+  };
+
+  const closeBannerDialog = () => {
+    setIsEditingBanner(false);
+    setBannerPreview(null);
+    if (bannerInputRef.current) {
+      bannerInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="relative mb-8">
@@ -237,6 +335,132 @@ export function ProfileHeader({
           </div>
         </div>
       </div>
+
+      {/* Avatar Upload Dialog */}
+      <Dialog open={isEditingAvatar} onOpenChange={(open) => !open && closeAvatarDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Avatar</DialogTitle>
+            <DialogDescription>
+              Choose a new profile picture. Max file size: 5MB.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <div className="relative h-32 w-32 rounded-full overflow-hidden border-4 border-primary/20">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Preview" className="h-full w-full object-cover" />
+                ) : avatar ? (
+                  <img src={avatar} alt="Current avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl font-bold text-primary-foreground">
+                    {displayName[0]}
+                  </div>
+                )}
+              </div>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarSelect}
+              className="hidden"
+              id="avatar-upload"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => avatarInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Choose Image
+              </Button>
+              {avatarPreview && (
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={handleAvatarUpload}
+                  disabled={isUploadingAvatar}
+                >
+                  {isUploadingAvatar ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Banner Upload Dialog */}
+      <Dialog open={isEditingBanner} onOpenChange={(open) => !open && closeBannerDialog()}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Update Banner</DialogTitle>
+            <DialogDescription>
+              Choose a new banner image. Recommended size: 1500x500. Max file size: 10MB.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative w-full h-40 rounded-lg overflow-hidden border-2 border-primary/20">
+              {bannerPreview ? (
+                <img src={bannerPreview} alt="Preview" className="w-full h-full object-cover" />
+              ) : banner ? (
+                <img src={banner} alt="Current banner" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
+              )}
+            </div>
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleBannerSelect}
+              className="hidden"
+              id="banner-upload"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => bannerInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Choose Image
+              </Button>
+              {bannerPreview && (
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={handleBannerUpload}
+                  disabled={isUploadingBanner}
+                >
+                  {isUploadingBanner ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

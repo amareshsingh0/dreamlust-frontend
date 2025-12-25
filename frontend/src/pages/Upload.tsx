@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -158,7 +157,24 @@ const Upload = () => {
 
   // Upload with progress tracking
   const uploadWithProgress = async (formData: FormData): Promise<any> => {
+    // Get CSRF token first (before creating Promise)
+    let csrfToken: string;
+    try {
+      const csrfResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/csrf-token`, {
+        credentials: 'include',
+      });
+      const csrfData = await csrfResponse.json();
+      if (!csrfData.success || !csrfData.data?.csrfToken) {
+        throw new Error('Failed to get CSRF token');
+      }
+      csrfToken = csrfData.data.csrfToken;
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error);
+      return Promise.reject({ success: false, error: { message: 'Failed to get CSRF token. Please refresh the page and try again.' } });
+    }
+
     return new Promise((resolve, reject) => {
+
       const xhr = new XMLHttpRequest();
       const token = localStorage.getItem('accessToken');
       const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload/content`;
@@ -304,6 +320,8 @@ const Upload = () => {
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       }
+      // Include CSRF token
+      xhr.setRequestHeader('X-CSRF-Token', csrfToken);
       
       xhr.withCredentials = true;
       xhr.send(formData);
@@ -313,8 +331,8 @@ const Upload = () => {
   return (
     <>
       <Helmet>
-        <title>Upload Content - Dreamlust</title>
-        <meta name="description" content="Upload your content to Dreamlust" />
+        <title>Upload Content - PassionFantasia</title>
+        <meta name="description" content="Upload your content to PassionFantasia" />
       </Helmet>
       
       <Layout>

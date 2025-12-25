@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/authorize';
+import { requireAdmin } from '../middleware/admin';
 import { validateBody } from '../middleware/validation';
 import { strictRateLimiter, userRateLimiter, loginRateLimiter } from '../middleware/rateLimit';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -242,8 +242,8 @@ router.post(
     // 2FA verified - generate tokens and complete login
     const tokens = generateTokenPair({
       userId: user.id,
-      email: user.email,
-      role: user.role,
+      email: user.email || '',
+      role: user.role || 'USER',
     });
 
     // Create session

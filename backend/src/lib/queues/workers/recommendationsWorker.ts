@@ -103,9 +103,9 @@ async function generateRecommendations(job: Job<RecommendationsJob>) {
           select: {
             id: true,
             handle: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
         categories: {

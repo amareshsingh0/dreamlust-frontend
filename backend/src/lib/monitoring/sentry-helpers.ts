@@ -39,7 +39,6 @@ export function withSentry<T extends (...args: any[]) => Promise<any>>(
         setUser({
           id: req.user.userId,
           email: req.user.email,
-          username: req.user.username,
         });
       }
       
@@ -55,7 +54,6 @@ export function withSentry<T extends (...args: any[]) => Promise<any>>(
           user: req.user ? {
             id: req.user.userId,
             email: req.user.email,
-            username: req.user.username,
           } : undefined,
           extra: {
             body: req.body,
@@ -64,7 +62,7 @@ export function withSentry<T extends (...args: any[]) => Promise<any>>(
           },
         });
       }
-      
+
       throw error;
     } finally {
       // Clear user context after request
@@ -98,7 +96,6 @@ export function captureEndpointError(
     user: req.user ? {
       id: req.user.userId,
       email: req.user.email,
-      username: req.user.username,
     } : undefined,
     extra: {
       ...extra,

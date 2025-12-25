@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Content type enum matching Prisma schema
-const contentTypeEnum = z.enum(['VIDEO', 'PHOTO', 'VR', 'LIVE_STREAM', 'AUDIO']);
+const typeEnum = z.enum(['VIDEO', 'PHOTO', 'VR', 'LIVE_STREAM', 'AUDIO']);
 
 // Quality enum
 const qualityEnum = z.enum(['720p', '1080p', '4K']);
@@ -15,7 +15,7 @@ export const searchSchema = z.object({
   filters: z.object({
     categories: z.array(z.string()).optional().default([]),
     tags: z.array(z.string()).optional().default([]),
-    contentType: z.array(contentTypeEnum).optional().default([]),
+    type: z.array(typeEnum).optional().default([]),
     quality: z.array(qualityEnum).optional().default([]),
     duration: z.object({
       min: z.number().int().min(0).optional(),

@@ -48,8 +48,8 @@ const Help = () => {
   return (
     <>
       <Helmet>
-        <title>Help Center - Dreamlust</title>
-        <meta name="description" content="Get help with your Dreamlust account, content, billing, and more." />
+        <title>Help Center - PassionFantasia</title>
+        <meta name="description" content="Get help with your PassionFantasia account, content, billing, and more." />
       </Helmet>
 
       <Layout>

@@ -50,7 +50,7 @@ router.post(
     // Check if user already has an active subscription for this plan
     const existingSubscription = await prisma.userSubscription.findFirst({
       where: {
-        user_id: userId,
+        userId: userId,
         plan: planId,
         status: 'active',
       },
@@ -63,7 +63,7 @@ router.post(
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, display_name: true, username: true },
+      select: { id: true, email: true, displayName: true, username: true },
     });
 
     if (!user) {
@@ -74,7 +74,7 @@ router.post(
     const customer = await getOrCreateCustomer(
       userId,
       user.email,
-      user.display_name || user.username
+      user.displayName || user.username
     );
 
     // Create checkout session
@@ -89,7 +89,7 @@ router.post(
           quantity: 1,
         },
       ],
-      success_url: `${env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${env.FRONTEND_URL}/subscription/success?sessionId={CHECKOUT_SESSION_ID}`,
       cancel_url: `${env.FRONTEND_URL}/subscription-plans`,
       metadata: {
         userId: userId,

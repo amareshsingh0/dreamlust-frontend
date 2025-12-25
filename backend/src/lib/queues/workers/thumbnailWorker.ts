@@ -28,10 +28,9 @@ async function generateThumbnail(job: Job<ThumbnailJob>) {
     let thumbnailUrl: string;
 
     if (imageBuffer) {
-      // Process existing image buffer
-      const result = await processThumbnailFromBuffer(contentId, imageBuffer);
+      // Process existing image buffer - just use the buffer directly
       thumbnailBuffer = imageBuffer;
-      thumbnailUrl = result.thumbnailUrl || '';
+      thumbnailUrl = ''; // Will be set after upload
     } else if (videoUrl) {
       // Generate thumbnail from video
       // For now, we'll need to download the video or use a service

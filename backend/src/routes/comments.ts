@@ -253,7 +253,7 @@ router.post(
     await prisma.content.update({
       where: { id: contentId },
       data: {
-        totalComments: {
+        commentCount: {
           increment: 1,
         },
       },
@@ -277,12 +277,12 @@ router.post(
       if (contentForActivity) {
         const creator = await prisma.creator.findUnique({
           where: { id: contentForActivity.creatorId },
-          select: { user_id: true },
+          select: { userId: true },
         });
 
         if (creator) {
           createActivity({
-            userId: creator.user_id,
+            userId: creator.userId,
             actorId: userId,
             type: 'comment',
             targetType: 'content',
@@ -330,7 +330,7 @@ router.put(
 
     // Check if comment was created within 5 minutes
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    if (comment.createdAt < fiveMinutesAgo) {
+    if ((comment.createdAt || new Date(0)) < fiveMinutesAgo) {
       throw new ValidationError('Comments can only be edited within 5 minutes of posting');
     }
 
@@ -404,7 +404,7 @@ router.delete(
     await prisma.content.update({
       where: { id: comment.contentId },
       data: {
-        totalComments: {
+        commentCount: {
           decrement: 1,
         },
       },

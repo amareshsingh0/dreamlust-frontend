@@ -67,8 +67,8 @@ const Contact = () => {
   return (
     <>
       <Helmet>
-        <title>Contact Us - Dreamlust</title>
-        <meta name="description" content="Get in touch with the Dreamlust team. We're here to help." />
+        <title>Contact Us - PassionFantasia</title>
+        <meta name="description" content="Get in touch with the PassionFantasia team. We're here to help." />
       </Helmet>
 
       <Layout>
@@ -88,7 +88,7 @@ const Contact = () => {
                 <div className="p-6 rounded-xl bg-card border border-border">
                   <Mail className="h-6 w-6 text-primary mb-3" />
                   <h3 className="font-semibold mb-1">Email</h3>
-                  <p className="text-sm text-muted-foreground">support@dreamlust.com</p>
+                  <p className="text-sm text-muted-foreground">passionfantasia@gmail.com</p>
                 </div>
                 <div className="p-6 rounded-xl bg-card border border-border">
                   <MessageCircle className="h-6 w-6 text-primary mb-3" />
@@ -103,7 +103,7 @@ const Contact = () => {
                 <div className="p-6 rounded-xl bg-card border border-border">
                   <MapPin className="h-6 w-6 text-primary mb-3" />
                   <h3 className="font-semibold mb-1">Office</h3>
-                  <p className="text-sm text-muted-foreground">San Francisco, CA</p>
+                  <p className="text-sm text-muted-foreground">Greater Noida, India</p>
                 </div>
               </div>
 

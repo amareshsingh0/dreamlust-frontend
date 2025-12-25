@@ -4,7 +4,6 @@ import { Content } from '@/types';
 import { ContentCard } from './ContentCard';
 import { ContentCardSkeleton } from './ContentCardSkeleton';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 interface ContentCarouselProps {
   title: string;

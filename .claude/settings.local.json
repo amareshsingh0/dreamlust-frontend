@@ -20,7 +20,10 @@
       "Bash(dir:*)",
       "Bash(bun tsc:*)",
       "Bash(grep:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(bun run tsc:*)"
     ]
   }
 }

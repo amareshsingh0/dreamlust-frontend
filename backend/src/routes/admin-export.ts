@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/authorize';
+import { requireAdmin } from '../middleware/admin';
 import { validateQuery } from '../middleware/validation';
 import { z } from 'zod';
 import { Parser } from 'json2csv';
@@ -34,30 +34,28 @@ router.get(
         id: true,
         email: true,
         username: true,
-        display_name: true,
+        displayName: true,
         role: true,
         status: true,
-        created_at: true,
+        createdAt: true,
         _count: {
           select: {
-            content: true,
             reports: true,
           },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     const csvData = users.map((user) => ({
       ID: user.id,
       Email: user.email,
       Username: user.username || '',
-      'Display Name': user.display_name || '',
+      'Display Name': user.displayName || '',
       Role: user.role,
-      Status: user.status,
-      'Content Count': user._count.content,
+      Status: user.status || '',
       'Reports Count': user._count.reports,
-      'Created At': user.created_at.toISOString(),
+      'Created At': (user.createdAt || new Date()).toISOString(),
     }));
 
     const parser = new Parser();
@@ -94,18 +92,17 @@ router.get(
         id: true,
         email: true,
         username: true,
-        display_name: true,
+        displayName: true,
         role: true,
         status: true,
-        created_at: true,
+        createdAt: true,
         _count: {
           select: {
-            content: true,
             reports: true,
           },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -119,7 +116,6 @@ router.get(
       { header: 'Display Name', key: 'displayName', width: 20 },
       { header: 'Role', key: 'role', width: 15 },
       { header: 'Status', key: 'status', width: 15 },
-      { header: 'Content Count', key: 'contentCount', width: 15 },
       { header: 'Reports Count', key: 'reportsCount', width: 15 },
       { header: 'Created At', key: 'createdAt', width: 25 },
     ];
@@ -138,12 +134,11 @@ router.get(
         id: user.id,
         email: user.email,
         username: user.username || '',
-        displayName: user.display_name || '',
+        displayName: user.displayName || '',
         role: user.role,
-        status: user.status,
-        contentCount: user._count.content,
+        status: user.status || '',
         reportsCount: user._count.reports,
-        createdAt: user.created_at.toISOString(),
+        createdAt: (user.createdAt || new Date()).toISOString(),
       });
     });
 
@@ -201,7 +196,7 @@ router.get(
           },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     const csvData = content.map((item) => ({
@@ -213,7 +208,7 @@ router.get(
       'View Count': item._count.views,
       'Like Count': item._count.likes,
       'Comment Count': item._count.comments,
-      'Created At': item.created_at?.toISOString() || '',
+      'Created At': item.createdAt?.toISOString() || '',
     }));
 
     const parser = new Parser();
@@ -265,7 +260,7 @@ router.get(
           },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -300,7 +295,7 @@ router.get(
         viewCount: item._count.views,
         likeCount: item._count.likes,
         commentCount: item._count.comments,
-        createdAt: item.created_at?.toISOString() || '',
+        createdAt: item.createdAt?.toISOString() || '',
       });
     });
 

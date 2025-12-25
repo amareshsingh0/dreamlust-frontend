@@ -179,7 +179,7 @@ export function exampleBusinessLogging() {
     transactionId: 'txn-789',
     userId: 'user-123',
     amount: 9.99,
-    status: 'completed',
+    status: 'COMPLETED',
   });
 }
 

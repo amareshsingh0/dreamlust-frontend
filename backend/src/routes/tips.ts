@@ -31,7 +31,7 @@ router.post(
     // Verify creator exists
     const creator = await prisma.creator.findUnique({
       where: { id: toCreatorId },
-      select: { id: true, user_id: true },
+      select: { id: true, userId: true },
     });
 
     if (!creator) {
@@ -39,34 +39,34 @@ router.post(
     }
 
     // Prevent tipping yourself
-    if (creator.user_id === userId) {
+    if (creator.userId === userId) {
       throw new ValidationError('You cannot tip yourself');
     }
 
     // Create tip with pending status first
     const tip = await prisma.tip.create({
       data: {
-        from_user_id: userId,
-        to_creator_id: toCreatorId,
+        fromUserId: userId,
+        toCreatorId: toCreatorId,
         amount: amount,
         currency: currency || 'INR', // Use INR for Razorpay
         message: message || null,
-        is_anonymous: isAnonymous || false,
-        status: 'pending',
+        isAnonymous: isAnonymous || false,
+        status: 'PENDING',
       },
       include: {
         fromUser: {
           select: {
             id: true,
             username: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
           },
         },
         toCreator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             handle: true,
             avatar: true,
           },
@@ -95,21 +95,21 @@ router.post(
     const updatedTip = await prisma.tip.update({
       where: { id: tip.id },
       data: {
-        transaction_id: order.id, // Razorpay order ID
+        transactionId: order.id, // Razorpay order ID
       },
       include: {
-        from_user: {
+        fromUser: {
           select: {
             id: true,
             username: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
           },
         },
-        to_creator: {
+        toCreator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             handle: true,
             avatar: true,
           },
@@ -161,10 +161,10 @@ router.get(
 
     if (creatorId) {
       // Get tips received by a specific creator
-      where.to_creator_id = creatorId;
+      where.toCreatorId = creatorId;
     } else {
       // Get tips sent by current user
-      where.from_user_id = userId;
+      where.fromUserId = userId;
     }
 
     if (status) {
@@ -175,18 +175,18 @@ router.get(
       prisma.tip.findMany({
         where,
         include: {
-          from_user: {
+          fromUser: {
             select: {
               id: true,
               username: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
             },
           },
-          to_creator: {
+          toCreator: {
             select: {
               id: true,
-              display_name: true,
+              displayName: true,
               handle: true,
               avatar: true,
             },
@@ -226,8 +226,8 @@ router.get(
   userRateLimiter,
   validateParams(z.object({ creatorId: z.string() })),
   validateQuery(z.object({
-    page: z.string().transform(Number).default('1'),
-    limit: z.string().transform(Number).default('20'),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
   })),
   async (req: Request, res: Response) => {
     const { creatorId } = req.params;
@@ -249,15 +249,15 @@ router.get(
     const [tips, total] = await prisma.$transaction([
       prisma.tip.findMany({
         where: {
-          to_creator_id: creatorId,
-          status: 'completed',
+          toCreatorId: creatorId,
+          status: 'COMPLETED',
         },
         include: {
-          from_user: {
+          fromUser: {
             select: {
               id: true,
               username: true,
-              display_name: true,
+              displayName: true,
               avatar: true,
             },
           },
@@ -270,8 +270,8 @@ router.get(
       }),
       prisma.tip.count({
         where: {
-          to_creator_id: creatorId,
-          status: 'completed',
+          toCreatorId: creatorId,
+          status: 'COMPLETED',
         },
       }),
     ]);
@@ -279,7 +279,7 @@ router.get(
     // Filter out user info for anonymous tips
     const filteredTips = tips.map(tip => ({
       ...tip,
-      from_user: tip.is_anonymous ? null : tip.from_user,
+      fromUser: tip.isAnonymous ? null : tip.fromUser,
     }));
 
     res.json({
@@ -313,18 +313,18 @@ router.get(
     const tip = await prisma.tip.findUnique({
       where: { id },
       include: {
-        from_user: {
+        fromUser: {
           select: {
             id: true,
             username: true,
-            display_name: true,
+            displayName: true,
             avatar: true,
           },
         },
-        to_creator: {
+        toCreator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             handle: true,
             avatar: true,
           },
@@ -338,11 +338,11 @@ router.get(
 
     // Only allow access if user is the sender or receiver
     const creator = await prisma.creator.findUnique({
-      where: { id: tip.to_creator_id },
-      select: { user_id: true },
+      where: { id: tip.toCreatorId },
+      select: { userId: true },
     });
 
-    if (tip.from_user_id !== userId && creator?.user_id !== userId) {
+    if (tip.fromUserId !== userId && creator?.userId !== userId) {
       throw new UnauthorizedError('You are not authorized to view this tip');
     }
 
@@ -372,9 +372,9 @@ router.post(
     const tip = await prisma.tip.findUnique({
       where: { id: tipId },
       include: {
-        to_creator: {
+        toCreator: {
           select: {
-            user_id: true,
+            userId: true,
             handle: true,
           },
         },
@@ -385,7 +385,7 @@ router.post(
       throw new NotFoundError('Tip not found');
     }
 
-    if (tip.from_user_id !== userId) {
+    if (tip.fromUserId !== userId) {
       throw new UnauthorizedError('You can only confirm payments for your own tips');
     }
 
@@ -404,7 +404,7 @@ router.post(
       if (payment.status !== 'captured') {
         await prisma.tip.update({
           where: { id: tipId },
-          data: { status: 'failed' },
+          data: { status: 'FAILED' },
         });
         throw new ValidationError('Payment not captured');
       }
@@ -413,23 +413,23 @@ router.post(
       const updatedTip = await prisma.tip.update({
         where: { id: tipId },
         data: {
-          status: 'completed',
-          transaction_id: payment.id,
+          status: 'COMPLETED',
+          transactionId: payment.id,
         },
       });
 
       // Update creator earnings (85% to creator, 15% platform fee)
       const creatorEarnings = Number(tip.amount) * 0.85;
       await prisma.creatorEarnings.upsert({
-        where: { creator_id: tip.to_creator_id },
+        where: { creatorId: tip.toCreatorId },
         create: {
-          creator_id: tip.to_creator_id,
+          creatorId: tip.toCreatorId,
           balance: creatorEarnings,
-          lifetime_earnings: creatorEarnings,
+          lifetimeEarnings: creatorEarnings,
         },
         update: {
           balance: { increment: creatorEarnings },
-          lifetime_earnings: { increment: creatorEarnings },
+          lifetimeEarnings: { increment: creatorEarnings },
         },
       });
 
@@ -437,18 +437,18 @@ router.post(
       try {
         await prisma.notification.create({
           data: {
-            user_id: tip.to_creator.user_id,
+            userId: tip.toCreator.userId,
             type: 'PAYMENT_RECEIVED',
             title: 'Tip Received!',
-            message: tip.is_anonymous
+            message: tip.isAnonymous
               ? `You received a ₹${tip.amount} ${tip.currency} tip!`
               : `You received a ₹${tip.amount} ${tip.currency} tip from a supporter!`,
-            link: `/creator/${tip.to_creator.handle}`,
+            link: `/creator/${tip.toCreator.handle}`,
             metadata: {
               tipId: tip.id,
               amount: tip.amount,
               currency: tip.currency,
-              isAnonymous: tip.is_anonymous,
+              isAnonymous: tip.isAnonymous,
             },
           },
         });
@@ -465,7 +465,7 @@ router.post(
       // Update tip status to failed
       await prisma.tip.update({
         where: { id: tipId },
-        data: { status: 'failed' },
+        data: { status: 'FAILED' },
       });
       throw new ValidationError(error.message || 'Payment confirmation failed');
     }

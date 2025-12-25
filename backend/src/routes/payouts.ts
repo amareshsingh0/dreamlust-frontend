@@ -31,7 +31,7 @@ router.get(
 
     // Get creator profile
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       select: { id: true },
     });
 
@@ -42,10 +42,10 @@ router.get(
     // Get payout transactions
     const payouts = await prisma.transaction.findMany({
       where: {
-        user_id: userId,
+        userId: userId,
         type: 'WITHDRAWAL',
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
@@ -71,9 +71,9 @@ router.get(
 
     // Get creator profile with earnings
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       include: {
-        creator_earnings: true,
+        creatorEarnings: true,
       },
     });
 
@@ -81,11 +81,11 @@ router.get(
       throw new NotFoundError('Creator profile not found');
     }
 
-    const earnings = creator.creator_earnings || {
+    const earnings = creator.creatorEarnings || {
       balance: 0,
-      lifetime_earnings: 0,
-      pending_payout: 0,
-      last_payout_at: null,
+      lifetimeEarnings: 0,
+      pendingPayout: 0,
+      lastPayoutAt: null,
     };
 
     const balance = Number(earnings.balance || 0);
@@ -95,9 +95,9 @@ router.get(
       success: true,
       data: {
         balance,
-        lifetimeEarnings: Number(earnings.lifetime_earnings || 0),
-        pendingPayout: Number(earnings.pending_payout || 0),
-        lastPayoutAt: earnings.last_payout_at,
+        lifetimeEarnings: Number(earnings.lifetimeEarnings || 0),
+        pendingPayout: Number(earnings.pendingPayout || 0),
+        lastPayoutAt: earnings.lastPayoutAt,
         canRequestPayout,
         minimumPayoutAmount: MINIMUM_PAYOUT_AMOUNT,
       },
@@ -124,9 +124,9 @@ router.post(
 
     // Get creator profile with earnings
     const creator = await prisma.creator.findUnique({
-      where: { user_id: userId },
+      where: { userId: userId },
       include: {
-        creator_earnings: true,
+        creatorEarnings: true,
       },
     });
 
@@ -134,11 +134,11 @@ router.post(
       throw new NotFoundError('Creator profile not found');
     }
 
-    const earnings = creator.creator_earnings || {
+    const earnings = creator.creatorEarnings || {
       balance: 0,
-      lifetime_earnings: 0,
-      pending_payout: 0,
-      last_payout_at: null,
+      lifetimeEarnings: 0,
+      pendingPayout: 0,
+      lastPayoutAt: null,
     };
 
     const availableBalance = Number(earnings.balance || 0);
@@ -172,23 +172,23 @@ router.post(
 
       // Update creator earnings
       await prisma.creatorEarnings.update({
-        where: { creator_id: creator.id },
+        where: { creatorId: creator.id },
         data: {
           balance: { decrement: payoutAmount },
-          pending_payout: { increment: payoutAmount },
-          last_payout_at: new Date(),
+          pendingPayout: { increment: payoutAmount },
+          lastPayoutAt: new Date(),
         },
       });
 
       // Create transaction record
       const transaction = await prisma.transaction.create({
         data: {
-          user_id: userId,
+          userId: userId,
           type: 'WITHDRAWAL',
           amount: payoutAmount,
           currency: 'INR',
           status: 'PENDING', // Will be updated by webhook
-          razorpay_payment_id: payout.id,
+          razorpayPaymentId: payout.id,
           metadata: {
             payoutId: payout.id,
             accountNumber: accountNumber.substring(accountNumber.length - 4), // Last 4 digits only
@@ -232,8 +232,8 @@ router.get(
     // Get transaction to verify ownership
     const transaction = await prisma.transaction.findFirst({
       where: {
-        razorpay_payment_id: payoutId,
-        user_id: userId,
+        razorpayPaymentId: payoutId,
+        userId: userId,
         type: 'WITHDRAWAL',
       },
     });
@@ -251,7 +251,8 @@ router.get(
       const payout = await getPayout(payoutId);
 
       // Update transaction status if changed
-      if (payout.status && payout.status !== transaction.status.toLowerCase()) {
+      const transactionStatus = transaction.status || '';
+      if (payout.status && payout.status !== transactionStatus.toLowerCase()) {
         await prisma.transaction.update({
           where: { id: transaction.id },
           data: {
@@ -261,12 +262,15 @@ router.get(
 
         // If payout is processed, update earnings
         if (payout.status === 'processed' || payout.status === 'completed') {
-          await prisma.creatorEarnings.update({
-            where: { creator_id: transaction.metadata?.creatorId as string },
-            data: {
-              pending_payout: { decrement: transaction.amount },
-            },
-          });
+          const metadata = transaction.metadata as { creatorId?: string } | null;
+          if (metadata?.creatorId) {
+            await prisma.creatorEarnings.update({
+              where: { creatorId: metadata.creatorId },
+              data: {
+                pendingPayout: { decrement: transaction.amount },
+              },
+            });
+          }
         }
       }
 

@@ -285,7 +285,7 @@ export default function PrivacySettings() {
   return (
     <>
       <Helmet>
-        <title>Privacy Settings - Dreamlust</title>
+        <title>Privacy Settings - PassionFantasia</title>
         <meta name="description" content="Manage your privacy settings and data" />
       </Helmet>
 

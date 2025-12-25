@@ -3,16 +3,27 @@
  * Exports all workers for easy initialization
  */
 
-export { createVideoProcessingWorker } from './videoProcessingWorker';
-export { createThumbnailWorker } from './thumbnailWorker';
-export { createNotificationWorker } from './notificationWorker';
-export { createTrendingWorker } from './trendingWorker';
-export { createRecommendationsWorker } from './recommendationsWorker';
-export { createCleanupWorker } from './cleanupWorker';
-export { createAnalyticsWorker } from './analyticsWorker';
-export { createEmailWorker } from './emailWorker';
-export { createSchedulerWorker } from './schedulerWorker';
-export { createDownloadWorker } from './downloadWorker';
+import { createVideoProcessingWorker } from './videoProcessingWorker';
+import { createThumbnailWorker } from './thumbnailWorker';
+import { createNotificationWorker } from './notificationWorker';
+import { createTrendingWorker } from './trendingWorker';
+import { createRecommendationsWorker } from './recommendationsWorker';
+import { createCleanupWorker } from './cleanupWorker';
+import { createAnalyticsWorker } from './analyticsWorker';
+import { createEmailWorker } from './emailWorker';
+import { createSchedulerWorker } from './schedulerWorker';
+import { createDownloadWorker } from './downloadWorker';
+
+export { createVideoProcessingWorker };
+export { createThumbnailWorker };
+export { createNotificationWorker };
+export { createTrendingWorker };
+export { createRecommendationsWorker };
+export { createCleanupWorker };
+export { createAnalyticsWorker };
+export { createEmailWorker };
+export { createSchedulerWorker };
+export { createDownloadWorker };
 
 /**
  * Initialize all workers

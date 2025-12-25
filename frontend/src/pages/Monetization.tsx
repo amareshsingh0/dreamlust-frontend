@@ -35,8 +35,8 @@ const Monetization = () => {
   return (
     <>
       <Helmet>
-        <title>Monetization - Dreamlust</title>
-        <meta name="description" content="Learn how to earn money as a Dreamlust creator. Multiple revenue streams available." />
+        <title>Monetization - PassionFantasia</title>
+        <meta name="description" content="Learn how to earn money as a PassionFantasia creator. Multiple revenue streams available." />
       </Helmet>
 
       <Layout>
@@ -98,7 +98,7 @@ const Monetization = () => {
                 Ready to Start Earning?
               </h2>
               <p className="text-primary-foreground/80 mb-6">
-                Join thousands of creators already earning on Dreamlust.
+                Join thousands of creators already earning on PassionFantasia.
               </p>
               <Button size="lg" variant="secondary" asChild>
                 <Link to="/creator-signup">Apply Now</Link>

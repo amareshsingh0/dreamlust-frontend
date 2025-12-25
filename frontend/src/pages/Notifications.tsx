@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/layout/Layout";
 import { Bell, CheckCircle, AlertCircle, Info, X } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -57,7 +57,7 @@ const Notifications = () => {
   return (
     <>
       <Helmet>
-        <title>Notifications - Dreamlust</title>
+        <title>Notifications - PassionFantasia</title>
         <meta name="description" content="Your notifications" />
       </Helmet>
       

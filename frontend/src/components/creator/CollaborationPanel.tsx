@@ -53,7 +53,7 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
 
   const fetchCollaboration = async () => {
     try {
-      const response = await api.get(`/creator-tools/collaboration/${contentId}`);
+      const response = await (api as any).get(`/creator-tools/collaboration/${contentId}`);
       if (response.data.success) {
         setCollaboration(response.data.data);
         setIsOwner(response.data.data?.ownerId === user?.id);
@@ -78,7 +78,7 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
     if (!collaboration) {
       // Create new collaboration
       try {
-        const response = await api.post('/creator-tools/collaboration', {
+        const response = await (api as any).post('/creator-tools/collaboration', {
           contentId,
           collaborators: [
             {
@@ -101,7 +101,7 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
       }
     } else {
       try {
-        const response = await api.post(`/creator-tools/collaboration/${contentId}/add`, {
+        const response = await (api as any).post(`/creator-tools/collaboration/${contentId}/add`, {
           userId: selectedUser.id,
           role: 'viewer',
           permissions: [],
@@ -124,7 +124,7 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
 
   const handleUpdateRole = async (userId: string, role: 'editor' | 'viewer') => {
     try {
-      const response = await api.patch(`/creator-tools/collaboration/${contentId}/update`, {
+      const response = await (api as any).patch(`/creator-tools/collaboration/${contentId}/update`, {
         userId,
         role,
       });
@@ -143,7 +143,7 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
 
   const handleRemoveCollaborator = async (userId: string) => {
     try {
-      const response = await api.delete(`/creator-tools/collaboration/${contentId}/remove/${userId}`);
+      const response = await (api as any).delete(`/creator-tools/collaboration/${contentId}/remove/${userId}`);
 
       if (response.data.success) {
         toast.success('Collaborator removed');
@@ -166,7 +166,7 @@ export function CollaborationPanel({ contentId }: CollaborationPanelProps) {
     try {
       // In production, this would call a user search API
       // For now, we'll use a placeholder
-      const response = await api.get(`/search/users?q=${query}`);
+      const response = await (api as any).get(`/search/users?q=${query}`);
       if (response.data.success) {
         setSearchResults(response.data.data || []);
       }

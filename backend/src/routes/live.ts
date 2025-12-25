@@ -51,7 +51,7 @@ router.get(
       where.status = 'live';
     } else if (status === 'upcoming') {
       where.status = 'idle';
-      where.scheduled_for = { not: null, gte: new Date() };
+      where.scheduledFor = { not: null, gte: new Date() };
     } else if (status === 'all') {
       // Get all streams
     }
@@ -63,17 +63,17 @@ router.get(
           creator: {
             select: {
               id: true,
-              display_name: true,
+              displayName: true,
               handle: true,
               avatar: true,
-              is_verified: true,
+              isVerified: true,
             },
           },
         },
         orderBy: [
           { status: 'asc' }, // live first
-          { viewer_count: 'desc' },
-          { started_at: 'desc' },
+          { viewerCount: 'desc' },
+          { startedAt: 'desc' },
         ],
         skip,
         take: Number(limit),
@@ -88,22 +88,22 @@ router.get(
           id: stream.id,
           title: stream.title,
           description: stream.description,
-          thumbnailUrl: stream.thumbnail_url,
-          playbackUrl: stream.playback_url,
+          thumbnailUrl: stream.thumbnailUrl,
+          playbackUrl: stream.playbackUrl,
           status: stream.status,
-          viewerCount: stream.viewer_count,
-          peakViewerCount: stream.peak_viewer_count,
-          startedAt: stream.started_at,
-          scheduledFor: stream.scheduled_for,
+          viewerCount: stream.viewerCount,
+          peakViewerCount: stream.peakViewerCount,
+          startedAt: stream.startedAt,
+          scheduledFor: stream.scheduledFor,
           category: stream.category,
           tags: stream.tags,
-          chatEnabled: stream.chat_enabled,
+          chatEnabled: stream.chatEnabled,
           creator: {
             id: stream.creator.id,
-            name: stream.creator.display_name,
+            name: stream.creator.displayName,
             username: stream.creator.handle,
             avatar: stream.creator.avatar,
-            isVerified: stream.creator.is_verified,
+            isVerified: stream.creator.isVerified,
           },
         })),
         total,
@@ -131,10 +131,10 @@ router.get(
         creator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             handle: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
       },
@@ -150,26 +150,26 @@ router.get(
         id: stream.id,
         title: stream.title,
         description: stream.description,
-        thumbnailUrl: stream.thumbnail_url,
-        playbackUrl: stream.playback_url,
-        streamKey: req.user?.userId === stream.creator_id ? stream.stream_key : undefined, // Only show to creator
+        thumbnailUrl: stream.thumbnailUrl,
+        playbackUrl: stream.playbackUrl,
+        streamKey: req.user?.userId === stream.creatorId ? stream.streamKey : undefined, // Only show to creator
         status: stream.status,
-        viewerCount: stream.viewer_count,
-        peakViewerCount: stream.peak_viewer_count,
-        startedAt: stream.started_at,
-        endedAt: stream.ended_at,
-        scheduledFor: stream.scheduled_for,
+        viewerCount: stream.viewerCount,
+        peakViewerCount: stream.peakViewerCount,
+        startedAt: stream.startedAt,
+        endedAt: stream.endedAt,
+        scheduledFor: stream.scheduledFor,
         category: stream.category,
         tags: stream.tags,
-        chatEnabled: stream.chat_enabled,
-        isRecorded: stream.is_recorded,
-        recordingUrl: stream.recording_url,
+        chatEnabled: stream.chatEnabled,
+        isRecorded: stream.isRecorded,
+        recordingUrl: stream.recordingUrl,
         creator: {
           id: stream.creator.id,
-          name: stream.creator.display_name,
+          name: stream.creator.displayName,
           username: stream.creator.handle,
           avatar: stream.creator.avatar,
-          isVerified: stream.creator.is_verified,
+          isVerified: stream.creator.isVerified,
         },
       },
     });
@@ -200,7 +200,7 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {
@@ -212,25 +212,25 @@ router.post(
 
     const stream = await prisma.liveStream.create({
       data: {
-        creator_id: creator.id,
+        creatorId: creator.id,
         title,
         description,
         category,
         tags: tags || [],
-        scheduled_for: scheduledFor ? new Date(scheduledFor) : null,
-        stream_key: streamKey,
-        chat_enabled: chatEnabled,
-        is_recorded: isRecorded,
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+        streamKey: streamKey,
+        chatEnabled: chatEnabled,
+        isRecorded: isRecorded,
         status: 'idle',
       },
       include: {
         creator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             handle: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
       },
@@ -243,17 +243,17 @@ router.post(
         id: stream.id,
         title: stream.title,
         description: stream.description,
-        streamKey: stream.stream_key,
+        streamKey: stream.streamKey,
         status: stream.status,
-        scheduledFor: stream.scheduled_for,
-        chatEnabled: stream.chat_enabled,
-        isRecorded: stream.is_recorded,
+        scheduledFor: stream.scheduledFor,
+        chatEnabled: stream.chatEnabled,
+        isRecorded: stream.isRecorded,
         creator: {
           id: stream.creator.id,
-          name: stream.creator.display_name,
+          name: stream.creator.displayName,
           username: stream.creator.handle,
           avatar: stream.creator.avatar,
-          isVerified: stream.creator.is_verified,
+          isVerified: stream.creator.isVerified,
         },
       },
     });
@@ -277,7 +277,7 @@ router.put(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {
@@ -293,14 +293,14 @@ router.put(
       throw new NotFoundError('Live stream not found');
     }
 
-    if (stream.creator_id !== creator.id) {
+    if (stream.creatorId !== creator.id) {
       throw new ForbiddenError('You do not have permission to update this stream');
     }
 
     // Only allow updates if stream is idle or scheduled
     if (stream.status === 'live') {
       // Only allow certain fields to be updated during live stream
-      const allowedFields = ['title', 'description', 'category', 'tags', 'chat_enabled'];
+      const allowedFields = ['title', 'description', 'category', 'tags', 'chatEnabled'];
       Object.keys(updateData).forEach(key => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
@@ -315,17 +315,17 @@ router.put(
         ...(updateData.description !== undefined && { description: updateData.description }),
         ...(updateData.category !== undefined && { category: updateData.category }),
         ...(updateData.tags && { tags: updateData.tags }),
-        ...(updateData.chatEnabled !== undefined && { chat_enabled: updateData.chatEnabled }),
-        ...(updateData.isRecorded !== undefined && { is_recorded: updateData.isRecorded }),
+        ...(updateData.chatEnabled !== undefined && { chatEnabled: updateData.chatEnabled }),
+        ...(updateData.isRecorded !== undefined && { isRecorded: updateData.isRecorded }),
       },
       include: {
         creator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             handle: true,
             avatar: true,
-            is_verified: true,
+            isVerified: true,
           },
         },
       },
@@ -341,8 +341,8 @@ router.put(
         status: updated.status,
         category: updated.category,
         tags: updated.tags,
-        chatEnabled: updated.chat_enabled,
-        isRecorded: updated.is_recorded,
+        chatEnabled: updated.chatEnabled,
+        isRecorded: updated.isRecorded,
       },
     });
   })
@@ -364,7 +364,7 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {
@@ -379,7 +379,7 @@ router.post(
       throw new NotFoundError('Live stream not found');
     }
 
-    if (stream.creator_id !== creator.id) {
+    if (stream.creatorId !== creator.id) {
       throw new ForbiddenError('You do not have permission to start this stream');
     }
 
@@ -391,8 +391,8 @@ router.post(
       where: { id },
       data: {
         status: 'live',
-        started_at: new Date(),
-        playback_url: playbackUrl || stream.playback_url,
+        startedAt: new Date(),
+        playbackUrl: playbackUrl || stream.playbackUrl,
       },
     });
 
@@ -402,8 +402,8 @@ router.post(
       data: {
         id: updated.id,
         status: updated.status,
-        playbackUrl: updated.playback_url,
-        startedAt: updated.started_at,
+        playbackUrl: updated.playbackUrl,
+        startedAt: updated.startedAt,
       },
     });
   })
@@ -425,7 +425,7 @@ router.post(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {
@@ -440,7 +440,7 @@ router.post(
       throw new NotFoundError('Live stream not found');
     }
 
-    if (stream.creator_id !== creator.id) {
+    if (stream.creatorId !== creator.id) {
       throw new ForbiddenError('You do not have permission to end this stream');
     }
 
@@ -452,8 +452,8 @@ router.post(
       where: { id },
       data: {
         status: 'ended',
-        ended_at: new Date(),
-        ...(recordingUrl && { recording_url: recordingUrl }),
+        endedAt: new Date(),
+        ...(recordingUrl && { recordingUrl: recordingUrl }),
       },
     });
 
@@ -463,8 +463,8 @@ router.post(
       data: {
         id: updated.id,
         status: updated.status,
-        endedAt: updated.ended_at,
-        recordingUrl: updated.recording_url,
+        endedAt: updated.endedAt,
+        recordingUrl: updated.recordingUrl,
       },
     });
   })
@@ -495,18 +495,18 @@ router.post(
     const updated = await prisma.liveStream.update({
       where: { id },
       data: {
-        viewer_count: { increment: 1 },
-        peak_viewer_count: stream.viewer_count >= stream.peak_viewer_count
-          ? stream.viewer_count + 1
-          : stream.peak_viewer_count,
+        viewerCount: { increment: 1 },
+        peakViewerCount: stream.viewerCount >= stream.peakViewerCount
+          ? stream.viewerCount + 1
+          : stream.peakViewerCount,
       },
     });
 
     res.json({
       success: true,
       data: {
-        viewerCount: updated.viewer_count,
-        peakViewerCount: updated.peak_viewer_count,
+        viewerCount: updated.viewerCount,
+        peakViewerCount: updated.peakViewerCount,
       },
     });
   })
@@ -533,14 +533,14 @@ router.delete(
     const updated = await prisma.liveStream.update({
       where: { id },
       data: {
-        viewer_count: Math.max(0, stream.viewer_count - 1),
+        viewerCount: Math.max(0, stream.viewerCount - 1),
       },
     });
 
     res.json({
       success: true,
       data: {
-        viewerCount: updated.viewer_count,
+        viewerCount: updated.viewerCount,
       },
     });
   })
@@ -565,7 +565,7 @@ router.get(
       throw new NotFoundError('Live stream not found');
     }
 
-    if (!stream.chat_enabled) {
+    if (!stream.chatEnabled) {
       return res.json({
         success: true,
         data: {
@@ -577,8 +577,8 @@ router.get(
 
     const messages = await prisma.liveChatMessage.findMany({
       where: {
-        stream_id: id,
-        is_deleted: false,
+        streamId: id,
+        isDeleted: false,
       },
       include: {
         stream: {
@@ -594,13 +594,13 @@ router.get(
     });
 
     // Get user info for messages
-    const userIds = [...new Set(messages.map(m => m.user_id))];
+    const userIds = [...new Set(messages.map(m => m.userId).filter((id): id is string => id !== null))];
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
       select: {
         id: true,
         username: true,
-        display_name: true,
+        displayName: true,
         avatar: true,
       },
     });
@@ -610,17 +610,20 @@ router.get(
     res.json({
       success: true,
       data: {
-        messages: messages.reverse().map(msg => ({
-          id: msg.id,
-          message: msg.message,
-          timestamp: msg.timestamp,
-          user: userMap.get(msg.user_id) ? {
-            id: userMap.get(msg.user_id)!.id,
-            username: userMap.get(msg.user_id)!.username,
-            displayName: userMap.get(msg.user_id)!.display_name,
-            avatar: userMap.get(msg.user_id)!.avatar,
-          } : null,
-        })),
+        messages: messages.reverse().map(msg => {
+          const msgUser = msg.userId ? userMap.get(msg.userId) : null;
+          return {
+            id: msg.id,
+            message: msg.message,
+            timestamp: msg.timestamp,
+            user: msgUser ? {
+              id: msgUser.id,
+              username: msgUser.username,
+              displayName: msgUser.displayName,
+              avatar: msgUser.avatar,
+            } : null,
+          };
+        }),
         chatEnabled: true,
       },
     });
@@ -653,14 +656,14 @@ router.post(
       throw new ValidationError('Stream is not currently live');
     }
 
-    if (!stream.chat_enabled) {
+    if (!stream.chatEnabled) {
       throw new ValidationError('Chat is disabled for this stream');
     }
 
     const chatMessage = await prisma.liveChatMessage.create({
       data: {
-        stream_id: id,
-        user_id: userId,
+        streamId: id,
+        userId: userId,
         message: message.trim(),
       },
       include: {
@@ -678,7 +681,7 @@ router.post(
       select: {
         id: true,
         username: true,
-        display_name: true,
+        displayName: true,
         avatar: true,
       },
     });
@@ -693,7 +696,7 @@ router.post(
         user: user ? {
           id: user.id,
           username: user.username,
-          displayName: user.display_name,
+          displayName: user.displayName,
           avatar: user.avatar,
         } : null,
       },
@@ -716,7 +719,7 @@ router.delete(
 
     // Get creator
     const creator = await prisma.creator.findFirst({
-      where: { user_id: userId },
+      where: { userId: userId },
     });
 
     if (!creator) {
@@ -731,7 +734,7 @@ router.delete(
       throw new NotFoundError('Live stream not found');
     }
 
-    if (stream.creator_id !== creator.id) {
+    if (stream.creatorId !== creator.id) {
       throw new ForbiddenError('You do not have permission to delete this stream');
     }
 

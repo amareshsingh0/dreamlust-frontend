@@ -17,7 +17,11 @@ if (env.NODE_ENV === 'production' && env.DATADOG_API_KEY) {
   });
 }
 
-import express from 'express';
+import express, {
+  Request,
+  Response as ExpressResponse,
+  NextFunction,
+} from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { initSentry } from './lib/monitoring/sentry';
@@ -68,6 +72,19 @@ import searchAutocompleteRoutes from './routes/search-autocomplete';
 import savedSearchesRoutes from './routes/saved-searches';
 import socialRoutes from './routes/social';
 import downloadsRoutes from './routes/downloads';
+import interactiveRoutes from './routes/interactive';
+import seriesRoutes from './routes/series';
+import seasonsRoutes from './routes/seasons';
+import pricingRoutes from './routes/pricing';
+import promotionsRoutes from './routes/promotions';
+import subscriptionManagementRoutes from './routes/subscription-management';
+import cohortsRoutes from './routes/cohorts';
+import funnelsRoutes from './routes/funnels';
+import localizationRoutes from './routes/localization';
+import retentionAnalyticsRoutes from './routes/retention-analytics';
+import adminChurnRoutes from './routes/admin-churn';
+import contentRestrictionsRoutes from './routes/content-restrictions';
+import multiAngleRoutes from './routes/multi-angle';
 import healthRoutes, { simpleHealthCheck } from './routes/health';
 import cacheTestRoutes from './routes/cache-test';
 import { createServer } from 'http';
@@ -75,8 +92,12 @@ import { initializeSocketServer } from './socket/socketServer';
 // Initialize monitoring service (will auto-start in production)
 // Import monitoring service to ensure it's loaded and auto-starts
 import './lib/monitoring/monitoringService';
-// Verify email connection on startup
-import { verifyEmailConnection } from './lib/email/mailer';
+// Initialize email service
+import { initializeEmailService } from './lib/email/emailService';
+// Initialize cron jobs
+import { startCronJobs } from './lib/cron/cronService';
+// Initialize Razorpay
+import { initializeRazorpay } from './lib/payments/razorpayService';
 
 console.log('📦 Creating Express app...');
 const app = express();
@@ -87,12 +108,9 @@ if (env.NODE_ENV === 'production') {
   try {
     initSentry(app);
     logger.info('Sentry initialized successfully');
-    
-    // Add Sentry request handlers after initialization
-    if (env.SENTRY_DSN) {
-      app.use(Sentry.Handlers.requestHandler());
-      app.use(Sentry.Handlers.tracingHandler());
-    }
+
+    // Note: Modern Sentry SDK automatically handles request tracing
+    // No need for Sentry.Handlers.requestHandler() or tracingHandler()
   } catch (error) {
     logger.warn('Failed to initialize Sentry', { error });
   }
@@ -102,10 +120,16 @@ if (env.NODE_ENV === 'production') {
 app.use(...securityMiddleware);
 
 // HTTPS enforcement (production only)
+// Use dynamic import here — static `import { ... } from '...'` inside a block is syntax error
 if (env.NODE_ENV === 'production') {
-  const { enforceHTTPS, setHSTSHeader } = require('./middleware/httpsEnforcer');
-  app.use(enforceHTTPS);
-  app.use(setHSTSHeader);
+  import('./middleware/httpsEnforcer')
+    .then(({ enforceHTTPS, setHSTSHeader }) => {
+      if (typeof enforceHTTPS === 'function') app.use(enforceHTTPS);
+      if (typeof setHSTSHeader === 'function') app.use(setHSTSHeader);
+    })
+    .catch((err) => {
+      logger.warn('Failed to load HTTPS enforcer middleware', { error: err });
+    });
 }
 
 // CORS configuration - allow frontend origin and localhost in development
@@ -123,7 +147,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin) || env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
@@ -157,6 +181,10 @@ app.use(requestLogger);
 
 // IP rate limiting (applied to all routes)
 app.use(ipRateLimiter);
+// Add country detection middleware globally
+import { countryDetectionMiddleware } from './lib/geo/countryDetection';
+import { asyncHandler } from './middleware/asyncHandler';
+app.use(countryDetectionMiddleware);
 
 // Health check routes (before other routes for fast response)
 app.use('/health', healthRoutes);
@@ -236,11 +264,23 @@ app.use('/api/search', searchAutocompleteRoutes);
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/downloads', downloadsRoutes);
+app.use('/api/interactive', interactiveRoutes);
+app.use('/api/series', seriesRoutes);
+app.use('/api/seasons', seasonsRoutes);
+app.use('/api/pricing', pricingRoutes);
+app.use('/api/promotions', promotionsRoutes);
+app.use('/api/subscription-management', subscriptionManagementRoutes);
+app.use('/api/cohorts', cohortsRoutes);
+app.use('/api/funnels', funnelsRoutes);
+app.use('/api/retention-analytics', retentionAnalyticsRoutes);
+app.use('/api/admin/churn', adminChurnRoutes);
+app.use('/api/content-restrictions', contentRestrictionsRoutes);
+app.use('/api/multi-angle', multiAngleRoutes);
 app.use('/api/cache-test', cacheTestRoutes);
 
 // Sentry error handler (must be before other error handlers)
 if (env.NODE_ENV === 'production' && env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.errorHandler());
+  Sentry.setupExpressErrorHandler(app);
 }
 
 // 404 handler
@@ -284,13 +324,15 @@ try {
       apiUrl: env.API_URL,
     });
     console.log(`✅ Server running on http://localhost:${PORT}`);
-    
-    // Verify email connection (non-blocking)
-    verifyEmailConnection().catch((error) => {
-      logger.warn('Email service verification failed', { error });
-    });
+
+    // Initialize services
+    initializeEmailService();
+    initializeRazorpay();
+    startCronJobs();
+
+    logger.info('All services initialized');
   });
-  
+
   // Handle server errors
   server.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {
@@ -319,8 +361,6 @@ try {
   process.exit(1);
 }
 
-// Server error handling moved inside try-catch block above
-
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
   // Check if it's a Redis error - these are expected and handled gracefully
@@ -332,7 +372,7 @@ process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
     });
     return; // Don't log as error or exit
   }
-  
+
   logger.error('Unhandled Rejection', {
     reason: errorMessage,
     stack: reason instanceof Error ? reason.stack : undefined,
@@ -374,4 +414,3 @@ process.on('SIGINT', () => {
 });
 
 export default app;
-

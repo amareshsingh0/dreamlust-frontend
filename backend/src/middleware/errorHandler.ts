@@ -40,7 +40,6 @@ export function errorHandler(
         user: req.user ? {
           id: req.user.userId,
           email: req.user.email,
-          username: req.user.username,
         } : undefined,
         extra: {
           body: req.body,
@@ -67,7 +66,6 @@ export function errorHandler(
       user: req.user ? {
         id: req.user.userId,
         email: req.user.email,
-        username: req.user.username,
       } : undefined,
       extra: {
         body: req.body,

@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { validateBody } from '../middleware/validation';
 import { NotFoundError, ValidationError } from '../lib/errors';
 import { z } from 'zod';
+import { trackEvent, EventTypes } from '../lib/analytics/tracker';
 import {
   razorpay,
   createPaymentOrder,
@@ -52,7 +53,7 @@ router.post(
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, display_name: true, username: true },
+      select: { id: true, email: true, displayName: true, username: true },
     });
 
     if (!user) {
@@ -73,12 +74,12 @@ router.post(
     // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
-        user_id: userId,
+        userId: userId,
         type: metadata?.type === 'tip' ? 'TIP' : 'PREMIUM_CONTENT',
         amount: amount,
         currency: currency.toUpperCase(),
         status: 'PENDING',
-        razorpay_payment_id: order.id, // Store order ID initially
+        razorpayPaymentId: order.id, // Store order ID initially
         metadata: metadata || {},
       },
     });
@@ -123,8 +124,8 @@ router.post(
     // Find transaction by order ID
     const transaction = await prisma.transaction.findFirst({
       where: {
-        razorpay_payment_id: orderId,
-        user_id: userId,
+        razorpayPaymentId: orderId,
+        userId: userId,
       },
     });
 
@@ -140,8 +141,8 @@ router.post(
       where: { id: transaction.id },
       data: {
         status: payment.status === 'captured' ? 'COMPLETED' : 'FAILED',
-        razorpay_payment_id: paymentId,
-        payment_id: paymentId,
+        razorpayPaymentId: paymentId,
+        paymentId: paymentId,
       },
     });
 
@@ -150,15 +151,15 @@ router.post(
       const metadata = transaction.metadata as { creatorId?: string };
       if (metadata.creatorId && payment.status === 'captured') {
         await prisma.creatorEarnings.upsert({
-          where: { creator_id: metadata.creatorId },
+          where: { creatorId: metadata.creatorId },
           create: {
-            creator_id: metadata.creatorId,
+            creatorId: metadata.creatorId,
             balance: transaction.amount,
-            lifetime_earnings: transaction.amount,
+            lifetimeEarnings: transaction.amount,
           },
           update: {
             balance: { increment: transaction.amount },
-            lifetime_earnings: { increment: transaction.amount },
+            lifetimeEarnings: { increment: transaction.amount },
           },
         });
       }
@@ -210,7 +211,7 @@ router.post(
     // Check if user already has an active subscription for this plan
     const existingSubscription = await prisma.userSubscription.findFirst({
       where: {
-        user_id: userId,
+        userId: userId,
         plan: planId,
         status: 'active',
       },
@@ -223,7 +224,7 @@ router.post(
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, display_name: true, username: true },
+      select: { id: true, email: true, displayName: true, username: true },
     });
 
     if (!user) {
@@ -234,7 +235,7 @@ router.post(
     const customer = await getOrCreateCustomer(
       userId,
       user.email,
-      user.display_name || user.username
+      user.displayName || user.username
     );
 
     // Create subscription
@@ -250,12 +251,12 @@ router.post(
     // Store subscription in database
     await prisma.userSubscription.create({
       data: {
-        user_id: userId,
+        userId: userId,
         plan: planId,
-        status: 'pending', // Will be activated by webhook
-        razorpay_subscription_id: subscription.id,
-        current_start: subscription.current_start ? new Date(subscription.current_start * 1000) : null,
-        current_end: subscription.current_end ? new Date(subscription.current_end * 1000) : null,
+        status: 'PENDING', // Will be activated by webhook
+        razorpaySubscriptionId: subscription.id,
+        currentPeriodStart: subscription.current_start ? new Date(subscription.current_start * 1000) : null,
+        currentPeriodEnd: subscription.current_end ? new Date(subscription.current_end * 1000) : null,
       },
     });
 
@@ -317,7 +318,7 @@ router.post(
     // Check if user already has an active subscription for this plan
     const existingSubscription = await prisma.userSubscription.findFirst({
       where: {
-        user_id: userId,
+        userId: userId,
         plan: planId,
         status: 'active',
       },
@@ -330,7 +331,7 @@ router.post(
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, display_name: true, username: true },
+      select: { id: true, email: true, displayName: true, username: true },
     });
 
     if (!user) {
@@ -341,7 +342,7 @@ router.post(
     const customer = await getOrCreateCustomer(
       userId,
       user.email,
-      user.display_name || user.username
+      user.displayName || user.username
     );
 
     // Create subscription
@@ -357,12 +358,12 @@ router.post(
     // Store subscription in database
     await prisma.userSubscription.create({
       data: {
-        user_id: userId,
+        userId: userId,
         plan: planId,
-        status: 'pending', // Will be activated by webhook
-        razorpay_subscription_id: subscription.id,
-        current_start: subscription.current_start ? new Date(subscription.current_start * 1000) : null,
-        current_end: subscription.current_end ? new Date(subscription.current_end * 1000) : null,
+        status: 'PENDING', // Will be activated by webhook
+        razorpaySubscriptionId: subscription.id,
+        currentPeriodStart: subscription.current_start ? new Date(subscription.current_start * 1000) : null,
+        currentPeriodEnd: subscription.current_end ? new Date(subscription.current_end * 1000) : null,
       },
     });
 
@@ -412,8 +413,8 @@ router.get(
     // Verify subscription belongs to user
     const userSubscription = await prisma.userSubscription.findFirst({
       where: {
-        razorpay_subscription_id: subscriptionId,
-        user_id: userId,
+        razorpaySubscriptionId: subscriptionId,
+        userId: userId,
       },
     });
 

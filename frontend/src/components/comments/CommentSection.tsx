@@ -52,9 +52,9 @@ export function CommentSection({
 
       if (response.success && response.data) {
         if (reset) {
-          setComments(response.data.comments);
+          setComments(response.data!.comments);
         } else {
-          setComments((prev) => [...prev, ...response.data.comments]);
+          setComments((prev) => [...prev, ...response.data!.comments]);
         }
         setTotal(response.data.pagination.total);
         setHasMore(response.data.pagination.page < response.data.pagination.totalPages);
@@ -247,7 +247,7 @@ export function CommentSection({
     if (!loading && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
-      loadComments(false, nextPage);
+      loadComments(false);
     }
   };
 

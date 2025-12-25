@@ -75,13 +75,13 @@ export function BundleCreator({ myContent = [], onBundleCreated }: BundleCreator
       const bundleData = {
         title: title.trim(),
         description: description.trim(),
-        thumbnail: thumbnail,
+        thumbnail: thumbnail ? undefined : undefined, // File upload handled separately
         contentIds: selectedContent,
         price: parseFloat(price),
         expiresAt: expiresAt?.toISOString() || null,
       };
 
-      const response = await api.bundles.create(bundleData);
+      const response = await api.bundles.create(bundleData as any);
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to create bundle');
       }

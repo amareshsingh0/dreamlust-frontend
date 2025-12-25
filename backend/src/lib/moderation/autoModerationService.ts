@@ -58,7 +58,7 @@ async function checkTitleForSpam(title: string): Promise<ModerationCheck> {
  */
 async function checkDescriptionForBannedWords(description: string): Promise<ModerationCheck> {
   // Basic banned words list (in production, use a comprehensive profanity filter)
-  const bannedWords = [
+  const bannedWords: string[] = [
     // Add your banned words here
   ];
 
@@ -153,7 +153,7 @@ async function analyzeCreatorHistory(creatorId: string): Promise<ModerationCheck
       user: true,
       content: {
         where: {
-          deleted_at: { not: null },
+          deletedAt: { not: null },
         },
         take: 10,
       },
@@ -178,7 +178,7 @@ async function analyzeCreatorHistory(creatorId: string): Promise<ModerationCheck
   const issues: string[] = [];
 
   // Check account age
-  const accountAge = Date.now() - creator.user.created_at.getTime();
+  const accountAge = Date.now() - (creator.user.createdAt || new Date()).getTime();
   const daysOld = accountAge / (1000 * 60 * 60 * 24);
 
   if (daysOld < 7) {
@@ -250,8 +250,8 @@ export async function autoModerateContent(contentId: string): Promise<{
   const checks = await Promise.all([
     checkTitleForSpam(content.title),
     checkDescriptionForBannedWords(content.description || ''),
-    scanThumbnailForInappropriateContent(content.thumbnailUrl),
-    checkVideoForViolations(content.streamUrl),
+    scanThumbnailForInappropriateContent(content.thumbnail),
+    checkVideoForViolations(content.mediaUrl),
     analyzeCreatorHistory(content.creatorId),
   ]);
 
@@ -276,14 +276,14 @@ export async function autoModerateContent(contentId: string): Promise<{
       where: { id: contentId },
       data: {
         status: 'REJECTED',
-        moderation_note: `Auto-rejected: ${reason}`,
+        moderationNote: `Auto-rejected: ${reason}`,
       },
     });
 
     // Notify creator
     await prisma.notification.create({
       data: {
-        user_id: content.creator.user_id,
+        userId: content.creator.userId,
         type: 'CONTENT_REJECTED',
         title: 'Content Rejected',
         message: `Your content "${content.title}" was automatically rejected: ${reason}`,
@@ -293,11 +293,11 @@ export async function autoModerateContent(contentId: string): Promise<{
     // Create content flag
     await prisma.contentFlag.create({
       data: {
-        content_id: contentId,
-        flag_type: 'auto',
+        contentId: contentId,
+        flagType: 'auto',
         reason: reason || 'Moderate risk detected',
         severity: riskScore > 70 ? 'high' : 'medium',
-        is_active: true,
+        isActive: true,
       },
     });
   } else {

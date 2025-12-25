@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  Play, 
-  Pause, 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
   Settings,
-  Heart,
   Share2,
   Download,
   Flag,
@@ -58,6 +57,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { MultiAnglePlayer } from '@/components/video/MultiAnglePlayer';
 
 interface UserPreferences {
   theme: string;
@@ -68,9 +68,9 @@ interface UserPreferences {
   defaultQuality: string;
   autoplay: boolean;
   notifications: {
-    email?: Record<string, any>;
-    push?: Record<string, any>;
-    inApp?: Record<string, any>;
+    email?: Record<string, boolean>;
+    push?: Record<string, boolean>;
+    inApp?: Record<string, boolean>;
   };
 }
 
@@ -99,12 +99,18 @@ export default function Watch() {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [newPlaylistPublic, setNewPlaylistPublic] = useState(false);
   const watchStartTimeRef = useRef<number | null>(null);
-  const [watchDuration, setWatchDuration] = useState<number>(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [_watchDuration, _setWatchDuration] = useState<number>(0);
 
   const content = mockContent.find(c => c.id === id);
   const [relatedContent, setRelatedContent] = useState<typeof mockContent>([]);
   const [similarContent, setSimilarContent] = useState<typeof mockContent>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [multiAngleData, _setMultiAngleData] = useState<{
+    mainAngle: string;
+    alternateAngles: Array<{ name: string; url: string; syncOffset?: number }>;
+    allowSwitching: boolean;
+  } | null>(null);
 
   // Detect device type
   const detectDevice = (): 'mobile' | 'tablet' | 'desktop' => {
@@ -250,6 +256,7 @@ export default function Watch() {
         }
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]); // Only depend on id, not content or preferences to avoid stale closures
 
   // Update watch duration periodically when playing
@@ -258,7 +265,7 @@ export default function Watch() {
     
     const interval = setInterval(() => {
       if (watchStartTimeRef.current) {
-        setWatchDuration(Math.floor((Date.now() - watchStartTimeRef.current) / 1000));
+        _setWatchDuration(Math.floor((Date.now() - watchStartTimeRef.current) / 1000));
       }
     }, 1000);
     
@@ -276,10 +283,11 @@ export default function Watch() {
         });
         setShowAddToPlaylist(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { error?: { message?: string } };
       toast({
         title: 'Error',
-        description: error?.error?.message || 'Failed to add to playlist',
+        description: err?.error?.message || 'Failed to add to playlist',
         variant: 'destructive',
       });
     }
@@ -301,10 +309,11 @@ export default function Watch() {
           await handleAddToPlaylist(response.data.id);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { error?: { message?: string } };
       toast({
         title: 'Error',
-        description: error?.error?.message || 'Failed to create playlist',
+        description: err?.error?.message || 'Failed to create playlist',
         variant: 'destructive',
       });
     }
@@ -397,7 +406,7 @@ export default function Watch() {
   return (
     <>
       <Helmet>
-        <title>{content.title} - DreamLust</title>
+        <title>{content.title} - PassionFantasia</title>
         <meta name="description" content={content.description || `Watch ${content.title} by ${content.creator.name}`} />
       </Helmet>
       
@@ -406,22 +415,62 @@ export default function Watch() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-              {/* Video Player */}
+              {/* Video Player - Multi-Angle or Standard */}
+              {multiAngleData ? (
+                <MultiAnglePlayer
+                  contentId={id || ''}
+                  mainAngle={multiAngleData.mainAngle}
+                  alternateAngles={multiAngleData.alternateAngles}
+                  allowSwitching={multiAngleData.allowSwitching}
+                  autoplay={false}
+                />
+              ) : (
               <div className="relative aspect-video bg-black rounded-xl overflow-hidden group" data-testid="video-player">
+                <video
+                  ref={videoRef}
+                  src={content.videoUrl || content.thumbnail}
+                  poster={content.thumbnail}
+                  className="w-full h-full object-cover"
+                  controls={false}
+                  muted={isMuted}
+                  playsInline
+                  onEnded={() => {
+                    // Emit video-ended event for series auto-play
+                    if (id) {
+                      window.dispatchEvent(new CustomEvent('video-ended', {
+                        detail: { contentId: id }
+                      }));
+                    }
+                  }}
+                />
                 <img 
                   src={content.thumbnail} 
                   alt={content.title}
-                  className="w-full h-full object-cover"
+                  className={cn(
+                    "w-full h-full object-cover absolute inset-0 transition-opacity pointer-events-none",
+                    isPlaying ? "opacity-0" : "opacity-100"
+                  )}
                 />
                 
                 {/* Play overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                <div className={cn(
+                  "absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors",
+                  isPlaying && "opacity-0"
+                )}>
                   <button
                     onClick={() => {
                       setIsPlaying(!isPlaying);
                       if (!isPlaying && !watchStartTimeRef.current) {
                         // Start tracking when play begins
                         watchStartTimeRef.current = Date.now();
+                      }
+                      // Control video playback
+                      if (videoRef.current) {
+                        if (!isPlaying) {
+                          videoRef.current.play();
+                        } else {
+                          videoRef.current.pause();
+                        }
                       }
                     }}
                     className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center hover:bg-primary transition-colors neon-glow"
@@ -503,6 +552,7 @@ export default function Watch() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Title & Actions */}
               <div>

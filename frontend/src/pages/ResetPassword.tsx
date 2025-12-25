@@ -102,8 +102,8 @@ const ResetPassword = () => {
   return (
     <>
       <Helmet>
-        <title>Reset Password - Dreamlust</title>
-        <meta name="description" content="Set your new Dreamlust password" />
+        <title>Reset Password - PassionFantasia</title>
+        <meta name="description" content="Set your new PassionFantasia password" />
       </Helmet>
 
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -111,7 +111,7 @@ const ResetPassword = () => {
           {/* Logo */}
           <div className="text-center">
             <Link to="/" className="inline-block">
-              <h1 className="font-display text-3xl font-bold text-primary">Dreamlust</h1>
+              <h1 className="font-display text-3xl font-bold text-primary">PassionFantasia</h1>
             </Link>
           </div>
 
