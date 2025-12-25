@@ -193,13 +193,18 @@ export async function apiRequest<T>(
 
 // Helper to get auth token from localStorage or cookie
 function getAuthToken(): string | null {
+  // ALWAYS read fresh from localStorage to avoid stale closures
   // Use safe storage wrapper to handle private browsing mode
-  return authStorage.getAccessToken();
+  const token = authStorage.getAccessToken();
+  if (import.meta.env.DEV && token) {
+    console.debug('[API] Retrieved token from storage:', token.substring(0, 20) + '...');
+  }
+  return token;
 }
 
 // Helper to add auth headers
 export function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
-  const token = getAuthToken();
+  const token = getAuthToken(); // Always get fresh token
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...customHeaders,
@@ -208,6 +213,11 @@ export function getHeaders(customHeaders: Record<string, string> = {}): Record<s
   // Only add Authorization header if token exists and not explicitly overridden
   if (token && !customHeaders.Authorization) {
     headers.Authorization = `Bearer ${token}`;
+    if (import.meta.env.DEV) {
+      console.debug('[API] Added Authorization header');
+    }
+  } else if (!token && import.meta.env.DEV) {
+    console.warn('[API] No token found - request will be unauthenticated');
   }
 
   return headers;
@@ -2706,4 +2716,3 @@ export const api = {
     },
   },
 };
-
