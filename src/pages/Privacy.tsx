@@ -5,8 +5,8 @@ const Privacy = () => {
   return (
     <>
       <Helmet>
-        <title>Privacy Policy - Dreamlust</title>
-        <meta name="description" content="Learn how Dreamlust collects, uses, and protects your personal information." />
+        <title>Privacy Policy - PassionFantasia</title>
+        <meta name="description" content="Learn how PassionFantasia collects, uses, and protects your personal information." />
       </Helmet>
 
       <Layout>
@@ -84,7 +84,7 @@ const Privacy = () => {
               <section>
                 <h2 className="font-display text-xl font-bold mb-4">Contact Us</h2>
                 <p className="text-muted-foreground">
-                  For privacy-related inquiries, contact our Data Protection Officer at privacy@dreamlust.com
+                  For privacy-related inquiries, contact our Data Protection Officer at privacy@passionfantasia.com
                 </p>
               </section>
             </div>

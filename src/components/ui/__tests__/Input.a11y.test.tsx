@@ -2,7 +2,6 @@
  * Input Component Accessibility Tests
  */
 
-import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils';
 import { checkA11y } from '@/test/a11y';

@@ -22,7 +22,7 @@ export function initDatadogRUM() {
     applicationId: DATADOG_APP_ID,
     clientToken: DATADOG_CLIENT_TOKEN,
     site: DATADOG_SITE,
-    service: 'dreamlust-frontend',
+    service: 'passionfantasia-frontend',
     env: DATADOG_ENV,
     version: DATADOG_VERSION,
     sessionSampleRate: 100, // 100% of sessions
@@ -41,7 +41,7 @@ export function initDatadogRUM() {
         url.searchParams.delete('apiKey');
         event.view.url = url.toString();
       }
-      return event;
+      return true; // Return true to send the event, false to discard
     },
   });
 
@@ -57,11 +57,10 @@ export function initDatadogLogs() {
   datadogLogs.init({
     clientToken: DATADOG_CLIENT_TOKEN,
     site: DATADOG_SITE,
-    service: 'dreamlust-frontend',
+    service: 'passionfantasia-frontend',
     env: DATADOG_ENV,
     version: DATADOG_VERSION,
     forwardErrorsToLogs: true,
-    sampleRate: 100, // 100% of logs
   });
 
   console.log('✅ Datadog Logs initialized');

@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface CommentInputProps {
   onSubmit: (text: string) => Promise<void>;

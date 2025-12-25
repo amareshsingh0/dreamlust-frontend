@@ -5,9 +5,8 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Clock, TrendingUp, X } from 'lucide-react';
+import { Search, Clock, TrendingUp } from 'lucide-react';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
 
 interface AutocompleteData {
   suggestions: string[];
@@ -25,7 +24,7 @@ interface SearchAutocompleteProps {
 
 export function SearchAutocomplete({
   query,
-  onQueryChange,
+  onQueryChange: _onQueryChange,
   onSelect,
   showSuggestions,
   onShowSuggestionsChange,
@@ -46,9 +45,10 @@ export function SearchAutocomplete({
       if (query.length >= 2) {
         setLoading(true);
         try {
-          const response = await api.search.autocomplete(query);
+          const response = await api.search.autocomplete<AutocompleteData>(query);
           if (response.success && response.data) {
-            setAutocompleteData(response.data);
+            const data = response.data as unknown as AutocompleteData;
+            setAutocompleteData(data);
           }
         } catch (error) {
           console.warn('Failed to fetch autocomplete:', error);
@@ -60,9 +60,10 @@ export function SearchAutocomplete({
         try {
           const response = await api.search.getTrending();
           if (response.success && response.data) {
+            const trendingData = response.data as unknown as any[];
             setAutocompleteData({
               suggestions: [],
-              trending: response.data.map((t: any) => t.query).slice(0, 5),
+              trending: trendingData.map((t: any) => t.query).slice(0, 5),
               recent: autocompleteData.recent,
             });
           }
@@ -89,21 +90,6 @@ export function SearchAutocomplete({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showSuggestions, onShowSuggestionsChange]);
-
-  // Highlight matching text
-  const highlightMatch = (text: string, query: string) => {
-    if (!query) return text;
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
-    return parts.map((part, i) =>
-      part.toLowerCase() === query.toLowerCase() ? (
-        <mark key={i} className="bg-yellow-200 dark:bg-yellow-800">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  };
 
   const handleSuggestionClick = (suggestion: string) => {
     onSelect(suggestion);

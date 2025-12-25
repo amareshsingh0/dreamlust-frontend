@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut, Upload, History } from 'lucide-react';
+import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,7 +34,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showCommandDialog, setShowCommandDialog] = useState(false);
-  const isCreator = user?.role === 'CREATOR' || user?.role === 'MODERATOR' || user?.role === 'ADMIN';
+  const _isCreator = user?.role === 'CREATOR' || user?.role === 'MODERATOR' || user?.role === 'ADMIN';
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -125,11 +125,13 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
           </Button>
           
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow">
-              <span className="text-xl font-bold text-primary-foreground">D</span>
-            </div>
+            <img
+              src="/icon-192.png"
+              alt="PassionFantasia"
+              className="w-10 h-10 rounded-xl object-contain neon-glow"
+            />
             <span className="font-display text-xl font-bold gradient-text hidden sm:block">
-              DreamLust
+              PassionFantasia
             </span>
           </Link>
         </div>

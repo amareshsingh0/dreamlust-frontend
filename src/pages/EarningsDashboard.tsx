@@ -47,7 +47,7 @@ interface BalanceData {
 }
 
 export default function EarningsDashboard() {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [balance, setBalance] = useState<BalanceData | null>(null);
@@ -160,7 +160,7 @@ export default function EarningsDashboard() {
   return (
     <Layout>
       <Helmet>
-        <title>Earnings Dashboard - Dreamlust</title>
+        <title>Earnings Dashboard - PassionFantasia</title>
       </Helmet>
 
       <div className="container mx-auto px-4 py-8 max-w-7xl">

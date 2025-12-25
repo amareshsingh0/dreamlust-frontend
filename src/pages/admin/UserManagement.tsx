@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
-import { Link } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -72,8 +71,9 @@ export default function UserManagement() {
       });
 
       if (response.success && response.data) {
-        setUsers(response.data.users || []);
-        setTotalPages(response.data.pagination?.totalPages || 1);
+        const data = response.data as { users: User[]; pagination?: { totalPages: number } };
+        setUsers(data.users || []);
+        setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error: any) {
       toast({
@@ -161,7 +161,7 @@ export default function UserManagement() {
   return (
     <>
       <Helmet>
-        <title>User Management - Admin - Dreamlust</title>
+        <title>User Management - Admin - PassionFantasia</title>
         <meta name="description" content="Manage users" />
       </Helmet>
 

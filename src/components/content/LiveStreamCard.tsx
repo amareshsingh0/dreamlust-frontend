@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Radio, Eye, Zap } from 'lucide-react';
 import { Content } from '@/types';
-import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 

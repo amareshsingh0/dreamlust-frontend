@@ -378,8 +378,8 @@ export default function Search() {
   return (
     <>
       <Helmet>
-        <title>{query ? `Search: ${query}` : 'Search'} - DreamLust</title>
-        <meta name="description" content="Search for content, creators, and more on DreamLust." />
+        <title>{query ? `Search: ${query}` : 'Search'} - PassionFantasia</title>
+        <meta name="description" content="Search for content, creators, and more on PassionFantasia." />
       </Helmet>
       
       <Layout>
@@ -586,7 +586,7 @@ export default function Search() {
               {!query && results.length === 0 && !loading && (
                 <div className="text-center py-16">
                   <SearchIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Search DreamLust</h3>
+                  <h3 className="text-xl font-bold mb-2">Search PassionFantasia</h3>
                   <p className="text-muted-foreground mb-6">Find content, creators, and more</p>
                   
                   <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">

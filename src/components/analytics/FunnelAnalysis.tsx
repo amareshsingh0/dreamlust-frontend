@@ -5,9 +5,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { TrendingDown, TrendingUp, Users, Target, Calendar } from 'lucide-react';
+import { TrendingDown, Users, Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -56,11 +55,12 @@ export function FunnelAnalysis() {
 
   const loadFunnels = async () => {
     try {
-      const response = await api.funnelAnalytics.getFunnels();
+      const response = await (api as any).funnelAnalytics.getFunnels();
       if (response.success && response.data) {
-        setFunnels(response.data);
-        if (response.data.length > 0 && !selectedFunnel) {
-          setSelectedFunnel(response.data[0].name);
+        const funnelData = response.data as Array<{ name: string; steps: string[]; stepCount: number }>;
+        setFunnels(funnelData);
+        if (funnelData.length > 0 && !selectedFunnel) {
+          setSelectedFunnel(funnelData[0].name);
         }
       }
     } catch (error: any) {
@@ -84,14 +84,14 @@ export function FunnelAnalysis() {
 
     setLoading(true);
     try {
-      const response = await api.funnelAnalytics.analyze({
+      const response = await (api as any).funnelAnalytics.analyze({
         funnelName: selectedFunnel as any,
         startDate: new Date(startDate).toISOString(),
         endDate: new Date(endDate).toISOString(),
       });
 
       if (response.success && response.data) {
-        setAnalysis(response.data);
+        setAnalysis(response.data as unknown as FunnelAnalysis);
       } else {
         throw new Error(response.error?.message || 'Failed to analyze funnel');
       }

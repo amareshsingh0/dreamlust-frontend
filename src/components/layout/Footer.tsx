@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, Twitter, Instagram, Youtube, Mail } from 'lucide-react';
+import { Heart, Twitter, Instagram, Youtube, Mail, Flame } from 'lucide-react';
 
 const footerLinks = {
   explore: [
@@ -11,6 +11,7 @@ const footerLinks = {
   support: [
     { label: 'Help Center', href: '/help' },
     { label: 'Contact Us', href: '/contact' },
+    { label: 'Feedback', href: '/feedback' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Community', href: '/community' },
   ],
@@ -29,121 +30,153 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
-  { icon: Instagram, href: 'https://instagram.com', label: 'Instagram' },
-  { icon: Youtube, href: 'https://youtube.com', label: 'YouTube' },
-  { icon: Mail, href: 'mailto:contact@dreamlust.com', label: 'Email' },
+  { icon: Twitter, href: 'https://twitter.com/passionfantasia', label: 'Twitter' },
+  { icon: Instagram, href: 'https://instagram.com/passionfantasia', label: 'Instagram' },
+  { icon: Youtube, href: 'https://youtube.com/passionfantasia', label: 'YouTube' },
+  { icon: Mail, href: 'mailto:passionfantasia@gmail.com', label: 'Email' },
 ];
 
 export function Footer() {
   return (
-    <footer className="bg-card border-t border-border mt-auto">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-12">
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 mb-12">
-          {/* Brand */}
-          <div className="col-span-1 xs:col-span-2 md:col-span-4 lg:col-span-1 mb-4 lg:mb-0">
-            <Link to="/" className="inline-block mb-4">
-              <span className="font-display text-2xl font-bold gradient-text">
-                Dreamlust
-              </span>
-            </Link>
-            <p className="text-muted-foreground text-sm mb-4 max-w-xs">
-              Premium streaming platform for creators and viewers. Discover, create, and connect.
-            </p>
-            <div className="flex gap-3">
-              {socialLinks.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground transition-colors"
-                  aria-label={social.label}
-                >
-                  <social.icon className="h-4 w-4" />
-                </a>
-              ))}
+    <footer className="relative mt-auto overflow-hidden">
+      {/* Gradient top border */}
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+
+      {/* Background with subtle gradient */}
+      <div className="bg-gradient-to-b from-card to-background/95">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-12">
+          {/* Main Footer Content - Single Row Layout */}
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-10">
+
+            {/* Brand Section */}
+            <div className="flex flex-col gap-0 lg:max-w-xs">
+              <Link to="/" className="inline-flex items-center gap-4 group">
+                {/* <img
+                  src="/icon-192.png"
+                  alt="PassionFantasia"
+                  className="w-10 h-10 rounded-lg object-contain transition-transform group-hover:scale-105"
+                /> */}
+                <span className="font-display text-xl font-bold gradient-text">
+                  PassionFantasia
+                </span>
+              </Link>
+
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Premium content<br /> platform for creators<br /> and viewers.
+              </p>
+
+              {/* Social Links */}
+              <div className="flex gap-2">
+                {socialLinks.map((social) => (
+                  <a
+                    key={social.label}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-lg bg-secondary/50 hover:bg-primary hover:text-primary-foreground transition-colors duration-200"
+                    aria-label={social.label}
+                  >
+                    <social.icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Links Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 lg:gap-16">
+              {/* Explore */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-sm uppercase tracking-wider text-foreground/90">
+                  Explore
+                </h3>
+                <ul className="space-y-2">
+                  {footerLinks.explore.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        to={link.href}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Support */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-sm uppercase tracking-wider text-foreground/90">
+                  Support
+                </h3>
+                <ul className="space-y-2">
+                  {footerLinks.support.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        to={link.href}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Legal */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-sm uppercase tracking-wider text-foreground/90">
+                  Legal
+                </h3>
+                <ul className="space-y-2">
+                  {footerLinks.legal.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        to={link.href}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Creators */}
+              <div className="space-y-3">
+                <h3 className="font-display font-semibold text-sm uppercase tracking-wider text-foreground/90">
+                  Creators
+                </h3>
+                <ul className="space-y-2">
+                  {footerLinks.creators.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        to={link.href}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
 
-          {/* Explore */}
-          <div>
-            <h2 className="font-display font-semibold mb-4 text-base">Explore</h2>
-            <ul className="space-y-2">
-              {footerLinks.explore.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Divider */}
+          <div className="my-8 h-px w-full bg-border/50" />
 
-          {/* Support */}
-          <div>
-            <h2 className="font-display font-semibold mb-4 text-base">Support</h2>
-            <ul className="space-y-2">
-              {footerLinks.support.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {/* Bottom Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} PassionFantasia. All rights reserved.
+            </p>
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              Made with
+              <Heart className="h-3.5 w-3.5 text-primary fill-primary" />
+              <Flame className="h-3.5 w-3.5 text-primary" />
+              for creators
+            </p>
           </div>
-
-          {/* Legal */}
-          <div>
-            <h2 className="font-display font-semibold mb-4 text-base">Legal</h2>
-            <ul className="space-y-2">
-              {footerLinks.legal.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Creators */}
-          <div>
-            <h2 className="font-display font-semibold mb-4 text-base">Creators</h2>
-            <ul className="space-y-2">
-              {footerLinks.creators.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Dreamlust. All rights reserved.
-          </p>
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            Made with <Heart className="h-3 w-3 text-primary fill-primary" /> for creators
-          </p>
         </div>
       </div>
     </footer>

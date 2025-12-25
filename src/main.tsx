@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
 // Lazy load Sentry - only initialize on errors to reduce initial bundle size
 // This saves ~870 KiB on initial load
-import App from "./App.tsx";
-import { ErrorBoundary } from "./components/error/ErrorBoundary.tsx";
+import App from "./App";
+import { ErrorBoundary } from "./components/error/ErrorBoundary";
 import "./index.css";
 
 // Console logging only in development (removed in production for best practices)

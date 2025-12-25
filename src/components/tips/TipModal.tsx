@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Heart, DollarSign, Sparkles, MessageCircle, ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -220,7 +219,7 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
         key: paymentOrder.key,
         amount: paymentOrder.amount, // Amount in paise
         currency: paymentOrder.currency,
-        name: 'Dreamlust',
+        name: 'PassionFantasia',
         description: `Tip to ${creatorName}`,
         order_id: paymentOrder.orderId,
         handler: async function (response: any) {

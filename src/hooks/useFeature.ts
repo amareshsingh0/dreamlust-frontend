@@ -22,7 +22,8 @@ export function useFeature(key: string): boolean {
       try {
         const response = await api.features.get(key);
         if (response.success && response.data) {
-          setEnabled(response.data.enabled);
+          const data = response.data as { enabled: boolean };
+          setEnabled(data.enabled);
         } else {
           setEnabled(false);
         }

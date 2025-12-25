@@ -19,7 +19,8 @@ async function getVAPIDPublicKey(): Promise<string | null> {
   try {
     const response = await api.push.getVAPIDKey();
     if (response.success && response.data) {
-      vapidPublicKey = response.data.publicKey;
+      const data = response.data as { publicKey: string };
+      vapidPublicKey = data.publicKey;
       return vapidPublicKey;
     }
   } catch (error) {
@@ -117,7 +118,7 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
     // Subscribe to push
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey,
+      applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
     });
 
     // Get device info
@@ -167,7 +168,8 @@ export async function getPushSubscriptions() {
   try {
     const response = await api.push.getSubscriptions();
     if (response.success && response.data) {
-      return response.data.subscriptions;
+      const data = response.data as { subscriptions: any[] };
+      return data.subscriptions;
     }
     return [];
   } catch (error) {

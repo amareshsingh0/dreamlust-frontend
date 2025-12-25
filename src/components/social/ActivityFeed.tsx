@@ -43,7 +43,7 @@ export function ActivityFeed({ userId }: ActivityFeedProps) {
     const fetchActivities = async () => {
       setLoading(true);
       try {
-        const response = await api.get(`/social/activity-feed?type=${filter === 'all' ? '' : filter}`);
+        const response = await (api as any).get(`/social/activity-feed?type=${filter === 'all' ? '' : filter}`);
         if (response.data.success) {
           setActivities(response.data.data);
         }

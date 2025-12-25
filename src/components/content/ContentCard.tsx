@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Play, Eye, Heart, Clock, Zap, Crown } from 'lucide-react';
 import { Content } from '@/types';
 import { cn } from '@/lib/utils';
@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { createSimpleBlurPlaceholder } from '@/lib/imageUtils';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -51,7 +51,7 @@ export const ContentCard = React.memo(function ContentCard({ content, variant = 
     }
   }, [user, content]);
 
-  const handleLike = async (e: React.MouseEvent) => {
+  const _handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     if (!user) {
@@ -73,8 +73,9 @@ export const ContentCard = React.memo(function ContentCard({ content, variant = 
     try {
       const response = await api.content.like(content.id);
       if (response.success) {
-        setIsLiked(response.data?.liked ?? !previousLiked);
-        setLikeCount(response.data?.liked ? previousCount + 1 : previousCount - 1);
+        const data = response.data as { liked?: boolean } | undefined;
+        setIsLiked(data?.liked ?? !previousLiked);
+        setLikeCount(data?.liked ? previousCount + 1 : previousCount - 1);
       } else {
         // Revert on error
         setIsLiked(previousLiked);

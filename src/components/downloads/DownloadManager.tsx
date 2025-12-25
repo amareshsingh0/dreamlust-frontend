@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, X, Play, Trash2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Download, X, Play, Trash2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -51,7 +51,7 @@ export function DownloadManager() {
     try {
       const response = await api.downloads.get<{ data: DownloadItem[] }>({ limit: 100 });
       if (response.success && response.data) {
-        setDownloads(response.data);
+        setDownloads((response.data as any).data || response.data as unknown as DownloadItem[]);
       }
     } catch {
       // Failed to load downloads
@@ -127,7 +127,7 @@ export function DownloadManager() {
 
   const handleCancel = async (downloadId: string) => {
     try {
-      await api.delete(`/downloads/${downloadId}?action=cancel`);
+      await (api as any).delete(`/downloads/${downloadId}?action=cancel`);
       toast.success('Download cancelled');
       loadDownloads();
     } catch {
@@ -137,7 +137,7 @@ export function DownloadManager() {
 
   const handleDelete = async (downloadId: string) => {
     try {
-      await api.delete(`/downloads/${downloadId}?action=delete`);
+      await (api as any).delete(`/downloads/${downloadId}?action=delete`);
       toast.success('Download deleted');
       loadDownloads();
     } catch {
@@ -147,7 +147,7 @@ export function DownloadManager() {
 
   const handlePlay = async (downloadId: string) => {
     try {
-      const response = await api.get(`/downloads/${downloadId}/url`);
+      const response = await (api as any).get(`/downloads/${downloadId}/url`);
       if (response.data.success) {
         window.location.href = `/watch/${downloadId}?offline=true`;
       }

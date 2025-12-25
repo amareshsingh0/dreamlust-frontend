@@ -33,9 +33,8 @@ export default function CreatorProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [creator, setCreator] = useState<Creator | null>(null);
-  const [creatorContent, setCreatorContent] = useState<Content[]>([]);
+  const [creatorContent] = useState<Content[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [following, setFollowing] = useState(false);
   const [selectedContentType, setSelectedContentType] = useState<string>('all');
   const [tipModalOpen, setTipModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -151,16 +150,10 @@ export default function CreatorProfile() {
   }
 
 
-  const stats = [
-    { label: 'Followers', value: creator.followers, icon: Users },
-    { label: 'Total Views', value: creator.views, icon: Eye },
-    { label: 'Videos', value: creator.contentCount, icon: Video },
-  ];
-
   return (
     <>
       <Helmet>
-        <title>{creator.name} - DreamLust Creator</title>
+        <title>{creator.name} - PassionFantasia Creator</title>
         <meta name="description" content={creator.bio} />
       </Helmet>
       

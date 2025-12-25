@@ -6,7 +6,6 @@ import { MetricCard } from './MetricCard';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
 import { PieChart } from './charts/PieChart';
-import { AreaChart } from './charts/AreaChart';
 import { DataTable } from './DataTable';
 import { api } from '@/lib/api';
 import { Eye, Clock, Users, DollarSign } from 'lucide-react';
@@ -57,17 +56,17 @@ export function CreatorAnalytics() {
       ]);
 
       if (overviewRes.success) setOverview(overviewRes.data);
-      if (viewsRes.success) setViewsData(viewsRes.data?.viewsData || []);
-      if (topContentRes.success) setTopContent(topContentRes.data?.topContent || []);
+      if (viewsRes.success) setViewsData((viewsRes.data as any)?.viewsData || []);
+      if (topContentRes.success) setTopContent((topContentRes.data as any)?.topContent || []);
       if (trafficRes.success) {
-        const sources = trafficRes.data?.trafficSources || [];
+        const sources = (trafficRes.data as any)?.trafficSources || [];
         setTrafficSources(
           sources.map((s: any) => ({ name: s.source, value: s.count }))
         );
       }
       if (audienceRes.success) setAudience(audienceRes.data);
       if (performanceRes.success) {
-        setContentPerformance(performanceRes.data?.contentStats || []);
+        setContentPerformance((performanceRes.data as any)?.contentStats || []);
       }
     } catch (error) {
       console.error('Failed to load analytics:', error);

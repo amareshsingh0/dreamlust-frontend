@@ -18,8 +18,8 @@ export default function Trending() {
   return (
     <>
       <Helmet>
-        <title>Trending - DreamLust</title>
-        <meta name="description" content="Discover what's trending on DreamLust. See the most popular content and rising creators." />
+        <title>Trending - PassionFantasia</title>
+        <meta name="description" content="Discover what's trending on PassionFantasia. See the most popular content and rising creators." />
       </Helmet>
       
       <Layout>

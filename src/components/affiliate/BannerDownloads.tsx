@@ -12,6 +12,14 @@ interface Banner {
   html: string;
 }
 
+// Define the API response type
+interface GetBannersResponse {
+  success: boolean;
+  data: {
+    banners: Banner[];
+  };
+}
+
 interface BannerDownloadsProps {
   sizes: string[];
 }
@@ -27,7 +35,7 @@ export function BannerDownloads({ sizes }: BannerDownloadsProps) {
 
   const loadBanners = async () => {
     try {
-      const response = await api.affiliates.getBanners();
+      const response = await api.affiliates.getBanners() as GetBannersResponse;
       if (response.success && response.data) {
         // Filter by requested sizes
         const filtered = (response.data.banners || []).filter((b: Banner) =>
@@ -37,6 +45,7 @@ export function BannerDownloads({ sizes }: BannerDownloadsProps) {
       }
     } catch (error) {
       console.error('Failed to load banners:', error);
+      toast.error('Failed to load banners');
     } finally {
       setLoading(false);
     }
@@ -69,6 +78,10 @@ export function BannerDownloads({ sizes }: BannerDownloadsProps) {
 
   if (loading) {
     return <div>Loading banners...</div>;
+  }
+
+  if (banners.length === 0) {
+    return <div>No banners available for the selected sizes.</div>;
   }
 
   return (
@@ -122,4 +135,3 @@ export function BannerDownloads({ sizes }: BannerDownloadsProps) {
     </div>
   );
 }
-

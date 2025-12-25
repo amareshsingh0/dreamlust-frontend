@@ -1,11 +1,11 @@
 {
-  "name": "DreamLust - Premium Content Platform",
-  "short_name": "DreamLust",
+  "name": "PassionFantasia - Premium Content Platform",
+  "short_name": "PassionFantasia",
   "description": "Watch premium content, follow creators, and discover amazing videos",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#FF0000",
+  "background_color": "#0a0510",
+  "theme_color": "#ff69b4",
   "orientation": "any",
   "scope": "/",
   "icons": [

@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Layout } from "@/components/layout/Layout";
 import { Settings as SettingsIcon, User, Bell, Shield, CreditCard, Globe, Loader2, Lock, ShieldCheck, ShieldOff } from "lucide-react";
+import { LanguageSelector } from "@/components/localization/LanguageSelector";
+import { CurrencySelector } from "@/components/preferences/CurrencySelector";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -13,7 +15,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,7 +40,7 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // 2FA State
@@ -60,6 +61,7 @@ const Settings = () => {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
     formState: { errors: profileErrors },
+    reset: resetProfileForm,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -69,14 +71,35 @@ const Settings = () => {
     },
   });
 
+  // Load current user data into the form
+  useEffect(() => {
+    if (user) {
+      resetProfileForm({
+        displayName: user.displayName || user.display_name || "",
+        username: user.username || "",
+        bio: user.bio || "",
+      });
+    }
+  }, [user, resetProfileForm]);
+
   const onProfileSubmit = async (data: ProfileFormData) => {
     setIsSavingProfile(true);
     try {
-      // TODO: Implement profile update API call
-      console.log("Profile data:", data);
-      toast.success("Profile updated successfully!");
-    } catch (error) {
-      toast.error("Failed to update profile. Please try again.");
+      const response = await api.auth.updateProfile<{ user: any }>({
+        displayName: data.displayName,
+        username: data.username,
+        bio: data.bio || "",
+      });
+
+      if (response.success) {
+        // Refresh user data from the server
+        await refreshUser();
+        toast.success("Profile updated successfully!");
+      } else {
+        toast.error(response.error?.message || "Failed to update profile");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update profile. Please try again.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -160,7 +183,7 @@ const Settings = () => {
   return (
     <>
       <Helmet>
-        <title>Settings - Dreamlust</title>
+        <title>Settings - PassionFantasia</title>
         <meta name="description" content="Account settings and preferences" />
       </Helmet>
       
@@ -527,34 +550,14 @@ const Settings = () => {
                   <CardDescription>Customize your experience</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="language">Language</Label>
-                    <Select>
-                      <SelectTrigger id="language">
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div>
+                    <Label className="mb-2 block">Language</Label>
+                    <LanguageSelector />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="quality">Video Quality</Label>
-                    <Select>
-                      <SelectTrigger id="quality">
-                        <SelectValue placeholder="Select quality" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Auto</SelectItem>
-                        <SelectItem value="1080p">1080p</SelectItem>
-                        <SelectItem value="720p">720p</SelectItem>
-                        <SelectItem value="480p">480p</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div>
+                    <Label className="mb-2 block">Currency</Label>
+                    <CurrencySelector />
                   </div>
-                  <Button>Save Preferences</Button>
                 </CardContent>
               </Card>
             </TabsContent>

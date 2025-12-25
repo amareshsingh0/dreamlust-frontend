@@ -10,7 +10,10 @@ interface User {
   username: string;
   role: string;
   displayName?: string;
+  display_name?: string; // Backend uses snake_case
   avatar?: string;
+  banner?: string;
+  bio?: string;
 }
 
 interface AuthContextType {
@@ -19,7 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
-  register: (email: string, username: string, password: string, displayName?: string) => Promise<void>;
+  register: (email: string, username: string, password: string, birthDate?: string, displayName?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -122,19 +125,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let accessToken: string | null = null;
 
       // Try to extract user and token from response
-      if (response.data.user && response.data.tokens?.accessToken) {
+      const data = response.data as any;
+      if (data.user && data.tokens?.accessToken) {
         // Standard structure: { user: {...}, tokens: { accessToken: ... } }
-        userData = response.data.user;
-        accessToken = response.data.tokens.accessToken;
-      } else if (response.data.id && response.data.email) {
+        userData = data.user;
+        accessToken = data.tokens.accessToken;
+      } else if (data.id && data.email) {
         // Direct user object with token
-        userData = response.data as User;
-        accessToken = (response.data as any).accessToken || (response.data as any).token;
+        userData = data as User;
+        accessToken = data.accessToken || data.token;
       } else {
         // Fallback: check if data itself is the user object
-        console.warn('⚠️ Unexpected response structure, attempting to parse:', response.data);
-        userData = (response.data as any).user || response.data as User;
-        accessToken = (response.data as any).tokens?.accessToken || (response.data as any).accessToken;
+        console.warn('⚠️ Unexpected response structure, attempting to parse:', data);
+        userData = data.user || data as User;
+        accessToken = data.tokens?.accessToken || data.accessToken;
       }
       
       // Validate we have both user and token
@@ -180,14 +184,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (email: string, username: string, password: string, displayName?: string) => {
+  const register = async (email: string, username: string, password: string, birthDate?: string, displayName?: string) => {
     try {
       const response = await api.auth.register<{
         user: User;
         tokens: {
           accessToken: string;
         };
-      }>({ email, username, password, displayName });
+      }>({ email, username, password, birthDate, displayName });
 
       if (response.success && response.data) {
         // Handle response structure: { user: {...}, tokens: {...} }

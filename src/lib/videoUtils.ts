@@ -9,7 +9,7 @@
  */
 export function getVideoThumbnail(
   videoUrl: string,
-  time: number = 0
+  _time: number = 0
 ): string {
   // If using a video CDN (like Cloudinary, Mux, etc.), construct thumbnail URL
   // Example: `${CDN_BASE_URL}/${videoUrl}/thumbnail.jpg?time=${time}`
@@ -35,7 +35,7 @@ export function getHLSManifestUrl(videoUrl: string): string {
 /**
  * Get video quality options for HLS
  */
-export function getVideoQualityOptions(videoId: string): Array<{
+export function getVideoQualityOptions(_videoId: string): Array<{
   label: string;
   value: string;
   resolution: string;
@@ -90,7 +90,7 @@ export async function loadVideoPlayerLibrary(): Promise<any> {
 /**
  * Generate preview sprite (thumbnail grid) for video scrubbing
  */
-export function getPreviewSpriteUrl(videoUrl: string, spriteCount: number = 10): string {
+export function getPreviewSpriteUrl(videoUrl: string, _spriteCount: number = 10): string {
   // Generate URL for preview sprite image
   // This shows thumbnails when hovering over the progress bar
   // Example: `${CDN_BASE_URL}/${videoUrl}/sprite.jpg?vtt=${videoUrl}/sprite.vtt`

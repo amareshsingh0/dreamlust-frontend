@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, X, Play, Trash2, AlertCircle, CheckCircle2, Loader2, Settings } from 'lucide-react';
+import { Download, X, Play, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -128,7 +128,7 @@ export function Downloader({ contentId, onDownloadComplete }: DownloaderProps) {
     try {
       const response = await api.downloads.get<{ data: DownloadItem[] }>({ limit: 100 });
       if (response.success && response.data) {
-        setDownloads(response.data);
+        setDownloads((response.data as any).data || response.data as unknown as DownloadItem[]);
       }
     } catch {
       // Failed to load downloads
@@ -185,7 +185,7 @@ export function Downloader({ contentId, onDownloadComplete }: DownloaderProps) {
   const handlePlay = async (downloadId: string) => {
     try {
       const response = await api.downloads.getUrl(downloadId);
-      if (response.success && response.data?.url) {
+      if (response.success && (response.data as any)?.url) {
         window.location.href = `/watch/${downloadId}?offline=true`;
       }
     } catch {

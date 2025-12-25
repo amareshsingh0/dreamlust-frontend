@@ -41,9 +41,9 @@ export function DiscoverCollections() {
       setLoading(true);
       try {
         const [featuredRes, trendingRes] = await Promise.all([
-          api.get('/social/collections/featured?limit=10'),
-          api.get('/social/collections/trending?limit=20'),
-        ]);
+          (api as any).get('/social/collections/featured?limit=10'),
+          (api as any).get('/social/collections/trending?limit=20'),
+        ]) as [any, any];
 
         if (featuredRes.data.success) {
           setFeaturedCollections(featuredRes.data.data);

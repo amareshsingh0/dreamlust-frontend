@@ -111,7 +111,7 @@ export function RewardsStore() {
     try {
       const response = await api.loyalty.redeemReward({ rewardId });
       if (response.success) {
-        toast.success(response.message || 'Reward redeemed successfully!');
+        toast.success((response as any).message || 'Reward redeemed successfully!');
         await loadData(); // Reload to update points and rewards
       } else {
         throw new Error(response.error?.message || 'Failed to redeem reward');
@@ -151,7 +151,7 @@ export function RewardsStore() {
   const nextTierInfo = status.nextTier
     ? tierConfig[status.nextTier as keyof typeof tierConfig]
     : null;
-  const nextTierThreshold = nextTierInfo?.nextThreshold || tier.nextThreshold;
+  const _nextTierThreshold = nextTierInfo?.nextThreshold || tier.nextThreshold;
 
   const categories = [
     { value: 'all', label: 'All Rewards', icon: Gift },

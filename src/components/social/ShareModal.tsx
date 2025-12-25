@@ -43,13 +43,13 @@ export function ShareModal({
       setShareUrl(url);
 
       // Fetch embed code
-      api.get(`/social/share/${contentId}/embed`)
-        .then((response) => {
+      (api as any).get(`/social/share/${contentId}/embed`)
+        .then((response: any) => {
           if (response.data.success) {
             setEmbedCode(response.data.data.embedCode);
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           console.error('Failed to fetch embed code:', error);
         });
     }
@@ -85,7 +85,7 @@ export function ShareModal({
 
   const handlePlatformShare = async (platform: string) => {
     try {
-      const response = await api.get(`/social/share/${contentId}/url?platform=${platform}`);
+      const response = await (api as any).get(`/social/share/${contentId}/url?platform=${platform}`);
       if (response.data.success) {
         window.open(response.data.data.url, '_blank', 'noopener,noreferrer');
         await trackShare(platform);
@@ -97,7 +97,7 @@ export function ShareModal({
 
   const trackShare = async (platform?: string) => {
     try {
-      await api.post(`/social/share/${contentId}/track`, { platform });
+      await (api as any).post(`/social/share/${contentId}/track`, { platform });
     } catch {
       // Silent fail
     }
@@ -122,7 +122,7 @@ export function ShareModal({
 
         <div className="space-y-4">
           {/* Native Share */}
-          {navigator.share && (
+          {'share' in navigator && (
             <Button
               onClick={handleNativeShare}
               className="w-full"

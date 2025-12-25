@@ -32,7 +32,8 @@ const History = () => {
         const response = await api.content.getHistory({ page, limit: 20 });
         
         if (response.success && response.data) {
-          const content = response.data.content || [];
+          const data = response.data as { content: Content[] };
+          const content = data.content || [];
           setWatchHistory(prev => page === 1 ? content : [...prev, ...content]);
           setHasMore(content.length === 20);
         } else {
@@ -71,7 +72,7 @@ const History = () => {
   return (
     <>
       <Helmet>
-        <title>Watch History - Dreamlust</title>
+        <title>Watch History - PassionFantasia</title>
         <meta name="description" content="Your watch history" />
       </Helmet>
       

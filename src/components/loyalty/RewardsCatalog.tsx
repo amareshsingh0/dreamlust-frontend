@@ -22,7 +22,7 @@ interface Reward {
   expiresAt: string | null;
 }
 
-interface LoyaltyStatus {
+interface _LoyaltyStatus {
   points: number;
 }
 
@@ -69,7 +69,7 @@ export function RewardsCatalog() {
     try {
       const response = await api.loyalty.redeemReward({ rewardId });
       if (response.success) {
-        toast.success(response.message || 'Reward redeemed successfully!');
+        toast.success((response as any).message || 'Reward redeemed successfully!');
         await loadUserPoints();
         await loadRewards();
       } else {

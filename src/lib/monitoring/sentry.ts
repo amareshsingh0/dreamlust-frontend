@@ -22,24 +22,19 @@ export function initSentry() {
     dsn: SENTRY_DSN,
     environment: SENTRY_ENVIRONMENT,
     integrations: [
-      browserTracingIntegration({
-        // Set tracing origins
-        tracePropagationTargets: [
-          'localhost',
-          /^\//, // Same origin
-          new RegExp(`^${import.meta.env.VITE_API_URL?.replace(/https?:\/\//, '') || ''}`),
-        ],
-      }),
+      browserTracingIntegration(),
+    ],
+    // Set tracing origins at init level
+    tracePropagationTargets: [
+      'localhost',
+      /^\//, // Same origin
+      new RegExp(`^${import.meta.env.VITE_API_URL?.replace(/https?:\/\//, '') || ''}`),
     ],
     tracesSampleRate: SENTRY_TRACES_SAMPLE_RATE,
-    // Capture unhandled promise rejections
-    captureUnhandledRejections: true,
-    // Capture uncaught exceptions
-    captureUncaughtExceptions: true,
     // Release tracking
     release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
     // Before send hook to filter sensitive data
-    beforeSend(event, hint) {
+    beforeSend(event, _hint) {
       // Filter out sensitive data
       if (event.request) {
         // Remove sensitive headers

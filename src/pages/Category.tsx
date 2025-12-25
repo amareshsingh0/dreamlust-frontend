@@ -32,7 +32,7 @@ const Category = () => {
   return (
     <>
       <Helmet>
-        <title>{category.name} - Dreamlust</title>
+        <title>{category.name} - PassionFantasia</title>
         <meta name="description" content={`Browse ${category.name} content`} />
       </Helmet>
       

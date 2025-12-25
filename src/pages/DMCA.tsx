@@ -9,8 +9,8 @@ const DMCA = () => {
   return (
     <>
       <Helmet>
-        <title>DMCA Policy - Dreamlust</title>
-        <meta name="description" content="Dreamlust DMCA policy and copyright infringement reporting procedures." />
+        <title>DMCA Policy - PassionFantasia</title>
+        <meta name="description" content="PassionFantasia DMCA policy and copyright infringement reporting procedures." />
       </Helmet>
 
       <Layout>
@@ -21,14 +21,14 @@ const DMCA = () => {
               <h1 className="font-display text-4xl font-bold">DMCA Policy</h1>
             </div>
             <p className="text-muted-foreground mb-8">
-              Dreamlust respects the intellectual property rights of others and expects users to do the same.
+              PassionFantasia respects the intellectual property rights of others and expects users to do the same.
             </p>
 
             <div className="space-y-8">
               <section>
                 <h2 className="font-display text-xl font-bold mb-4">Copyright Infringement Notice</h2>
                 <p className="text-muted-foreground mb-4">
-                  If you believe that content on Dreamlust infringes your copyright, please submit a DMCA 
+                  If you believe that content on PassionFantasia infringes your copyright, please submit a DMCA 
                   takedown notice containing the following information:
                 </p>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
@@ -92,7 +92,7 @@ const DMCA = () => {
                 <h2 className="font-display text-xl font-bold mb-4">Counter-Notification</h2>
                 <p className="text-muted-foreground">
                   If you believe your content was removed in error, you may submit a counter-notification. 
-                  Contact our legal team at dmca@dreamlust.com for the counter-notification process.
+                  Contact our legal team at dmca@passionfantasia.com for the counter-notification process.
                 </p>
               </section>
             </div>

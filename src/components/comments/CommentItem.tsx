@@ -27,7 +27,6 @@ import {
   Trash2,
   Flag,
   Pin,
-  Zap,
 } from 'lucide-react';
 import { Comment } from '@/types';
 import { cn } from '@/lib/utils';

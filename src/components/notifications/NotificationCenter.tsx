@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, CheckCheck, Trash2, X, Settings, Upload, Heart, MessageCircle, DollarSign, Trophy, Users, Star } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, X, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -61,8 +60,9 @@ export function NotificationCenter() {
         unreadOnly: filter === 'unread',
       });
       if (response.success && response.data) {
-        setNotifications(response.data.notifications || []);
-        setUnreadCount(response.data.unreadCount || 0);
+        const data = response.data as { notifications?: Notification[]; unreadCount?: number };
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
       }
     } catch (error) {
       console.error('Failed to load notifications:', error);
@@ -81,7 +81,8 @@ export function NotificationCenter() {
     try {
       const response = await api.notifications.getUnreadCount();
       if (response.success && response.data) {
-        setUnreadCount(response.data.count || 0);
+        const data = response.data as { count?: number };
+        setUnreadCount(data.count || 0);
       }
     } catch (error) {
       console.error('Failed to load unread count:', error);

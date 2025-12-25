@@ -73,7 +73,7 @@ const Playlists = () => {
   return (
     <>
       <Helmet>
-        <title>Playlists - Dreamlust</title>
+        <title>Playlists - PassionFantasia</title>
         <meta name="description" content="Your playlists" />
       </Helmet>
       
@@ -162,12 +162,12 @@ const Playlists = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {playlists.map((playlist) => (
-                <Card key={playlist.id} className="hover:shadow-lg transition-shadow cursor-pointer" asChild>
-                  <Link to={`/playlist/${playlist.id}`}>
+                <Link key={playlist.id} to={`/playlist/${playlist.id}`}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
                     <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden">
                       {playlist.thumbnail ? (
-                        <img 
-                          src={playlist.thumbnail} 
+                        <img
+                          src={playlist.thumbnail}
                           alt={playlist.name}
                           className="w-full h-full object-cover"
                         />
@@ -186,8 +186,8 @@ const Playlists = () => {
                         {playlist.itemCount} items
                       </CardDescription>
                     </CardHeader>
-                  </Link>
-                </Card>
+                  </Card>
+                </Link>
               ))}
             </div>
           )}

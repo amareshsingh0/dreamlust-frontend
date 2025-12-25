@@ -5,8 +5,8 @@ const Terms = () => {
   return (
     <>
       <Helmet>
-        <title>Terms of Service - Dreamlust</title>
-        <meta name="description" content="Read the Dreamlust Terms of Service. Understand your rights and responsibilities." />
+        <title>Terms of Service - PassionFantasia</title>
+        <meta name="description" content="Read the PassionFantasia Terms of Service. Understand your rights and responsibilities." />
       </Helmet>
 
       <Layout>
@@ -19,7 +19,7 @@ const Terms = () => {
               <section>
                 <h2 className="font-display text-xl font-bold mb-4">1. Acceptance of Terms</h2>
                 <p className="text-muted-foreground">
-                  By accessing or using Dreamlust ("the Service"), you agree to be bound by these Terms of Service. 
+                  By accessing or using PassionFantasia ("the Service"), you agree to be bound by these Terms of Service. 
                   If you do not agree to these terms, please do not use our Service.
                 </p>
               </section>
@@ -27,7 +27,7 @@ const Terms = () => {
               <section>
                 <h2 className="font-display text-xl font-bold mb-4">2. Eligibility</h2>
                 <p className="text-muted-foreground">
-                  You must be at least 18 years old to use this Service. By using Dreamlust, you represent and 
+                  You must be at least 18 years old to use this Service. By using PassionFantasia, you represent and 
                   warrant that you meet this age requirement and have the legal capacity to enter into these terms.
                 </p>
               </section>
@@ -62,8 +62,8 @@ const Terms = () => {
               <section>
                 <h2 className="font-display text-xl font-bold mb-4">5. Intellectual Property</h2>
                 <p className="text-muted-foreground">
-                  All content on Dreamlust is protected by copyright and other intellectual property laws. 
-                  Creators retain ownership of their content but grant Dreamlust a license to host and distribute it.
+                  All content on PassionFantasia is protected by copyright and other intellectual property laws. 
+                  Creators retain ownership of their content but grant PassionFantasia a license to host and distribute it.
                 </p>
               </section>
 
@@ -86,7 +86,7 @@ const Terms = () => {
               <section>
                 <h2 className="font-display text-xl font-bold mb-4">8. Contact</h2>
                 <p className="text-muted-foreground">
-                  For questions about these Terms, contact us at legal@dreamlust.com
+                  For questions about these Terms, contact us at legal@passionfantasia.com
                 </p>
               </section>
             </div>

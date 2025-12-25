@@ -2,9 +2,8 @@ import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/layout/Layout";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { 
-  Radio, 
-  Eye, 
+import {
+  Radio,
   Loader2,
   Zap,
   ArrowLeft
@@ -18,9 +17,7 @@ import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { LiveChat } from "@/components/live/LiveChat";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import { getSocket } from "@/lib/socket";
-import { cn } from "@/lib/utils";
 import type { Socket } from 'socket.io-client';
 
 interface LiveStream {
@@ -52,7 +49,6 @@ interface LiveStream {
 const LiveStreamPage = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stream, setStream] = useState<LiveStream | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
@@ -68,7 +64,7 @@ const LiveStreamPage = () => {
     const fetchStream = async () => {
       try {
         setLoading(true);
-        const response = await api.live.get(streamId);
+        const response = await api.live.get<LiveStream>(streamId);
 
         if (response.success && response.data) {
           const streamData = response.data;
@@ -154,15 +150,16 @@ const LiveStreamPage = () => {
 
     const statusInterval = setInterval(async () => {
       try {
-        const response = await api.live.get(stream.id);
+        const response = await api.live.get<LiveStream>(stream.id);
         if (response.success && response.data) {
           // Only update status, not viewer count (WebSocket handles that)
-          if (response.data.status !== 'live') {
+          const data = response.data;
+          if (data.status !== 'live') {
             setStream(prev => prev ? {
               ...prev,
-              status: response.data.status,
-              endedAt: response.data.endedAt,
-              recordingUrl: response.data.recordingUrl,
+              status: data.status,
+              endedAt: data.endedAt,
+              recordingUrl: data.recordingUrl,
             } : null);
 
             // Leave stream room
@@ -171,7 +168,7 @@ const LiveStreamPage = () => {
               socketRef.current.off('viewer-count-update');
             }
 
-            if (response.data.recordingUrl) {
+            if (data.recordingUrl) {
               toast.info("Stream ended. Redirecting to recording...");
               setTimeout(() => {
                 navigate(`/watch/${stream.id}`);
@@ -228,8 +225,8 @@ const LiveStreamPage = () => {
   return (
     <>
       <Helmet>
-        <title>{stream.title} - Live Stream - Dreamlust</title>
-        <meta name="description" content={stream.description || `Watch ${stream.title} live on Dreamlust`} />
+        <title>{stream.title} - Live Stream - PassionFantasia</title>
+        <meta name="description" content={stream.description || `Watch ${stream.title} live on PassionFantasia`} />
       </Helmet>
       
       <Layout>

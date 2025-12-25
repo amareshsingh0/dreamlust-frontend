@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSocket, disconnectSocket } from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Socket } from 'socket.io-client';
@@ -84,7 +84,7 @@ export function LiveChat({ streamId, chatEnabled = true, className }: LiveChatPr
       try {
         const response = await api.live.getChat(streamId, 50);
         if (response.success && response.data) {
-          setMessages(response.data.messages || []);
+          setMessages((response.data as any).messages || []);
         }
       } catch (error) {
         console.error('Error fetching initial messages:', error);

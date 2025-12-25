@@ -1,6 +1,6 @@
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/layout/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { mockCategories } from "@/data/mockData";
 
@@ -8,7 +8,7 @@ const Categories = () => {
   return (
     <>
       <Helmet>
-        <title>Categories - Dreamlust</title>
+        <title>Categories - PassionFantasia</title>
         <meta name="description" content="Browse content by category" />
       </Helmet>
       

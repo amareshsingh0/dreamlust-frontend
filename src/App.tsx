@@ -8,8 +8,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/contexts/AuthContext";
-// Lazy load FeedbackWidget to reduce initial bundle size
-const FeedbackWidget = lazy(() => import("@/components/feedback/FeedbackWidget").then(module => ({ default: module.FeedbackWidget })));
+import { LocaleProvider } from "@/contexts/LocaleContext";
 
 // Eagerly loaded pages (above the fold, critical)
 import Index from "./pages/Index";
@@ -29,6 +28,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Trending = lazy(() => import("./pages/Trending"));
 const Help = lazy(() => import("./pages/Help"));
 const Contact = lazy(() => import("./pages/Contact"));
+const Feedback = lazy(() => import("./pages/Feedback"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Community = lazy(() => import("./pages/Community"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -39,7 +39,6 @@ const CreatorSignup = lazy(() => import("./pages/CreatorSignup"));
 const Guidelines = lazy(() => import("./pages/Guidelines"));
 const Monetization = lazy(() => import("./pages/Monetization"));
 const Analytics = lazy(() => import("./pages/Analytics"));
-const Earnings = lazy(() => import("./pages/Earnings"));
 const EarningsDashboard = lazy(() => import("./pages/EarningsDashboard"));
 const Creators = lazy(() => import("./pages/Creators"));
 const Live = lazy(() => import("./pages/Live"));
@@ -65,6 +64,11 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const LiveDashboard = lazy(() => import("./pages/creator/LiveDashboard"));
 const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage"));
+const Series = lazy(() => import("./pages/Series"));
+const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
+const ChurnDashboard = lazy(() => import("./pages/admin/ChurnDashboard"));
+const CohortAnalysisPage = lazy(() => import("./pages/admin/CohortAnalysisPage"));
+const FunnelAnalyticsPage = lazy(() => import("./pages/admin/FunnelAnalyticsPage"));
 
 // Optimize QueryClient for better performance - reduce unnecessary refetches
 const queryClient = new QueryClient({
@@ -95,6 +99,7 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+        <LocaleProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -230,13 +235,21 @@ const App = () => (
                 </Suspense>
               } 
             />
-            <Route 
-              path="/following" 
+            <Route
+              path="/following"
               element={
                 <Suspense fallback={<PageSkeleton />}>
                   <Following />
                 </Suspense>
-              } 
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <Library />
+                </Suspense>
+              }
             />
             {/* Category Pages */}
             <Route 
@@ -254,6 +267,22 @@ const App = () => (
                   <Category />
                 </Suspense>
               } 
+            />
+            <Route 
+              path="/series/:id" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <Series />
+                </Suspense>
+              }
+            />
+            <Route 
+              path="/subscription" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <SubscriptionManagement />
+                </Suspense>
+              }
             />
             {/* Premium & Settings */}
             <Route 
@@ -329,6 +358,30 @@ const App = () => (
                 </Suspense>
               } 
             />
+            <Route
+              path="/admin/churn"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <ChurnDashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/cohorts"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <CohortAnalysisPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/funnels"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <FunnelAnalyticsPage />
+                </Suspense>
+              }
+            />
             <Route 
               path="/upload" 
               element={
@@ -360,7 +413,15 @@ const App = () => (
                 <Suspense fallback={<PageSkeleton />}>
                   <Contact />
                 </Suspense>
-              } 
+              }
+            />
+            <Route 
+              path="/feedback" 
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <Feedback />
+                </Suspense>
+              }
             />
             <Route 
               path="/faq" 
@@ -481,9 +542,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
         </TooltipProvider>
-        <Suspense fallback={null}>
-          <FeedbackWidget />
-        </Suspense>
+        </LocaleProvider>
         </AuthProvider>
     </QueryClientProvider>
     </ThemeProvider>

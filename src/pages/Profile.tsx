@@ -232,8 +232,8 @@ export default function Profile() {
   return (
     <>
       <Helmet>
-        <title>Your Profile - DreamLust</title>
-        <meta name="description" content="Manage your DreamLust profile, watch history, and preferences." />
+        <title>Your Profile - PassionFantasia</title>
+        <meta name="description" content="Manage your PassionFantasia profile, watch history, and preferences." />
       </Helmet>
       
       <Layout>

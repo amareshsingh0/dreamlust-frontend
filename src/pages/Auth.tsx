@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -16,7 +17,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
-  rememberMe: z.boolean().optional().default(false),
+  rememberMe: z.boolean(),
 });
 
 // Sign Up Schema
@@ -28,6 +29,16 @@ const signUpSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  birthDate: z.string().refine((date) => {
+    const birth = new Date(date);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age >= 18 && age <= 120;
+  }, "You must be at least 18 years old and enter a valid date of birth"),
 });
 
 type SignInFormData = z.infer<typeof signInSchema>;
@@ -69,6 +80,7 @@ const Auth = () => {
       username: "",
       email: "",
       password: "",
+      birthDate: "",
     },
   });
 
@@ -140,8 +152,15 @@ const Auth = () => {
 
   const onSignUp = async (data: SignUpFormData) => {
     setLoading(true);
+    
+    // Track signup started event
+    api.analytics.track('signup_started', {
+      email: data.email,
+      username: data.username,
+    }).catch(() => {}); // Non-blocking
+    
     try {
-      await registerUser(data.email, data.username, data.password);
+      await registerUser(data.email, data.username, data.password, data.birthDate);
       
       toast.success("Account created successfully!");
       navigate("/");
@@ -165,7 +184,7 @@ const Auth = () => {
   return (
     <>
       <Helmet>
-        <title>{mode === "signin" ? "Sign In" : "Sign Up"} - Dreamlust</title>
+        <title>{mode === "signin" ? "Sign In" : "Sign Up"} - PassionFantasia</title>
       </Helmet>
       <main className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12">
         <div className="w-full max-w-md">
@@ -303,7 +322,7 @@ const Auth = () => {
                   <Input
                     id="signup-username"
                     type="text"
-                    placeholder="cooluser123"
+                    placeholder="@yourname"
                     autoComplete="username"
                     {...signUpForm.register("username")}
                     className={signUpForm.formState.errors.username ? "border-red-500" : ""}
@@ -362,6 +381,28 @@ const Auth = () => {
                   {signUpForm.formState.errors.password && (
                     <p className="mt-1 text-sm text-red-500">
                       {signUpForm.formState.errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="signup-birthdate" className="block text-sm font-medium mb-2">
+                    Date of Birth <span className="text-gray-500">(recommended)</span>
+                  </label>
+                  <Input
+                    id="signup-birthdate"
+                    type="date"
+                    {...signUpForm.register("birthDate")}
+                    className={signUpForm.formState.errors.birthDate ? "border-red-500" : ""}
+                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    min={new Date(new Date().setFullYear(new Date().getFullYear() - 120)).toISOString().split('T')[0]}
+                  />
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    You must be at least 18 years old. This helps us show age-appropriate content.
+                  </p>
+                  {signUpForm.formState.errors.birthDate && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {signUpForm.formState.errors.birthDate.message}
                     </p>
                   )}
                 </div>
