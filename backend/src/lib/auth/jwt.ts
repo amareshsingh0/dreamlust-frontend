@@ -63,14 +63,31 @@ export function generateTokenPair(payload: Omit<JWTPayload, 'type' | 'iat' | 'ex
  */
 export function verifyToken(token: string, expectedType?: TokenType): JWTPayload {
   try {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[JWT] Verifying token (first 30 chars):', token.substring(0, 30) + '...');
+      console.log('[JWT] Using JWT_SECRET (first 10 chars):', env.JWT_SECRET.substring(0, 10) + '...');
+    }
+
     const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
-    
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[JWT] Token decoded successfully. Type:', decoded.type, 'Expected:', expectedType);
+      console.log('[JWT] Token payload:', { userId: decoded.userId, email: decoded.email, exp: decoded.exp });
+    }
+
     if (expectedType && decoded.type !== expectedType) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[JWT] ✗ Token type mismatch! Got:', decoded.type, 'Expected:', expectedType);
+      }
       throw new UnauthorizedError('Invalid token type');
     }
-    
+
     return decoded;
   } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[JWT] ✗ Token verification failed:', error);
+    }
+
     if (error instanceof jwt.TokenExpiredError) {
       throw new UnauthorizedError('Token expired');
     }

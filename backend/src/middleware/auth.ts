@@ -17,8 +17,17 @@ declare global {
  */
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   try {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AUTH] Authenticating request to:', req.path);
+      console.log('[AUTH] Authorization header:', req.headers.authorization?.substring(0, 30) + '...');
+    }
+
     const token = extractTokenFromHeader(req.headers.authorization);
     const payload = verifyToken(token, TokenType.ACCESS);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AUTH] ✓ Token verified successfully for user:', payload.userId);
+    }
 
     // Attach user context to request
     req.user = {
@@ -29,6 +38,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 
     next();
   } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[AUTH] ✗ Authentication failed:', error instanceof Error ? error.message : error);
+    }
+
     if (error instanceof UnauthorizedError) {
       res.status(401).json({
         success: false,
