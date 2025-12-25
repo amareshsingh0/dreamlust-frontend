@@ -307,14 +307,16 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
 
-    const [subscriptions, total] = await Promise.all([
-      prisma.subscription.findMany({
+    // Get follows for creators (not users)
+    const [follows, total] = await Promise.all([
+      prisma.follow.findMany({
         where: {
-          subscriberId: userId,
-          status: 'ACTIVE',
+          followerId: userId,
+          followingType: 'creator',
+          followingCreatorId: { not: null },
         },
         include: {
-          creator: {
+          followingCreator: {
             select: {
               id: true,
               handle: true,
@@ -333,10 +335,11 @@ router.get(
         skip,
         take: limit,
       }),
-      prisma.subscription.count({
+      prisma.follow.count({
         where: {
-          subscriberId: userId,
-          status: 'ACTIVE',
+          followerId: userId,
+          followingType: 'creator',
+          followingCreatorId: { not: null },
         },
       }),
     ]);
@@ -344,7 +347,7 @@ router.get(
     res.json({
       success: true,
       data: {
-        creators: subscriptions.map(sub => sub.creator),
+        creators: follows.map(follow => follow.followingCreator).filter(c => c !== null),
         pagination: {
           page,
           limit,
