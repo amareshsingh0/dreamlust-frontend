@@ -597,10 +597,22 @@ router.put(
       throw new ValidationError('Banner URL is required');
     }
 
-    // Update the creator's banner (banner is on Creator model, not User)
-    const updatedCreator = await prisma.creator.update({
+    // Get user info for creating creator record if needed
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true, username: true },
+    });
+
+    // Try to update creator's banner, or create creator record if it doesn't exist
+    const updatedCreator = await prisma.creator.upsert({
       where: { userId: userId },
-      data: { banner },
+      update: { banner },
+      create: {
+        userId: userId,
+        banner,
+        handle: user?.username || `user_${userId.slice(0, 8)}`,
+        displayName: user?.displayName || user?.username || 'User',
+      },
       select: {
         id: true,
         banner: true,
@@ -620,10 +632,18 @@ router.put(
       },
     });
 
+    // Also update user's isCreator flag if they weren't a creator before
+    if (!updatedCreator.user.isCreator) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isCreator: true },
+      });
+    }
+
     res.json({
       success: true,
       data: {
-        user: updatedCreator.user,
+        user: { ...updatedCreator.user, isCreator: true },
         banner: updatedCreator.banner,
       },
     });
