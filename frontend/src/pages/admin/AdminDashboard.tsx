@@ -297,7 +297,7 @@ export default function AdminDashboard() {
                       />
                       <StatCard
                         title="Revenue (30d)"
-                        value={`$${stats.monthlyRevenue.toLocaleString()}`}
+                        value={`₹${stats.monthlyRevenue.toLocaleString()}`}
                         icon={DollarSign}
                       />
                       <StatCard
@@ -325,7 +325,7 @@ export default function AdminDashboard() {
                         title="Revenue Trend"
                         description="Revenue over time"
                         data={chartData.revenue}
-                        label="Revenue ($)"
+                        label="Revenue (₹)"
                         color="#10b981"
                       />
                       <DashboardChart

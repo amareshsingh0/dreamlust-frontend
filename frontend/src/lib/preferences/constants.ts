@@ -34,10 +34,10 @@ export const LANGUAGE_NAMES: Record<string, { native: string; english: string }>
 };
 
 export const SUPPORTED_CURRENCIES = [
+  'INR', // Indian Rupee (default)
   'USD', // US Dollar
   'EUR', // Euro
   'GBP', // British Pound
-  'INR', // Indian Rupee
   'JPY', // Japanese Yen
   'CNY', // Chinese Yuan
   'KRW', // South Korean Won

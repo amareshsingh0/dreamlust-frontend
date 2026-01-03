@@ -14,11 +14,20 @@ interface User {
   avatar?: string;
   banner?: string;
   bio?: string;
+  isCreator?: boolean;
+  website?: string;
+  socialLinks?: Record<string, string>;
+  followingCount?: number;
+  createdAt?: string;
+  creator?: {
+    banner?: string;
+  };
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isCreator: boolean;
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
@@ -32,18 +41,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Try to refresh the access token using refresh token
+  const tryRefreshToken = async (): Promise<boolean> => {
+    try {
+      // Get stored refresh token to send in body (httpOnly cookie is also sent)
+      const storedRefreshToken = authStorage.getRefreshToken();
+
+      const response = await api.auth.refresh<{
+        accessToken: string;
+        refreshToken?: string;
+        user?: User;
+      }>(storedRefreshToken || undefined);
+
+      if (response.success && response.data) {
+        const newToken = response.data.accessToken;
+        if (newToken) {
+          authStorage.setAccessToken(newToken);
+          // Update refresh token if a new one is provided
+          if (response.data.refreshToken) {
+            authStorage.setRefreshToken(response.data.refreshToken);
+          }
+          // If user data is returned, update it
+          if (response.data.user) {
+            setUser(response.data.user);
+            setObject('user', response.data.user);
+          }
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.warn('Token refresh failed:', error);
+      return false;
+    }
+  };
+
   // Load user from localStorage on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
         const storedUser = getObject<User>('user');
         const token = authStorage.getAccessToken();
-        
+
         if (storedUser && token) {
           // Set user immediately to prevent blank screen
           setUser(storedUser);
           setIsLoading(false);
-          
+
           // Verify token is still valid by checking with backend (non-blocking)
           // Don't block UI if API is not available
           api.auth.me<{ user: User }>()
@@ -59,19 +103,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   clearAuth();
                 }
               } else {
-                // Token invalid, clear everything
-                clearAuth();
+                // Token might be expired, try to refresh it
+                tryRefreshToken().then((refreshed) => {
+                  if (!refreshed) {
+                    clearAuth();
+                  }
+                });
               }
             })
-            .catch((error) => {
-              // API not available or error - keep using stored user
+            .catch(async (error) => {
+              // API not available or error - check if it's a token expiry issue
               console.warn('Failed to verify token with backend:', error);
-              // Don't clear auth if API is unavailable - user might be offline
-              // Only clear if it's an authentication error
-              if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
-                clearAuth();
+              const errorMsg = error?.message || '';
+
+              // If token expired or unauthorized, try to refresh
+              if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') ||
+                  errorMsg.includes('expired') || errorMsg.includes('Token')) {
+                const refreshed = await tryRefreshToken();
+                if (!refreshed) {
+                  clearAuth();
+                }
               }
+              // For other errors (network issues, etc.), keep using stored user
             });
+        } else if (storedUser) {
+          // Have stored user but no token - try to refresh
+          setUser(storedUser);
+          setIsLoading(false);
+          tryRefreshToken().catch(() => {
+            // Refresh failed silently - user will be asked to login on next action
+          });
         } else {
           setIsLoading(false);
         }
@@ -87,10 +148,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearAuth = () => {
     authStorage.clearTokens();
+    // Remove user from localStorage
+    try {
+      localStorage.removeItem('user');
+    } catch {
+      // Ignore storage errors
+    }
     // Note: sessionStorage.clear() is safe and doesn't need wrapper
     sessionStorage.clear();
     setUser(null);
-    
+
     // Datadog removed - using Sentry instead
     // clearDatadogUser();
   };
@@ -126,19 +193,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Try to extract user and token from response
       const data = response.data as any;
+      let refreshToken: string | null = null;
+
       if (data.user && data.tokens?.accessToken) {
-        // Standard structure: { user: {...}, tokens: { accessToken: ... } }
+        // Standard structure: { user: {...}, tokens: { accessToken: ..., refreshToken: ... } }
         userData = data.user;
         accessToken = data.tokens.accessToken;
+        refreshToken = data.tokens.refreshToken || null;
       } else if (data.id && data.email) {
         // Direct user object with token
         userData = data as User;
         accessToken = data.accessToken || data.token;
+        refreshToken = data.refreshToken || null;
       } else {
         // Fallback: check if data itself is the user object
         console.warn('⚠️ Unexpected response structure, attempting to parse:', data);
         userData = data.user || data as User;
         accessToken = data.tokens?.accessToken || data.accessToken;
+        refreshToken = data.tokens?.refreshToken || data.refreshToken || null;
       }
       
       // Validate we have both user and token
@@ -155,6 +227,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store tokens and user atomically
       try {
         authStorage.setAccessToken(accessToken);
+        if (refreshToken) {
+          authStorage.setRefreshToken(refreshToken);
+        }
         setObject('user', userData);
         setUser(userData);
       } catch (storageError) {
@@ -190,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: User;
         tokens: {
           accessToken: string;
+          refreshToken?: string;
         };
       }>({ email, username, password, birthDate, displayName });
 
@@ -197,17 +273,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Handle response structure: { user: {...}, tokens: {...} }
         const userData = response.data.user;
         const accessToken = response.data.tokens?.accessToken;
-        
+        const refreshToken = response.data.tokens?.refreshToken;
+
         if (!userData || !accessToken) {
           console.error('Invalid response structure:', response.data);
           throw new Error('Invalid response format from server');
         }
-        
+
         // Store tokens and user
         authStorage.setAccessToken(accessToken);
+        if (refreshToken) {
+          authStorage.setRefreshToken(refreshToken);
+        }
         setObject('user', userData);
         setUser(userData);
-        
+
         // Datadog removed - using Sentry instead
         // User tracking is handled by Sentry automatically
       } else {
@@ -268,11 +348,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Derived value for creator check
+  const isCreator = !!(user?.isCreator || user?.role === 'creator');
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!user,
+        isCreator,
         isLoading,
         login,
         logout,

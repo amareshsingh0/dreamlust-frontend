@@ -52,8 +52,10 @@ export async function generatePersonalizedHomepage(
     // Active users (7-30 days)
     sectionConfigs.push(
       { type: 'continue_watching', title: 'Continue Watching', limit: 10 },
-      { type: 'recommended_for_you', title: 'Recommended', limit: 20 },
+      { type: 'popular_overall', title: 'Trending Now', limit: 20 },
+      { type: 'recommended_for_you', title: 'Recommended For You', limit: 20 },
       { type: 'similar_to_watched', title: `More like "${user?.lastWatched?.title || 'Your Recent Watch'}"`, limit: 12 },
+      { type: 'category_showcase', title: 'Explore Categories', limit: 16 },
       { type: 'trending_in_categories', title: 'Trending in Your Interests', limit: 15 },
       { type: 'new_from_following', title: 'Latest from Creators You Follow', limit: 12 }
     );
@@ -738,31 +740,41 @@ async function getPreferredDuration(
 }
 
 function transformContent(items: any[]): any[] {
-  return items.map(item => ({
-    id: item.id,
-    title: item.title,
-    description: item.description || undefined,
-    thumbnail: item.thumbnail || '',
-    duration: item.duration || 0,
-    views: item.viewCount || 0,
-    likes: item.likeCount || 0,
-    createdAt: item.createdAt,
-    creator: {
-      id: item.creator.id,
-      name: item.creator.displayName,
-      username: item.creator.handle,
-      avatar: item.creator.avatar || '',
-      isVerified: item.creator.isVerified || false,
-    },
-    type: mapContentType(item.type),
-    quality: item.resolution ? [item.resolution] : [],
-    tags: item.tags?.map((t: any) => t.tag?.name || t.name) || [],
-    category: item.categories?.[0]?.category?.name || 'Uncategorized',
-    isPremium: item.isPremium || false,
-    baseScore: item.viewCount || 0,
-    fileSize: item.fileSize || 0,
-    mobileOptimized: true,
-  }));
+  return items.map(item => {
+    // Handle both raw Prisma data (viewCount/likeCount) and already-transformed data (views/likes)
+    const views = item.views ?? item.viewCount ?? 0;
+    const likes = item.likes ?? item.likeCount ?? 0;
+
+    // Handle creator - may be already transformed (name/username) or raw (displayName/handle)
+    const creatorName = item.creator?.name ?? item.creator?.displayName ?? '';
+    const creatorUsername = item.creator?.username ?? item.creator?.handle ?? '';
+
+    return {
+      id: item.id,
+      title: item.title,
+      description: item.description || undefined,
+      thumbnail: item.thumbnail || '',
+      duration: item.duration || 0,
+      views,
+      likes,
+      createdAt: item.createdAt,
+      creator: {
+        id: item.creator?.id || '',
+        name: creatorName,
+        username: creatorUsername,
+        avatar: item.creator?.avatar || '',
+        isVerified: item.creator?.isVerified || false,
+      },
+      type: mapContentType(item.type),
+      quality: item.quality || (item.resolution ? [item.resolution] : []),
+      tags: item.tags?.map((t: any) => typeof t === 'string' ? t : (t.tag?.name || t.name || '')) || [],
+      category: item.category || item.categories?.[0]?.category?.name || 'Uncategorized',
+      isPremium: item.isPremium || false,
+      baseScore: views,
+      fileSize: item.fileSize || 0,
+      mobileOptimized: true,
+    };
+  });
 }
 
 function mapContentType(type: string): 'video' | 'photo' | 'gallery' | 'vr' | 'live' {

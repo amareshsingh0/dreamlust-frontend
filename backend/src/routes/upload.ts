@@ -72,7 +72,7 @@ const createContentSchema = z.object({
   isNSFW: z.boolean().default(false),
   ageRestricted: z.boolean().default(false),
   allowComments: z.boolean().default(true),
-  allowDownloads: z.boolean().default(false),
+  allowDownloads: z.boolean().default(true),
   isPremium: z.boolean().default(false),
   price: z.number().positive().optional(),
   tags: z.array(z.string()).optional(),
@@ -268,13 +268,15 @@ router.post(
     const contentType = typeMap[type] || 'VIDEO';
 
     // Create content (thumbnailBlur will be added in background if needed)
+    // In development mode, auto-publish videos; in production, they need review
+    const isDev = process.env.NODE_ENV === 'development';
     const content = await prisma.content.create({
       data: {
         creatorId: creator.id,
         title,
         description,
         type: contentType,
-        status: isVideo ? 'PENDING_REVIEW' : 'PUBLISHED', // Videos need processing
+        status: isDev ? 'PUBLISHED' : (isVideo ? 'PENDING_REVIEW' : 'PUBLISHED'), // Auto-publish in dev
         thumbnail: thumbnailUrl,
         thumbnailBlur: null, // Will be set in background if thumbnail provided
         mediaUrl,
@@ -335,14 +337,34 @@ router.post(
     const tagPromises = tags && Array.isArray(tags) ? tags.map(async (tagName) => {
       // Generate slug from tag name
       const tagSlug = tagName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const tag = await prisma.tag.upsert({
-        where: { name: tagName },
-        update: {},
-        create: { 
-          name: tagName,
-          slug: tagSlug,
-        },
+
+      // Handle race conditions with try-catch
+      let tag;
+      try {
+        tag = await prisma.tag.upsert({
+          where: { slug: tagSlug },
+          update: {},
+          create: {
+            name: tagName,
+            slug: tagSlug,
+          },
+        });
+      } catch (error: any) {
+        // If unique constraint failed, the tag was created by another request - fetch it
+        if (error.code === 'P2002') {
+          tag = await prisma.tag.findUnique({ where: { slug: tagSlug } });
+          if (!tag) throw error; // Re-throw if still not found
+        } else {
+          throw error;
+        }
+      }
+
+      // Check if contentTag already exists to avoid duplicates
+      const existingContentTag = await prisma.contentTag.findFirst({
+        where: { contentId: content.id, tagId: tag.id },
       });
+      if (existingContentTag) return existingContentTag;
+
       return prisma.contentTag.create({
         data: {
           contentId: content.id,
@@ -354,14 +376,34 @@ router.post(
     const categoryPromises = categories && Array.isArray(categories) ? categories.map(async (categoryName) => {
       // Generate slug from category name
       const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const category = await prisma.category.upsert({
-        where: { slug: categorySlug },
-        update: {},
-        create: {
-          name: categoryName,
-          slug: categorySlug,
-        },
+
+      // Handle race conditions with try-catch
+      let category;
+      try {
+        category = await prisma.category.upsert({
+          where: { slug: categorySlug },
+          update: {},
+          create: {
+            name: categoryName,
+            slug: categorySlug,
+          },
+        });
+      } catch (error: any) {
+        // If unique constraint failed, fetch the existing category
+        if (error.code === 'P2002') {
+          category = await prisma.category.findUnique({ where: { slug: categorySlug } });
+          if (!category) throw error;
+        } else {
+          throw error;
+        }
+      }
+
+      // Check if contentCategory already exists to avoid duplicates
+      const existingContentCategory = await prisma.contentCategory.findFirst({
+        where: { contentId: content.id, categoryId: category.id },
       });
+      if (existingContentCategory) return existingContentCategory;
+
       return prisma.contentCategory.create({
         data: {
           contentId: content.id,
@@ -396,16 +438,18 @@ router.post(
       Promise.resolve(autoFlagContent(content.id, creator.id)).catch(err => console.error('Auto-moderation error:', err)),
       
       // Broadcast new upload to admin dashboard
-      Promise.resolve().then(() => {
+      Promise.resolve().then(async () => {
         try {
-          const { broadcastNewUpload } = require('../lib/websocket/adminBroadcast');
-          broadcastNewUpload(content.id, {
-            id: content.id,
-            title: content.title,
-            creatorId: creator.id,
-            type: content.type,
-            status: content.status,
-          });
+          const adminBroadcast = await import('../lib/websocket/adminBroadcast');
+          if (adminBroadcast.broadcastNewUpload) {
+            adminBroadcast.broadcastNewUpload(content.id, {
+              id: content.id,
+              title: content.title,
+              creatorId: creator.id,
+              type: content.type,
+              status: content.status,
+            });
+          }
         } catch (error) {
           console.error('Error broadcasting new upload:', error);
         }
@@ -426,13 +470,16 @@ router.post(
       invalidateHomepageCache().catch(err => console.error('Cache invalidation error:', err)),
     ]).catch(err => console.error('Background job error:', err));
 
+    // Convert BigInt fields to numbers for JSON serialization
+    const serializedContent = JSON.parse(JSON.stringify(content, (_, value) =>
+      typeof value === 'bigint' ? Number(value) : value
+    ));
+
     res.json({
       success: true,
       message: 'Content uploaded successfully',
       data: {
-        content: {
-          ...content,
-        },
+        content: serializedContent,
       },
     });
   })
@@ -503,6 +550,147 @@ router.post(
       data: {
         thumbnail: thumbnailUrl,
         thumbnailBlur: blurPlaceholder,
+      },
+    });
+  })
+);
+
+// Configure multer for avatar uploads (smaller size limit)
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max for avatars
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only images
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new ValidationError('Invalid file type. Only images are allowed.'));
+    }
+  },
+});
+
+/**
+ * POST /api/upload/avatar
+ * Upload user avatar image
+ * Returns the URL of the uploaded avatar
+ */
+router.post(
+  '/avatar',
+  authenticate,
+  csrfProtect,
+  avatarUpload.single('avatar'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const avatarFile = req.file;
+
+    if (!avatarFile) {
+      throw new ValidationError('Avatar file is required');
+    }
+
+    // Generate unique filename
+    const ext = avatarFile.originalname.split('.').pop() || 'jpg';
+    const avatarKey = `avatars/${userId}/${uuidv4()}.${ext}`;
+
+    // Upload to S3/R2
+    const avatarUrl = await s3Storage.uploadFile(
+      avatarFile.buffer,
+      avatarKey,
+      avatarFile.mimetype
+    );
+
+    // Update user avatar
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { avatar: avatarUrl },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        avatar: true,
+        bio: true,
+        role: true,
+        isCreator: true,
+      },
+    });
+
+    // Also update creator avatar if user is a creator
+    if (updatedUser.isCreator) {
+      await prisma.creator.updateMany({
+        where: { userId },
+        data: { avatar: avatarUrl },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: {
+        avatar: avatarUrl,
+        user: updatedUser,
+      },
+    });
+  })
+);
+
+/**
+ * POST /api/upload/banner
+ * Upload creator banner image
+ * Returns the URL of the uploaded banner
+ */
+router.post(
+  '/banner',
+  authenticate,
+  csrfProtect,
+  avatarUpload.single('banner'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const bannerFile = req.file;
+
+    if (!bannerFile) {
+      throw new ValidationError('Banner file is required');
+    }
+
+    // Check if user is a creator
+    const creator = await prisma.creator.findUnique({
+      where: { userId },
+    });
+
+    if (!creator) {
+      throw new ValidationError('Only creators can upload banners');
+    }
+
+    // Generate unique filename
+    const ext = bannerFile.originalname.split('.').pop() || 'jpg';
+    const bannerKey = `banners/${creator.id}/${uuidv4()}.${ext}`;
+
+    // Upload to S3/R2
+    const bannerUrl = await s3Storage.uploadFile(
+      bannerFile.buffer,
+      bannerKey,
+      bannerFile.mimetype
+    );
+
+    // Update creator banner
+    const updatedCreator = await prisma.creator.update({
+      where: { userId },
+      data: { banner: bannerUrl },
+      select: {
+        id: true,
+        banner: true,
+        displayName: true,
+        handle: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Banner uploaded successfully',
+      data: {
+        banner: bannerUrl,
+        creator: updatedCreator,
       },
     });
   })

@@ -52,11 +52,23 @@ const Index = () => {
         // First try Smart Homepage (single API call)
         const smartResponse = await api.recommendations.getSmartHomepage<HomepageSection[]>();
 
+        // Debug logging
+        if (import.meta.env.DEV) {
+          console.log('Smart Homepage Response:', smartResponse);
+        }
+
         if (isMounted && smartResponse.success && Array.isArray(smartResponse.data) && smartResponse.data.length > 0) {
-          setHomepageSections(smartResponse.data);
-          setUseSmartHomepage(true);
-          setLoading(false);
-          return; // Smart homepage loaded successfully, no need for legacy calls
+          // Filter sections that have items
+          const validSections = smartResponse.data.filter(section =>
+            section.items && Array.isArray(section.items) && section.items.length > 0
+          );
+
+          if (validSections.length > 0) {
+            setHomepageSections(validSections);
+            setUseSmartHomepage(true);
+            setLoading(false);
+            return; // Smart homepage loaded successfully, no need for legacy calls
+          }
         }
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -85,6 +97,12 @@ const Index = () => {
         ]);
 
         if (!isMounted) return;
+
+        // Debug logging for legacy fallback
+        if (import.meta.env.DEV) {
+          console.log('Legacy Fallback - For You:', forYouRes);
+          console.log('Legacy Fallback - Trending:', trendingRes);
+        }
 
         // Process For You
         if (forYouRes.status === 'fulfilled' && forYouRes.value.success && Array.isArray(forYouRes.value.data)) {
@@ -150,7 +168,23 @@ const Index = () => {
           <HeroSection />
 
           <div className="px-3 sm:px-4 lg:px-8 space-y-6 sm:space-y-8 md:space-y-10">
-            {useSmartHomepage && homepageSections.length > 0 ? (
+            {/* Loading state - show skeleton carousels */}
+            {loading && (
+              <>
+                <ContentCarousel
+                  title="Trending Now"
+                  content={[]}
+                  loading={true}
+                />
+                <ContentCarousel
+                  title="For You"
+                  content={[]}
+                  loading={true}
+                />
+              </>
+            )}
+
+            {!loading && useSmartHomepage && homepageSections.length > 0 ? (
               // Smart Homepage - Dynamic sections based on user type
               <>
                 {homepageSections.map((section, index) => (
@@ -166,7 +200,6 @@ const Index = () => {
                         section.type === 'new_from_following' ? '/explore?sort=newest' :
                         '/explore?sort=recommended'
                       }
-                      loading={loading && index === 0}
                     />
                   )
                 ))}
@@ -174,7 +207,7 @@ const Index = () => {
                 <CategorySection />
                 <TrendingCreators />
               </>
-            ) : (
+            ) : !loading && (
               // Legacy Homepage - Static sections
               <>
                 {/* For You - Mix of collaborative + content-based */}
@@ -184,7 +217,6 @@ const Index = () => {
                     description="Based on your interests"
                     content={forYouContent}
                     viewAllPath="/explore?sort=recommended"
-                    loading={loading}
                   />
                 )}
 
@@ -193,7 +225,6 @@ const Index = () => {
                   title="Trending Now"
                   content={trendingNowContent.length > 0 ? trendingNowContent : fallbackTrending}
                   viewAllPath="/trending"
-                  loading={loading}
                 />
 
                 {/* Browse Categories */}

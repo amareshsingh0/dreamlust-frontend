@@ -94,13 +94,62 @@ export default function PlaylistDetail() {
       if (!id) return;
       setLoading(true);
       try {
-        const response = await api.playlists.get<Playlist>({ id });
-        if (response.success && response.data) {
-          setPlaylist(response.data);
-          setItems(response.data.items || []);
-          setEditName(response.data.name);
-          setEditDescription(response.data.description || '');
-          setEditIsPublic(response.data.isPublic);
+        // Fetch playlist info and items in parallel
+        const [playlistResponse, itemsResponse] = await Promise.all([
+          api.playlists.get<Playlist>({ id }),
+          api.playlists.getItems<{
+            items: Array<{
+              id: string;
+              sortOrder: number;
+              createdAt: string;
+              content: {
+                id: string;
+                title: string;
+                thumbnail: string;
+                duration: number;
+                viewCount: number;
+                creator: {
+                  id: string;
+                  handle: string;
+                  displayName: string;
+                  avatar: string;
+                };
+              };
+            }>;
+            pagination: { page: number; limit: number; total: number; pages: number };
+          }>(id, { limit: 100 }),
+        ]);
+
+        if (playlistResponse.success && playlistResponse.data) {
+          setPlaylist(playlistResponse.data);
+          setEditName(playlistResponse.data.name);
+          setEditDescription(playlistResponse.data.description || '');
+          setEditIsPublic(playlistResponse.data.isPublic);
+        }
+
+        if (itemsResponse.success && itemsResponse.data?.items) {
+          // Transform API response to match expected format
+          const transformedItems: PlaylistItem[] = itemsResponse.data.items.map((item, index) => ({
+            id: item.id,
+            position: item.sortOrder ?? index,
+            addedAt: item.createdAt,
+            content: {
+              id: item.content.id,
+              title: item.content.title,
+              thumbnail: item.content.thumbnail,
+              duration: item.content.duration
+                ? `${Math.floor(item.content.duration / 60)}:${String(item.content.duration % 60).padStart(2, '0')}`
+                : '0:00',
+              views: item.content.viewCount || 0,
+              creator: {
+                id: item.content.creator?.id || '',
+                handle: item.content.creator?.handle || '',
+                displayName: item.content.creator?.displayName || 'Unknown',
+                avatar: item.content.creator?.avatar || '',
+              },
+            },
+          }));
+          setItems(transformedItems);
         }
       } catch (error) {
         console.error('Failed to fetch playlist:', error);
@@ -310,17 +359,21 @@ export default function PlaylistDetail() {
                 )}
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{playlist.itemCount} items</span>
-                  <span>•</span>
-                  <Link 
-                    to={`/creator/${playlist.user.username}`}
-                    className="flex items-center gap-2 hover:text-primary transition-colors"
-                  >
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={playlist.user.avatar} />
-                      <AvatarFallback>{playlist.user.displayName[0]}</AvatarFallback>
-                    </Avatar>
-                    <span>{playlist.user.displayName}</span>
-                  </Link>
+                  {playlist.user && (
+                    <>
+                      <span>•</span>
+                      <Link
+                        to={`/creator/${playlist.user.username}`}
+                        className="flex items-center gap-2 hover:text-primary transition-colors"
+                      >
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={playlist.user.avatar} />
+                          <AvatarFallback>{(playlist.user.displayName || 'U')[0]}</AvatarFallback>
+                        </Avatar>
+                        <span>{playlist.user.displayName || playlist.user.username}</span>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

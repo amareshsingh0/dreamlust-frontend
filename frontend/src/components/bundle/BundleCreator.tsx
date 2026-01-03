@@ -179,7 +179,7 @@ export function BundleCreator({ myContent = [], onBundleCreated }: BundleCreator
           <div>
             <p className="text-sm text-muted-foreground mb-1">Individual Price</p>
             <p className="text-lg font-semibold">
-              ${calculateIndividualPrice.toFixed(2)}
+              ₹{calculateIndividualPrice.toFixed(0)}
             </p>
           </div>
 

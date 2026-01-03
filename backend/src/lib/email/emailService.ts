@@ -18,14 +18,15 @@ let transporter: nodemailer.Transporter | null = null;
  * Initialize email transporter
  */
 export function initializeEmailService() {
-  const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
-  const emailPort = parseInt(process.env.EMAIL_PORT || '587');
-  const emailUser = process.env.EMAIL_USER;
-  const emailPassword = process.env.EMAIL_PASSWORD;
-  const emailSecure = process.env.EMAIL_SECURE === 'true';
+  // Support both EMAIL_ and SMTP_ prefixes for compatibility
+  const emailHost = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const emailPort = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587');
+  const emailUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+  const emailPassword = process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD;
+  const emailSecure = (process.env.SMTP_SECURE || process.env.EMAIL_SECURE) === 'true';
 
   if (!emailUser || !emailPassword) {
-    console.warn('Email service not configured. EMAIL_USER and EMAIL_PASSWORD required.');
+    console.warn('Email service not configured. SMTP_USER/EMAIL_USER and SMTP_PASSWORD/EMAIL_PASSWORD required.');
     return;
   }
 
@@ -52,7 +53,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   try {
-    const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@dreamlust.com';
+    const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@dreamlust.com';
     
     await transporter.sendMail({
       from,

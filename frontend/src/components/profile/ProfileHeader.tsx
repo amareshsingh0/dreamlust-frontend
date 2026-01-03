@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Edit2, Twitter, Instagram, Globe, UserPlus, Check, Upload, Loader2 } from 'lucide-react';
+import { Camera, Edit2, Twitter, Instagram, Globe, UserPlus, Check, Upload, Loader2, Facebook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,8 @@ interface ProfileHeaderProps {
   socialLinks?: {
     twitter?: string;
     instagram?: string;
+    facebook?: string;
+    pinterest?: string;
     website?: string;
   };
   stats?: {
@@ -151,22 +153,24 @@ export function ProfileHeader({
   return (
     <div className="relative mb-8">
       {/* Banner */}
-      <div className="relative h-48 md:h-64 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 overflow-hidden rounded-lg">
-        {banner ? (
-          <img 
-            src={banner} 
-            alt={`${displayName}'s banner`}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
-        )}
-        
+      <div className="relative h-48 md:h-64 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-lg">
+        <div className="absolute inset-0 overflow-hidden rounded-lg">
+          {banner ? (
+            <img
+              src={banner}
+              alt={`${displayName}'s banner`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
+          )}
+        </div>
+
         {isOwnProfile && (
           <Button
             variant="secondary"
             size="sm"
-            className="absolute top-4 right-4 gap-2"
+            className="absolute top-4 right-4 gap-2 z-10"
             onClick={() => setIsEditingBanner(true)}
           >
             <Camera className="h-4 w-4" />
@@ -174,13 +178,13 @@ export function ProfileHeader({
           </Button>
         )}
 
-        {/* Avatar Overlay */}
-        <div className="absolute -bottom-12 left-6 md:left-8">
+        {/* Avatar Overlay - positioned at bottom of banner, extending below */}
+        <div className="absolute -bottom-12 left-6 md:left-8 z-10">
           <div className="relative group">
-            <div className="h-24 w-24 md:h-32 md:w-32 rounded-full border-4 border-background shadow-xl ring-2 ring-primary/20 overflow-hidden">
-              <Avatar className="h-full w-full rounded-full">
-                <AvatarImage src={avatar} alt={displayName} className="object-cover" />
-                <AvatarFallback className="text-2xl md:text-3xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold rounded-full h-full w-full flex items-center justify-center">
+            <div className="h-24 w-24 md:h-32 md:w-32 rounded-full overflow-hidden border-4 border-background shadow-xl ring-2 ring-primary/20 bg-background">
+              <Avatar className="h-full w-full">
+                <AvatarImage src={avatar} alt={displayName} className="h-full w-full object-cover" />
+                <AvatarFallback className="h-full w-full text-2xl md:text-3xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold flex items-center justify-center">
                   {displayName[0]}
                 </AvatarFallback>
               </Avatar>
@@ -226,7 +230,7 @@ export function ProfileHeader({
             )}
 
             {/* Social Links */}
-            {socialLinks && (socialLinks.twitter || socialLinks.instagram || socialLinks.website) && (
+            {socialLinks && (socialLinks.twitter || socialLinks.instagram || socialLinks.facebook || socialLinks.pinterest || socialLinks.website) && (
               <div className="flex items-center gap-3 mb-4">
                 {socialLinks.twitter && (
                   <a
@@ -234,6 +238,7 @@ export function ProfileHeader({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-primary transition-colors"
+                    title="Twitter/X"
                   >
                     <Twitter className="h-5 w-5" />
                   </a>
@@ -244,8 +249,33 @@ export function ProfileHeader({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-primary transition-colors"
+                    title="Instagram"
                   >
                     <Instagram className="h-5 w-5" />
+                  </a>
+                )}
+                {socialLinks.facebook && (
+                  <a
+                    href={socialLinks.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    title="Facebook"
+                  >
+                    <Facebook className="h-5 w-5" />
+                  </a>
+                )}
+                {socialLinks.pinterest && (
+                  <a
+                    href={socialLinks.pinterest}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    title="Pinterest"
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 0a12 12 0 0 0-4.37 23.17c-.1-.94-.2-2.4.04-3.43l1.4-5.91s-.35-.71-.35-1.77c0-1.66.96-2.9 2.16-2.9 1.02 0 1.51.77 1.51 1.69 0 1.02-.65 2.56-.99 3.98-.28 1.19.6 2.16 1.77 2.16 2.13 0 3.77-2.25 3.77-5.5 0-2.88-2.07-4.9-5.02-4.9-3.42 0-5.43 2.57-5.43 5.22 0 1.03.4 2.14.9 2.74.1.12.11.22.08.34l-.34 1.36c-.05.22-.17.27-.4.16-1.5-.69-2.42-2.87-2.42-4.62 0-3.76 2.73-7.21 7.88-7.21 4.14 0 7.36 2.95 7.36 6.89 0 4.11-2.59 7.42-6.19 7.42-1.21 0-2.35-.63-2.74-1.37l-.74 2.84c-.27 1.04-1 2.35-1.49 3.14A12 12 0 1 0 12 0z"/>
+                    </svg>
                   </a>
                 )}
                 {socialLinks.website && (
@@ -254,6 +284,7 @@ export function ProfileHeader({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-primary transition-colors"
+                    title="Website"
                   >
                     <Globe className="h-5 w-5" />
                   </a>
@@ -338,7 +369,7 @@ export function ProfileHeader({
 
       {/* Avatar Upload Dialog */}
       <Dialog open={isEditingAvatar} onOpenChange={(open) => !open && closeAvatarDialog()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide">
           <DialogHeader>
             <DialogTitle>Update Avatar</DialogTitle>
             <DialogDescription>
@@ -403,7 +434,7 @@ export function ProfileHeader({
 
       {/* Banner Upload Dialog */}
       <Dialog open={isEditingBanner} onOpenChange={(open) => !open && closeBannerDialog()}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-hide">
           <DialogHeader>
             <DialogTitle>Update Banner</DialogTitle>
             <DialogDescription>

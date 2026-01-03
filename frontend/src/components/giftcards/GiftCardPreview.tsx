@@ -18,7 +18,7 @@ const designStyles = {
 
 export function GiftCardPreview({
   amount,
-  currency = 'USD',
+  currency = 'INR',
   design = 'default',
   recipientName,
   className,
@@ -38,7 +38,7 @@ export function GiftCardPreview({
           <div className="mb-6">
             <p className="text-sm opacity-90 mb-1">Amount</p>
             <p className="text-4xl font-bold">
-              {currency} ${amount.toFixed(2)}
+              ₹{amount.toFixed(0)}
             </p>
           </div>
 

@@ -12,6 +12,7 @@ interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 
   className?: string;
   priority?: boolean; // For above-the-fold images
   objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
+  fill?: boolean; // When true, image fills parent container (don't apply fixed dimensions)
 }
 
 /**
@@ -32,6 +33,7 @@ export function OptimizedImage({
   className,
   priority = false,
   objectFit = 'cover',
+  fill = true, // Default to fill parent container
   ...props
 }: OptimizedImageProps) {
   // Optimize image URL with proper dimensions and format
@@ -59,10 +61,13 @@ export function OptimizedImage({
   // Fallback image
   const fallbackSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzczNzM3Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==';
 
+  // When fill is true, don't apply fixed dimensions - let parent control size
+  const containerStyle = fill ? undefined : { width, height };
+
   return (
     <div
-      className={cn('relative overflow-hidden', className)}
-      style={{ width, height }}
+      className={cn('relative overflow-hidden w-full h-full', className)}
+      style={containerStyle}
     >
       {/* Blur placeholder */}
       {blurDataURL && !isLoaded && (
@@ -91,8 +96,8 @@ export function OptimizedImage({
           hasError && 'opacity-100'
         )}
         style={{ objectFit }}
-        width={width || undefined}
-        height={height || undefined}
+        width={fill ? undefined : (width || undefined)}
+        height={fill ? undefined : (height || undefined)}
         {...props}
       />
 

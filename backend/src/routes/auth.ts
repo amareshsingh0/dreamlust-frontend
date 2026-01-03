@@ -89,6 +89,8 @@ router.post(
         displayName: true,
         role: true,
         createdAt: true,
+        avatar: true,
+        bio: true,
       },
     });
 
@@ -207,6 +209,14 @@ router.post(
         deletedAt: true,
         twoFactorEnabled: true,
         twoFactorSecret: true,
+        displayName: true,
+        avatar: true,
+        bio: true,
+        creator: {
+          select: {
+            banner: true,
+          },
+        },
       },
     });
 
@@ -287,6 +297,10 @@ router.post(
           email: user.email,
           username: user.username,
           role: user.role,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          banner: user.creator?.banner || null,
+          bio: user.bio,
         },
         tokens: {
           accessToken: tokens.accessToken,
@@ -432,25 +446,37 @@ router.post(
  * Get current user
  */
 router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.userId },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      displayName: true,
-      avatar: true,
-      bio: true,
-      role: true,
-      isCreator: true,
-      createdAt: true,
-      creator: {
-        select: {
-          banner: true,
+  const userId = req.user!.userId;
+
+  const [user, followingCount] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        avatar: true,
+        bio: true,
+        website: true,
+        socialLinks: true,
+        role: true,
+        isCreator: true,
+        createdAt: true,
+        creator: {
+          select: {
+            banner: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.subscription.count({
+      where: {
+        subscriberId: userId,
+        status: 'ACTIVE',
+      },
+    }),
+  ]);
 
   if (!user) {
     throw new UnauthorizedError('User not found');
@@ -458,7 +484,12 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
 
   res.json({
     success: true,
-    data: { user },
+    data: {
+      user: {
+        ...user,
+        followingCount,
+      },
+    },
   });
 }));
 
@@ -472,7 +503,7 @@ router.put(
   csrfProtect,
   asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.userId;
-    const { displayName, username, bio } = req.body;
+    const { displayName, username, bio, socialLinks } = req.body;
 
     // Build update data
     const updateData: any = {};
@@ -518,6 +549,32 @@ router.put(
       updateData.bio = bio;
     }
 
+    // Handle social links
+    if (socialLinks !== undefined) {
+      // Validate social links structure
+      if (typeof socialLinks !== 'object' || socialLinks === null) {
+        throw new ValidationError('Social links must be an object');
+      }
+
+      const validPlatforms = ['twitter', 'instagram', 'facebook', 'pinterest', 'website', 'youtube', 'tiktok'];
+      const cleanedLinks: Record<string, string> = {};
+
+      for (const [platform, url] of Object.entries(socialLinks)) {
+        if (!validPlatforms.includes(platform)) {
+          continue; // Skip invalid platforms
+        }
+        if (url && typeof url === 'string' && url.trim()) {
+          // Basic URL validation for non-empty values
+          if (url.length > 500) {
+            throw new ValidationError(`${platform} URL is too long`);
+          }
+          cleanedLinks[platform] = url.trim();
+        }
+      }
+
+      updateData.socialLinks = Object.keys(cleanedLinks).length > 0 ? cleanedLinks : null;
+    }
+
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -529,6 +586,7 @@ router.put(
         displayName: true,
         avatar: true,
         bio: true,
+        socialLinks: true,
         role: true,
         isCreator: true,
         createdAt: true,
@@ -544,7 +602,7 @@ router.put(
 
 /**
  * PUT /api/auth/me/avatar
- * Update current user avatar
+ * Update current user avatar (also updates Creator avatar if user is a creator)
  */
 router.put(
   '/me/avatar',
@@ -558,6 +616,7 @@ router.put(
       throw new ValidationError('Avatar URL is required');
     }
 
+    // Update user avatar
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { avatar },
@@ -574,6 +633,14 @@ router.put(
       },
     });
 
+    // Also update creator avatar if user is a creator
+    if (updatedUser.isCreator) {
+      await prisma.creator.updateMany({
+        where: { userId },
+        data: { avatar },
+      });
+    }
+
     res.json({
       success: true,
       data: { user: updatedUser },
@@ -583,7 +650,7 @@ router.put(
 
 /**
  * PUT /api/auth/me/banner
- * Update current user banner
+ * Update creator banner (banner is only on Creator model)
  */
 router.put(
   '/me/banner',
@@ -597,54 +664,32 @@ router.put(
       throw new ValidationError('Banner URL is required');
     }
 
-    // Get user info for creating creator record if needed
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { displayName: true, username: true },
+    // Check if user is a creator
+    const creator = await prisma.creator.findUnique({
+      where: { userId },
     });
 
-    // Try to update creator's banner, or create creator record if it doesn't exist
-    const updatedCreator = await prisma.creator.upsert({
-      where: { userId: userId },
-      update: { banner },
-      create: {
-        userId: userId,
-        banner,
-        handle: user?.username || `user_${userId.slice(0, 8)}`,
-        displayName: user?.displayName || user?.username || 'User',
-      },
+    if (!creator) {
+      throw new ValidationError('Only creators can update banners');
+    }
+
+    // Update creator banner (banner field is only on Creator model, not User)
+    const updatedCreator = await prisma.creator.update({
+      where: { userId },
+      data: { banner },
       select: {
         id: true,
         banner: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            displayName: true,
-            avatar: true,
-            bio: true,
-            role: true,
-            isCreator: true,
-            createdAt: true,
-          },
-        },
+        displayName: true,
+        handle: true,
       },
     });
-
-    // Also update user's isCreator flag if they weren't a creator before
-    if (!updatedCreator.user.isCreator) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isCreator: true },
-      });
-    }
 
     res.json({
       success: true,
       data: {
-        user: { ...updatedCreator.user, isCreator: true },
         banner: updatedCreator.banner,
+        creator: updatedCreator,
       },
     });
   })

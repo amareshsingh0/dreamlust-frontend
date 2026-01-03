@@ -4,6 +4,22 @@ import { hashPassword } from '../src/lib/auth/password';
 // Sample creator data
 const creatorsData = [
   {
+    email: 'dreamlustproject@gmail.com',
+    username: 'dreamlust',
+    displayName: 'DreamLust Project',
+    handle: 'dreamlust',
+    password: '$Amaresh@1234$', // Custom password for this creator
+    bio: 'Official DreamLust Project creator account. Premium content and exclusive experiences! ✨',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dreamlust',
+    banner: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&h=400&fit=crop',
+    location: 'Global',
+    website: 'https://dreamlust.com',
+    isVerified: true,
+    followerCount: 50000,
+    contentCount: 10,
+    totalViews: 500000,
+  },
+  {
     email: 'ariadreams@example.com',
     username: 'ariadreams',
     displayName: 'Aria Dreams',
@@ -139,8 +155,10 @@ async function seedCreators() {
         if (!user) {
           // Create user first
           console.log(`📝 Creating user: ${creatorData.email}`);
-          const hashedPassword = await hashPassword('Test123!@#');
-          
+          // Use custom password if provided, otherwise default
+          const passwordToHash = (creatorData as any).password || 'Test123!@#';
+          const hashedPassword = await hashPassword(passwordToHash);
+
           user = await prisma.user.create({
             data: {
               email: creatorData.email,
@@ -158,7 +176,7 @@ async function seedCreators() {
 
         // Check if creator profile already exists
         const existingCreator = await prisma.creator.findFirst({
-          where: { user_id: user.id },
+          where: { userId: user.id },
         });
 
         if (existingCreator) {
@@ -168,16 +186,16 @@ async function seedCreators() {
               where: { id: existingCreator.id },
               data: {
                 status: 'APPROVED',
-                display_name: creatorData.displayName,
+                displayName: creatorData.displayName,
                 bio: creatorData.bio,
                 avatar: creatorData.avatar,
                 banner: creatorData.banner,
                 location: creatorData.location,
                 website: creatorData.website,
-                is_verified: creatorData.isVerified,
-                follower_count: creatorData.followerCount,
-                content_count: creatorData.contentCount,
-                total_views: BigInt(creatorData.totalViews),
+                isVerified: creatorData.isVerified,
+                followerCount: creatorData.followerCount,
+                contentCount: creatorData.contentCount,
+                totalViews: BigInt(creatorData.totalViews),
               },
             });
             console.log(`🔄 Updated creator: @${creatorData.handle} (set to APPROVED)`);
@@ -187,39 +205,39 @@ async function seedCreators() {
         } else {
           // Create creator profile
           console.log(`🎨 Creating creator profile: @${creatorData.handle}`);
-          
+
           const creator = await prisma.creator.create({
             data: {
-              user_id: user.id,
-              display_name: creatorData.displayName,
+              userId: user.id,
+              displayName: creatorData.displayName,
               handle: creatorData.handle,
               bio: creatorData.bio,
               avatar: creatorData.avatar,
               banner: creatorData.banner,
               location: creatorData.location,
               website: creatorData.website,
-              is_verified: creatorData.isVerified,
-              follower_count: creatorData.followerCount,
-              content_count: creatorData.contentCount,
-              total_views: BigInt(creatorData.totalViews),
+              isVerified: creatorData.isVerified,
+              followerCount: creatorData.followerCount,
+              contentCount: creatorData.contentCount,
+              totalViews: BigInt(creatorData.totalViews),
               status: 'APPROVED', // Set to APPROVED so they show up (ACTIVE is not in enum, using APPROVED)
             },
           });
 
           // Create creator earnings record
           await prisma.creatorEarnings.upsert({
-            where: { creator_id: creator.id },
+            where: { creatorId: creator.id },
             create: {
-              creator_id: creator.id,
+              creatorId: creator.id,
               balance: 0,
-              lifetime_earnings: 0,
-              pending_payout: 0,
+              lifetimeEarnings: 0,
+              pendingPayout: 0,
             },
             update: {},
           });
 
-          console.log(`✅ Created creator: ${creator.display_name} (@${creator.handle})`);
-          console.log(`   Followers: ${creator.follower_count}, Content: ${creator.content_count}, Views: ${creator.total_views}\n`);
+          console.log(`✅ Created creator: ${creator.displayName} (@${creator.handle})`);
+          console.log(`   Followers: ${creator.followerCount}, Content: ${creator.contentCount}, Views: ${creator.totalViews}\n`);
         }
       } catch (error: any) {
         console.error(`❌ Error creating creator ${creatorData.handle}:`, error.message);

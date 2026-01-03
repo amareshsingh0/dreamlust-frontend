@@ -52,6 +52,7 @@ import authResetRoutes from './routes/auth-reset';
 import auth2FARoutes from './routes/auth-2fa';
 import uploadRoutes from './routes/upload';
 import creatorsRoutes from './routes/creators';
+import categoriesRoutes from './routes/categories';
 import creatorToolsRoutes from './routes/creator-tools';
 import liveRoutes from './routes/live';
 import paymentsRoutes from './routes/payments';
@@ -82,6 +83,7 @@ import cohortsRoutes from './routes/cohorts';
 import funnelsRoutes from './routes/funnels';
 import localizationRoutes from './routes/localization';
 import retentionAnalyticsRoutes from './routes/retention-analytics';
+import communityRoutes from './routes/community';
 import adminChurnRoutes from './routes/admin-churn';
 import contentRestrictionsRoutes from './routes/content-restrictions';
 import multiAngleRoutes from './routes/multi-angle';
@@ -172,9 +174,9 @@ app.use(compression({
   threshold: 1024, // Only compress responses > 1KB
 }));
 
-// Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parsing (increase limit for base64 encoded images)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Request logging (after body parsing to avoid logging sensitive data)
 app.use(requestLogger);
@@ -243,6 +245,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin/export', adminExportRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/creators', creatorsRoutes);
+app.use('/api/categories', categoriesRoutes);
 app.use('/api/creator-tools', creatorToolsRoutes);
 app.use('/api/live', liveRoutes);
 app.use('/api/payments', paymentsRoutes);
@@ -276,6 +279,7 @@ app.use('/api/retention-analytics', retentionAnalyticsRoutes);
 app.use('/api/admin/churn', adminChurnRoutes);
 app.use('/api/content-restrictions', contentRestrictionsRoutes);
 app.use('/api/multi-angle', multiAngleRoutes);
+app.use('/api/community', communityRoutes);
 app.use('/api/cache-test', cacheTestRoutes);
 
 // Sentry error handler (must be before other error handlers)

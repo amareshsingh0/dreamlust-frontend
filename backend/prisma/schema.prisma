@@ -127,6 +127,7 @@ model User {
   bio                     String?
   location                String?
   website                 String?
+  socialLinks             Json?                    @map("social_links")
   birthDate               DateTime?                @map("birth_date") @db.Timestamp(6)
   theme                   String?                  @default("dark")
   language                String?                  @default("en")
@@ -187,6 +188,8 @@ model User {
   interactiveResponses    InteractiveResponse[]
   commentLikes            CommentLike[]
   subscriptions           Subscription[]
+  communityPostLikes      CommunityPostLike[]
+  communityPostComments   CommunityPostComment[]
 
   @@index([createdAt], map: "idx_users_created_at")
   @@index([deletedAt], map: "idx_users_deleted_at")
@@ -239,6 +242,7 @@ model Creator {
 
   // Creator followers back-relation for polymorphic follow design
   followers             Follow[]         @relation("FollowingCreator")
+  communityPosts        CommunityPost[]
 
   @@index([createdAt], map: "idx_creators_created_at")
   @@index([deletedAt], map: "idx_creators_deleted_at")
@@ -273,7 +277,7 @@ model Content {
   isNSFW              Boolean?             @default(false) @map("is_nsfw")
   ageRestricted       Boolean?             @default(false) @map("age_restricted")
   allowComments       Boolean?             @default(true) @map("allow_comments")
-  allowDownloads      Boolean?             @default(false) @map("allow_downloads")
+  allowDownloads      Boolean?             @default(true) @map("allow_downloads")
   isPremium           Boolean?             @default(false) @map("is_premium")
   price               Decimal?             @db.Decimal(10, 2)
   currency            String?              @default("USD")
@@ -1752,4 +1756,64 @@ model Translation {
   @@index([entityType, entityId], map: "idx_translations_entity")
   @@index([language], map: "idx_translations_language")
   @@map("translations")
+}
+
+/* =======================
+   COMMUNITY POSTS
+   ======================= */
+
+model CommunityPost {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorId   String    @map("creator_id") @db.Uuid
+  content     String    @db.Text
+  image       String?
+  likeCount   Int       @default(0) @map("like_count")
+  commentCount Int      @default(0) @map("comment_count")
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  isPublic    Boolean   @default(true) @map("is_public")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  creator     Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  likes       CommunityPostLike[]
+  comments    CommunityPostComment[]
+
+  @@index([creatorId, createdAt], map: "idx_community_posts_creator_created")
+  @@index([creatorId, isPinned], map: "idx_community_posts_creator_pinned")
+  @@index([isPublic], map: "idx_community_posts_public")
+  @@map("community_posts")
+}
+
+model CommunityPostLike {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId], map: "community_post_likes_unique")
+  @@index([postId], map: "idx_community_post_likes_post")
+  @@index([userId], map: "idx_community_post_likes_user")
+  @@map("community_post_likes")
+}
+
+model CommunityPostComment {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String    @map("post_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  content   String    @db.Text
+  likeCount Int       @default(0) @map("like_count")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt], map: "idx_community_post_comments_post_created")
+  @@index([userId], map: "idx_community_post_comments_user")
+  @@map("community_post_comments")
 }

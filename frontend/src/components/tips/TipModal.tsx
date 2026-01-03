@@ -17,7 +17,7 @@ interface TipModalProps {
   creatorName: string;
 }
 
-const PRESET_AMOUNTS = [1, 5, 10, 25, 50, 100];
+const PRESET_AMOUNTS = [10, 50, 100, 200, 500, 1000];
 
 export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModalProps) {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -101,9 +101,23 @@ export function TipModal({ open, onOpenChange, creatorId, creatorName }: TipModa
         throw new Error(response.error?.message || 'Failed to create tip');
       }
 
-      const { tip, paymentOrder: order } = response.data as any;
+      const { tip, paymentOrder: order, message: responseMessage } = response.data as any;
 
+      // In development mode, tips may auto-complete without payment
       if (!order || !order.orderId) {
+        // Check if tip was auto-completed (dev mode)
+        if (tip && (tip.status === 'completed' || tip.status === 'COMPLETED')) {
+          toast.success(`Tip sent successfully! ${responseMessage || '(Development mode)'}`);
+          // Reset form state
+          setSelectedAmount(null);
+          setCustomAmount('');
+          setMessage('');
+          setIsAnonymous(false);
+          setStep('amount');
+          setPaymentOrder(null);
+          onOpenChange(false);
+          return;
+        }
         throw new Error('Payment order not received');
       }
 

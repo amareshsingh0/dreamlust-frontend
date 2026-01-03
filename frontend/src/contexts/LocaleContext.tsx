@@ -29,7 +29,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem('language') || 'en';
   });
   const [currency, setCurrencyState] = useState<string>(() => {
-    return localStorage.getItem('currency') || 'USD';
+    return localStorage.getItem('currency') || 'INR';
   });
   const [detectedLanguage, setDetectedLanguage] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);

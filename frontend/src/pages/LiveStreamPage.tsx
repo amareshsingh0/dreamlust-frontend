@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { LiveChat } from "@/components/live/LiveChat";
+import { TagBadge } from "@/components/content/TagBadge";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getSocket } from "@/lib/socket";
@@ -351,9 +352,7 @@ const LiveStreamPage = () => {
                   {stream.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {stream.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary">
-                          {tag}
-                        </Badge>
+                        <TagBadge key={index} tag={tag} />
                       ))}
                     </div>
                   )}

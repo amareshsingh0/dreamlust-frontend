@@ -37,7 +37,9 @@ export async function createDownload(
     throw new NotFoundError('Content not found');
   }
 
-  if (!content.allowDownloads) {
+  // Allow downloads by default (null or true)
+  // Only block if explicitly set to false
+  if (content.allowDownloads === false) {
     throw new ValidationError('This content does not allow downloads');
   }
 

@@ -22,7 +22,7 @@ export function GiftCardPurchase({ onSuccess }: GiftCardPurchaseProps) {
   const [selectedDesign, setSelectedDesign] = useState<'default' | 'premium' | 'holiday'>('default');
   const [isPurchasing, setIsPurchasing] = useState(false);
 
-  const amounts = [10, 25, 50, 100];
+  const amounts = [100, 500, 1000, 2000];
 
   const handlePurchase = async () => {
     if (!amount) {
@@ -40,7 +40,7 @@ export function GiftCardPurchase({ onSuccess }: GiftCardPurchaseProps) {
     try {
       const response = await api.giftcards.purchase({
         amount,
-        currency: 'USD',
+        currency: 'INR',
         recipientEmail: recipientEmail || undefined,
         personalMessage: personalMessage || undefined,
         sendDate: sendDate?.toISOString(),
@@ -162,7 +162,7 @@ export function GiftCardPurchase({ onSuccess }: GiftCardPurchaseProps) {
             {isPurchasing
               ? 'Processing...'
               : amount
-              ? `Purchase for $${amount.toFixed(2)}`
+              ? `Purchase for ₹${amount.toFixed(0)}`
               : 'Select an amount'}
           </Button>
         </CardContent>

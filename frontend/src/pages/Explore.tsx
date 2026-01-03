@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Filter, SlidersHorizontal, Grid, List } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Filter, SlidersHorizontal, Grid, List, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { ContentGrid } from '@/components/content/ContentGrid';
 import { ContentCard } from '@/components/content/ContentCard';
@@ -22,8 +22,10 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import { mockContent, mockCategories, trendingTags } from '@/data/mockData';
+import { mockCategories, trendingTags } from '@/data/mockData';
 import { Helmet } from 'react-helmet-async';
+import { api } from '@/lib/api';
+import type { Content } from '@/types';
 
 export default function Explore() {
   const [sortBy, setSortBy] = useState('trending');
@@ -31,24 +33,82 @@ export default function Explore() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [content, setContent] = useState<Content[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalResults, setTotalResults] = useState(0);
 
   const contentTypes = [
-    { value: 'video', label: 'Videos' },
-    { value: 'photo', label: 'Photos' },
-    { value: 'gallery', label: 'Galleries' },
-    { value: 'vr', label: 'VR' },
-    { value: 'live', label: 'Live' },
+    { value: 'VIDEO', label: 'Videos' },
+    { value: 'PHOTO', label: 'Photos' },
+    { value: 'VR', label: 'VR' },
+    { value: 'LIVE_STREAM', label: 'Live' },
   ];
 
+  // Map frontend sort values to backend
+  const sortMap: Record<string, string> = {
+    trending: 'trending',
+    recent: 'recent',
+    views: 'views',
+    rating: 'rating',
+  };
+
+  // Fetch content from API
+  const fetchContent = useCallback(async (resetPage = false) => {
+    setLoading(true);
+    try {
+      const currentPage = resetPage ? 1 : page;
+
+      const response = await api.search.post<{
+        results: Content[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>({
+        query: '',
+        filters: {
+          type: selectedTypes.length > 0 ? selectedTypes : undefined,
+          categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+        },
+        sort: sortMap[sortBy] || 'trending',
+        page: currentPage,
+        limit: 24,
+      });
+
+      if (response.success && response.data) {
+        const newContent = response.data.results || [];
+        if (resetPage) {
+          setContent(newContent);
+          setPage(1);
+        } else {
+          setContent(prev => [...prev, ...newContent]);
+        }
+        setTotalResults(response.data.total || newContent.length);
+        setHasMore(currentPage < (response.data.totalPages || 1));
+      }
+    } catch (error) {
+      console.error('Failed to fetch content:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTypes, selectedCategories, sortBy, page]);
+
+  // Fetch on mount and when filters change
+  useEffect(() => {
+    fetchContent(true);
+  }, [selectedTypes, selectedCategories, sortBy]);
+
   const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
+    setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
-  const toggleCategory = (slug: string) => {
+  const toggleCategory = (id: string) => {
     setSelectedCategories(prev =>
-      prev.includes(slug) ? prev.filter(c => c !== slug) : [...prev, slug]
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
     );
   };
 
@@ -58,45 +118,12 @@ export default function Explore() {
     );
   };
 
-  // Filter and sort content
-  let filteredContent = [...mockContent];
-  
-  if (selectedCategories.length > 0) {
-    filteredContent = filteredContent.filter(c => 
-      selectedCategories.some(cat => c.category.toLowerCase().includes(cat))
-    );
-  }
-  
-  if (selectedTypes.length > 0) {
-    filteredContent = filteredContent.filter(c => selectedTypes.includes(c.type));
-  }
-
+  // Filter by tags (client-side since not supported in search API)
+  let filteredContent = content;
   if (selectedTags.length > 0) {
-    filteredContent = filteredContent.filter(c =>
-      selectedTags.some(tag => c.tags.includes(tag))
+    filteredContent = content.filter(c =>
+      selectedTags.some(tag => c.tags?.includes(tag))
     );
-  }
-
-  // Sort
-  switch (sortBy) {
-    case 'views':
-      filteredContent.sort((a, b) => b.views - a.views);
-      break;
-    case 'recent':
-      filteredContent.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      break;
-    case 'rating':
-      filteredContent.sort((a, b) => b.likes - a.likes);
-      break;
-    default:
-      // trending - combination of views and recency
-      filteredContent.sort((a, b) => {
-        const aScore = a.views + (new Date(a.createdAt).getTime() / 1000000);
-        const bScore = b.views + (new Date(b.createdAt).getTime() / 1000000);
-        return bScore - aScore;
-      });
   }
 
   const activeFiltersCount = selectedCategories.length + selectedTypes.length + selectedTags.length;
@@ -158,9 +185,9 @@ export default function Explore() {
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {mockCategories.map(cat => (
                         <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox 
-                            checked={selectedCategories.includes(cat.slug)}
-                            onCheckedChange={() => toggleCategory(cat.slug)}
+                          <Checkbox
+                            checked={selectedCategories.includes(cat.id)}
+                            onCheckedChange={() => toggleCategory(cat.id)}
                           />
                           <span>{cat.icon} {cat.name}</span>
                         </label>
@@ -237,14 +264,22 @@ export default function Explore() {
 
           {/* Results */}
           <div className="mb-4 text-sm text-muted-foreground">
-            {filteredContent.length} results
+            {loading ? 'Loading...' : `${totalResults} results`}
           </div>
 
           {/* Content */}
-          {viewMode === 'grid' ? (
+          {loading && content.length === 0 ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredContent.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-muted-foreground">No content found. Try adjusting your filters.</p>
+            </div>
+          ) : viewMode === 'grid' ? (
             filteredContent.length > 50 ? (
-              <VirtualizedContentGrid 
-                content={filteredContent} 
+              <VirtualizedContentGrid
+                content={filteredContent}
                 columns={4}
               />
             ) : (
@@ -260,6 +295,29 @@ export default function Explore() {
                 ))}
               </div>
             )
+          )}
+
+          {/* Load More Button */}
+          {hasMore && !loading && content.length > 0 && (
+            <div className="flex justify-center mt-8">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPage(prev => prev + 1);
+                  fetchContent(false);
+                }}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load More'
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </Layout>

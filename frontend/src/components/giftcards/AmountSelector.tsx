@@ -13,7 +13,7 @@ export function AmountSelector({
   amounts,
   selected,
   onSelect,
-  currency = 'USD',
+  currency = 'INR',
   className,
 }: AmountSelectorProps) {
   return (
@@ -30,13 +30,13 @@ export function AmountSelector({
               selected === amount && 'ring-2 ring-primary ring-offset-2'
             )}
           >
-            ${amount}
+            ₹{amount}
           </Button>
         ))}
       </div>
       {selected && (
         <p className="text-sm text-muted-foreground text-center">
-          Selected: {currency} ${selected.toFixed(2)}
+          Selected: ₹{selected.toFixed(0)}
         </p>
       )}
     </div>

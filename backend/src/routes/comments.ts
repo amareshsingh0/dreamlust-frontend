@@ -105,7 +105,11 @@ router.get(
   async (req: Request, res: Response) => {
     const { contentId } = req.params;
     const userId = req.user?.userId;
-    const { sort, page, limit } = req.query as any;
+    // Use validatedQuery for properly coerced values (numbers instead of strings)
+    const validatedQuery = (req as any).validatedQuery || req.query;
+    const sort = validatedQuery.sort || 'top';
+    const page = Number(validatedQuery.page) || 1;
+    const limit = Number(validatedQuery.limit) || 20;
 
     // Check if content exists
     const content = await prisma.content.findUnique({

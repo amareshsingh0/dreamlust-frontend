@@ -1,27 +1,37 @@
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/layout/Layout";
-import { Upload as UploadIcon, FileVideo, Loader2 } from "lucide-react";
+import { Upload as UploadIcon, FileVideo, Loader2, Crown, Image as ImageIcon, Video, Radio, Eye } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useRef, useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 const Upload = () => {
-  const { user } = useAuth();
+  const { user, isCreator } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "video" as "video" | "live" | "vr",
+    type: "video" as "video" | "photo" | "gallery" | "live" | "vr",
     category: "",
     tags: "",
     isPublic: true,
@@ -31,19 +41,56 @@ const Upload = () => {
     allowDownloads: false,
     isPremium: false,
     price: "",
+    quality: "" as "" | "720p" | "1080p" | "4K" | "8K",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.categories.getAll<Category[]>();
+        if (response.success && response.data) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Generate thumbnail preview
+  useEffect(() => {
+    if (selectedThumbnail) {
+      const url = URL.createObjectURL(selectedThumbnail);
+      setThumbnailPreview(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setThumbnailPreview(null);
+  }, [selectedThumbnail]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      // Auto-detect type
+      // Auto-detect type based on file
       if (file.type.startsWith("video/")) {
         setFormData(prev => ({ ...prev, type: "video" }));
+      } else if (file.type.startsWith("image/")) {
+        setFormData(prev => ({ ...prev, type: "photo" }));
       }
+    }
+  };
+
+  const handleMultipleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 1) {
+      // Multiple images = gallery
+      setFormData(prev => ({ ...prev, type: "gallery" }));
     }
   };
 
@@ -109,10 +156,15 @@ const Upload = () => {
         const tagsArray = formData.tags.split(",").map(t => t.trim()).filter(Boolean);
         uploadFormData.append("tags", JSON.stringify(tagsArray));
       }
-      
+
       // Add categories
       if (formData.category) {
         uploadFormData.append("categories", JSON.stringify([formData.category]));
+      }
+
+      // Add quality if specified
+      if (formData.quality) {
+        uploadFormData.append("quality", formData.quality);
       }
 
       console.log("📤 Starting upload...");
@@ -414,25 +466,55 @@ const Upload = () => {
                     accept="image/*"
                     onChange={handleThumbnailSelect}
                   />
-                  <div 
+                  <div
                     className="border-2 border-dashed border-border rounded-xl p-4 text-center hover:border-primary transition-colors cursor-pointer"
                     onClick={() => thumbnailInputRef.current?.click()}
                   >
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {selectedThumbnail ? selectedThumbnail.name : "Click to select thumbnail"}
-                    </p>
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        thumbnailInputRef.current?.click();
-                      }}
-                    >
-                      {selectedThumbnail ? "Change Thumbnail" : "Select Thumbnail"}
-                    </Button>
+                    {thumbnailPreview ? (
+                      <div className="space-y-3">
+                        <div className="relative aspect-video max-w-[300px] mx-auto rounded-lg overflow-hidden">
+                          <img
+                            src={thumbnailPreview}
+                            alt="Thumbnail preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground">{selectedThumbnail?.name}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            thumbnailInputRef.current?.click();
+                          }}
+                        >
+                          Change Thumbnail
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Click to select a thumbnail image
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            thumbnailInputRef.current?.click();
+                          }}
+                        >
+                          Select Thumbnail
+                        </Button>
+                      </>
+                    )}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Recommended: 16:9 aspect ratio, at least 1280x720 pixels
+                  </p>
                 </div>
 
                 {/* Title */}
@@ -461,29 +543,81 @@ const Upload = () => {
                   />
                 </div>
 
-                {/* Type */}
+                {/* Content Type */}
                 <div className="space-y-2">
                   <Label htmlFor="type">Content Type *</Label>
-                  <Select 
+                  <Select
                     value={formData.type}
-                    onValueChange={(value: "video" | "live" | "vr") => setFormData(prev => ({ ...prev, type: value }))}
+                    onValueChange={(value: "video" | "photo" | "gallery" | "live" | "vr") => setFormData(prev => ({ ...prev, type: value }))}
                     name="type"
                   >
                     <SelectTrigger id="type" name="type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="live">Live</SelectItem>
-                      <SelectItem value="vr">VR</SelectItem>
+                      <SelectItem value="video">
+                        <div className="flex items-center gap-2">
+                          <Video className="h-4 w-4" />
+                          <span>Video</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="photo">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          <span>Photo</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gallery">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          <span>Gallery (Multiple Photos)</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="live">
+                        <div className="flex items-center gap-2">
+                          <Radio className="h-4 w-4" />
+                          <span>Live Stream</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="vr">
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-4 w-4" />
+                          <span>VR / 360°</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
+                {/* Quality (for video content) */}
+                {(formData.type === "video" || formData.type === "vr") && (
+                  <div className="space-y-2">
+                    <Label htmlFor="quality">Video Quality</Label>
+                    <Select
+                      value={formData.quality}
+                      onValueChange={(value: "" | "720p" | "1080p" | "4K" | "8K") => setFormData(prev => ({ ...prev, quality: value }))}
+                      name="quality"
+                    >
+                      <SelectTrigger id="quality" name="quality">
+                        <SelectValue placeholder="Select quality (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="720p">HD (720p)</SelectItem>
+                        <SelectItem value="1080p">Full HD (1080p)</SelectItem>
+                        <SelectItem value="4K">4K Ultra HD</SelectItem>
+                        <SelectItem value="8K">8K</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      4K and 8K badges will be shown on your content
+                    </p>
+                  </div>
+                )}
+
                 {/* Category */}
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select 
+                  <Select
                     value={formData.category}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                     name="category"
@@ -492,11 +626,24 @@ const Upload = () => {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="entertainment">Entertainment</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="gaming">Gaming</SelectItem>
-                      <SelectItem value="music">Music</SelectItem>
-                      <SelectItem value="sports">Sports</SelectItem>
+                      {categories.length > 0 ? (
+                        categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="entertainment">Entertainment</SelectItem>
+                          <SelectItem value="education">Education</SelectItem>
+                          <SelectItem value="gaming">Gaming</SelectItem>
+                          <SelectItem value="music">Music</SelectItem>
+                          <SelectItem value="sports">Sports</SelectItem>
+                          <SelectItem value="art">Art & Design</SelectItem>
+                          <SelectItem value="tech">Technology</SelectItem>
+                          <SelectItem value="lifestyle">Lifestyle</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -519,7 +666,7 @@ const Upload = () => {
                 {/* Visibility */}
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Visibility</Label>
-                  <Select 
+                  <Select
                     value={formData.isPublic ? "public" : "private"}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, isPublic: value === "public" }))}
                     name="visibility"
@@ -532,6 +679,90 @@ const Upload = () => {
                       <SelectItem value="private">Private</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Premium Content (Creators Only) */}
+                {isCreator && (
+                  <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-5 w-5 text-primary" />
+                      <Label className="text-base font-semibold">Premium Content</Label>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="isPremium" className="cursor-pointer">
+                          Mark as Premium
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Premium content requires subscription or one-time purchase
+                        </p>
+                      </div>
+                      <Switch
+                        id="isPremium"
+                        checked={formData.isPremium}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isPremium: checked }))}
+                      />
+                    </div>
+
+                    {formData.isPremium && (
+                      <div className="space-y-2">
+                        <Label htmlFor="price">Price (USD)</Label>
+                        <Input
+                          id="price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Leave empty for subscription-only"
+                          value={formData.price}
+                          onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Set a price for one-time purchase, or leave empty to require subscription
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Advanced Options */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold">Advanced Options</Label>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="allowComments"
+                        checked={formData.allowComments}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allowComments: checked === true }))}
+                      />
+                      <Label htmlFor="allowComments" className="text-sm cursor-pointer">
+                        Allow comments
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="allowDownloads"
+                        checked={formData.allowDownloads}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allowDownloads: checked === true }))}
+                      />
+                      <Label htmlFor="allowDownloads" className="text-sm cursor-pointer">
+                        Allow downloads
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ageRestricted"
+                        checked={formData.ageRestricted}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ageRestricted: checked === true }))}
+                      />
+                      <Label htmlFor="ageRestricted" className="text-sm cursor-pointer">
+                        Age-restricted content (18+)
+                      </Label>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Upload Progress Bar */}

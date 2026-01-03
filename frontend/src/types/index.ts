@@ -1,5 +1,6 @@
 export interface Creator {
   id: string;
+  userId?: string;
   name: string;
   username: string;
   avatar: string;
@@ -22,10 +23,11 @@ export interface Content {
   id: string;
   title: string;
   thumbnail: string;
-  duration: string;
+  duration: string | number;
   views: number;
   likes: number;
   createdAt: string;
+  publishedAt?: string;
   creator: Creator;
   type: 'video' | 'photo' | 'gallery' | 'vr' | 'live';
   quality: string[];
@@ -34,6 +36,8 @@ export interface Content {
   description?: string;
   isLive?: boolean;
   isPremium?: boolean;
+  isPublic?: boolean;
+  status?: string;
 }
 
 export interface Category {

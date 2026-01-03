@@ -41,7 +41,12 @@ export function validateBody<T>(schema: ZodSchema<T>) {
 export function validateQuery<T>(schema: ZodSchema<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      req.query = schema.parse(req.query) as any;
+      // Parse and transform query values (coerce numbers, set defaults, etc.)
+      const parsedQuery = schema.parse(req.query);
+      // Store transformed values in req.validatedQuery for use in route handlers
+      (req as any).validatedQuery = parsedQuery;
+      // Also update req.query with transformed values (works in Express)
+      Object.assign(req.query, parsedQuery);
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -58,7 +63,8 @@ export function validateQuery<T>(schema: ZodSchema<T>) {
 export function validateParams<T>(schema: ZodSchema<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      req.params = schema.parse(req.params) as any;
+      // Just validate, don't try to reassign (req.params is read-only)
+      schema.parse(req.params);
       next();
     } catch (error) {
       if (error instanceof ZodError) {

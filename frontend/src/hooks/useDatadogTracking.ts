@@ -80,7 +80,7 @@ export function useContentUploadTracking() {
  * Track payments
  */
 export function usePaymentTracking() {
-  const trackPaymentEvent = (transactionId: string, amount: number, currency: string = 'USD') => {
+  const trackPaymentEvent = (transactionId: string, amount: number, currency: string = 'INR') => {
     trackPayment(transactionId, amount, currency);
   };
 

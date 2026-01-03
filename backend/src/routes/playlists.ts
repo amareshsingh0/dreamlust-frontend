@@ -82,6 +82,16 @@ router.get(
           userId ? { userId: userId } : { id: 'none' }, // Only show private if it's the owner
         ],
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatar: true,
+          },
+        },
+      },
     });
 
     if (!playlist) {
@@ -223,6 +233,93 @@ router.delete(
 );
 
 /**
+ * GET /api/playlists/:id/items
+ * Get playlist items with content details
+ */
+router.get(
+  '/:id/items',
+  optionalAuth,
+  userRateLimiter,
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    // Check if playlist exists and is accessible
+    const playlist = await prisma.playlist.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        OR: [
+          { isPublic: true },
+          userId ? { userId: userId } : { id: 'none' },
+        ],
+      },
+    });
+
+    if (!playlist) {
+      throw new NotFoundError('Playlist not found');
+    }
+
+    // Get playlist items with content
+    const [items, total] = await Promise.all([
+      prisma.playlistItem.findMany({
+        where: { playlistId: id },
+        include: {
+          content: {
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  handle: true,
+                  displayName: true,
+                  avatar: true,
+                  isVerified: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { sortOrder: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.playlistItem.count({
+        where: { playlistId: id },
+      }),
+    ]);
+
+    // Serialize BigInt fields
+    const serializedItems = items.map(item => ({
+      ...item,
+      content: item.content ? {
+        ...item.content,
+        viewCount: Number(item.content.viewCount || 0),
+        likeCount: Number(item.content.likeCount || 0),
+        commentCount: Number(item.content.commentCount || 0),
+        duration: item.content.duration ? Number(item.content.duration) : null,
+        fileSize: item.content.fileSize ? Number(item.content.fileSize) : null,
+      } : null,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        items: serializedItems,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    });
+  }
+);
+
+/**
  * POST /api/playlists/:id/items
  * Add content to playlist
  */
@@ -267,7 +364,12 @@ router.post(
     });
 
     if (existing) {
-      throw new ForbiddenError('Content already in playlist');
+      // Return success with warning instead of throwing error
+      return res.json({
+        success: true,
+        warning: 'Content is already in this playlist',
+        data: existing,
+      });
     }
 
     // Get max sortOrder if not specified

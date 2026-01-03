@@ -26,6 +26,11 @@ export function ContentGrid({
   selected = [],
   onToggle
 }: ContentGridProps) {
+  // Deduplicate content by ID to prevent React key warnings
+  const uniqueContent = content.filter(
+    (item, index, self) => index === self.findIndex((c) => c.id === item.id)
+  );
+
   const gridCols = {
     2: 'grid-cols-1 xs:grid-cols-2',
     3: 'grid-cols-1 xs:grid-cols-2 md:grid-cols-3',
@@ -43,7 +48,7 @@ export function ContentGrid({
       'grid gap-3 sm:gap-4 md:gap-6',
       gridCols[columns]
     )}>
-      {content.map((item, index) => (
+      {uniqueContent.map((item, index) => (
         <div 
           key={item.id}
           className={cn(

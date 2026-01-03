@@ -25,6 +25,7 @@ export async function getCachedContent(contentId: string) {
       creator: {
         select: {
           id: true,
+          userId: true,
           handle: true,
           displayName: true,
           avatar: true,
@@ -51,8 +52,17 @@ export async function getCachedContent(contentId: string) {
   });
 
   if (content) {
+    // Convert BigInt fields to Number for JSON serialization before caching
+    const serializedContent = {
+      ...content,
+      viewCount: Number(content.viewCount || 0),
+      likeCount: Number(content.likeCount || 0),
+      commentCount: Number((content as any).commentCount || 0),
+      duration: content.duration ? Number(content.duration) : null,
+    };
     // Cache for 15 minutes
-    await CacheService.set(cacheKey, content, CacheTTL.CREATOR);
+    await CacheService.set(cacheKey, serializedContent, CacheTTL.CREATOR);
+    return serializedContent;
   }
 
   return content;
@@ -100,6 +110,7 @@ export async function getCachedTrending(period: 'today' | 'week' | 'month' = 'to
       creator: {
         select: {
           id: true,
+          userId: true,
           handle: true,
           displayName: true,
           avatar: true,
@@ -119,10 +130,19 @@ export async function getCachedTrending(period: 'today' | 'week' | 'month' = 'to
     },
   });
 
-  // Cache for 1 hour
-  await CacheService.set(cacheKey, trending, CacheTTL.TRENDING);
+  // Convert BigInt fields to Number for JSON serialization
+  const serializedTrending = trending.map(content => ({
+    ...content,
+    viewCount: Number(content.viewCount || 0),
+    likeCount: Number(content.likeCount || 0),
+    commentCount: Number((content as any).commentCount || 0),
+    duration: content.duration ? Number(content.duration) : null,
+  }));
 
-  return trending;
+  // Cache for 1 hour
+  await CacheService.set(cacheKey, serializedTrending, CacheTTL.TRENDING);
+
+  return serializedTrending;
 }
 
 /**

@@ -61,6 +61,55 @@ export async function refreshCsrfToken(): Promise<string> {
   return getCsrfToken();
 }
 
+// Token refresh state to prevent multiple simultaneous refreshes
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+// Attempt to refresh the access token
+async function attemptTokenRefresh(): Promise<boolean> {
+  // Prevent multiple simultaneous refresh attempts
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = authStorage.getRefreshToken();
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+      if (data.success && data.data?.accessToken) {
+        authStorage.setAccessToken(data.data.accessToken);
+        if (data.data.refreshToken) {
+          authStorage.setRefreshToken(data.data.refreshToken);
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn('Token refresh failed:', error);
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -133,6 +182,19 @@ export async function apiRequest<T>(
     }
 
     if (!response.ok) {
+      // Handle 401 Unauthorized - attempt token refresh and retry
+      if (response.status === 401 && !endpoint.includes('/auth/refresh') && !endpoint.includes('/auth/login')) {
+        const refreshed = await attemptTokenRefresh();
+        if (refreshed) {
+          // Retry the original request with new token
+          const newHeaders = {
+            ...options.headers,
+            Authorization: `Bearer ${authStorage.getAccessToken()}`,
+          };
+          return apiRequest<T>(endpoint, { ...options, headers: newHeaders });
+        }
+      }
+
       // Handle error responses
       const errorData = data.error || {
         code: data.code || 'UNKNOWN_ERROR',
@@ -140,7 +202,7 @@ export async function apiRequest<T>(
         details: data.details,
         timestamp: data.timestamp || new Date().toISOString(),
       };
-      
+
       return {
         success: false,
         error: errorData,
@@ -284,12 +346,14 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    update: <T>(data: { language?: string; currency?: string; theme?: string; [key: string]: any }) =>
-      apiRequest<T>('/api/preferences', {
+    update: async <T>(data: { language?: string; currency?: string; theme?: string; [key: string]: any }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/preferences', {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
+      });
+    },
     getLanguages: <T>() =>
       apiRequest<T>('/api/preferences/languages', {
         method: 'GET',
@@ -309,40 +373,62 @@ export const api = {
         headers: getHeaders(),
       });
     },
-    post: <T>(body: unknown) =>
-      apiRequest<T>('/api/playlists', {
+    getItems: <T>(id: string, params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return apiRequest<T>(`/api/playlists/${id}/items${query ? `?${query}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    post: async <T>(body: unknown) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/playlists', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body),
-      }),
-    put: <T>(id: string, body: unknown) =>
-      apiRequest<T>(`/api/playlists/${id}`, {
+      });
+    },
+    put: async <T>(id: string, body: unknown) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/playlists/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body),
-      }),
-    delete: <T>(id: string) =>
-      apiRequest<T>(`/api/playlists/${id}`, {
+      });
+    },
+    delete: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/playlists/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
-      }),
-    addItem: <T>(id: string, body: unknown) =>
-      apiRequest<T>(`/api/playlists/${id}/items`, {
+        headers,
+      });
+    },
+    addItem: async <T>(id: string, body: unknown) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/playlists/${id}/items`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body),
-      }),
-    removeItem: <T>(id: string, itemId: string) =>
-      apiRequest<T>(`/api/playlists/${id}/items/${itemId}`, {
+      });
+    },
+    removeItem: async <T>(id: string, itemId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/playlists/${id}/items/${itemId}`, {
         method: 'DELETE',
-        headers: getHeaders(),
-      }),
-    reorder: <T>(id: string, body: unknown) =>
-      apiRequest<T>(`/api/playlists/${id}/reorder`, {
+        headers,
+      });
+    },
+    reorder: async <T>(id: string, body: unknown) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/playlists/${id}/reorder`, {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body),
-      }),
+      });
+    },
   },
   content: {
     get: <T>(id: string) =>
@@ -350,17 +436,21 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    trackView: <T>(id: string, body: unknown) =>
-      apiRequest<T>(`/api/content/${id}/view`, {
+    trackView: async <T>(id: string, body: unknown) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/content/${id}/view`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body),
-      }),
-    like: <T>(id: string) =>
-      apiRequest<T>(`/api/content/${id}/like`, {
+      });
+    },
+    like: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/content/${id}/like`, {
         method: 'POST',
-        headers: getHeaders(),
-      }),
+        headers,
+      });
+    },
     getLiked: <T>(params?: { page?: number; limit?: number }) => {
       const searchParams = new URLSearchParams();
       if (params?.page) searchParams.append('page', params.page.toString());
@@ -381,6 +471,35 @@ export const api = {
       return apiRequest<T>(url, {
         method: 'GET',
         headers: getHeaders(),
+      });
+    },
+    clearHistory: async <T>() => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/content/history', {
+        method: 'DELETE',
+        headers,
+      });
+    },
+    delete: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/content/${id}`, {
+        method: 'DELETE',
+        headers,
+      });
+    },
+    update: async <T>(id: string, data: {
+      title?: string;
+      description?: string;
+      isPremium?: boolean;
+      quality?: string[];
+      isPublic?: boolean;
+      thumbnail?: string;
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/content/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
       });
     },
   },
@@ -407,11 +526,13 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    follow: <T>(id: string) =>
-      apiRequest<T>(`/api/creators/${id}/follow`, {
+    follow: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/creators/${id}/follow`, {
         method: 'POST',
-        headers: getHeaders(),
-      }),
+        headers,
+      });
+    },
     getFollowing: <T>(params?: { page?: number; limit?: number }) => {
       const searchParams = new URLSearchParams();
       if (params?.page) searchParams.append('page', params.page.toString());
@@ -421,6 +542,38 @@ export const api = {
       return apiRequest<T>(url, {
         method: 'GET',
         headers: getHeaders(),
+      });
+    },
+    getContent: <T>(id: string, params?: { page?: number; limit?: number; type?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.type) searchParams.append('type', params.type);
+      const query = searchParams.toString();
+      const url = `/api/creators/${id}/content${query ? `?${query}` : ''}`;
+      return apiRequest<T>(url, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+    },
+    getMe: <T>() =>
+      apiRequest<T>('/api/creators/me', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    updateMe: async <T>(data: {
+      displayName?: string;
+      bio?: string;
+      location?: string;
+      website?: string;
+      avatar?: string;
+      banner?: string;
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/creators/me', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
       });
     },
   },
@@ -513,6 +666,108 @@ export const api = {
           error: {
             code: 'NETWORK_ERROR',
             message: errorMessage,
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+    },
+    avatar: async <T>(file: File): Promise<ApiResponse<T>> => {
+      const token = getAuthToken();
+      const csrf = await getCsrfToken();
+      const url = `${API_BASE_URL}/api/upload/avatar`;
+
+      try {
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        const headers: Record<string, string> = {
+          'X-CSRF-Token': csrf,
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return {
+            success: false,
+            error: data.error || {
+              code: 'UPLOAD_ERROR',
+              message: data.message || 'Failed to upload avatar',
+              timestamp: new Date().toISOString(),
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: data.data !== undefined ? data.data : data,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: {
+            code: 'NETWORK_ERROR',
+            message: error.message || 'Failed to upload avatar',
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+    },
+    banner: async <T>(file: File): Promise<ApiResponse<T>> => {
+      const token = getAuthToken();
+      const csrf = await getCsrfToken();
+      const url = `${API_BASE_URL}/api/upload/banner`;
+
+      try {
+        const formData = new FormData();
+        formData.append('banner', file);
+
+        const headers: Record<string, string> = {
+          'X-CSRF-Token': csrf,
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return {
+            success: false,
+            error: data.error || {
+              code: 'UPLOAD_ERROR',
+              message: data.message || 'Failed to upload banner',
+              timestamp: new Date().toISOString(),
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: data.data !== undefined ? data.data : data,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: {
+            code: 'NETWORK_ERROR',
+            message: error.message || 'Failed to upload banner',
             timestamp: new Date().toISOString(),
           },
         };
@@ -688,18 +943,20 @@ export const api = {
     },
   },
   tips: {
-    create: <T>(data: {
+    create: async <T>(data: {
       toCreatorId: string;
       amount: number;
       currency?: string;
       message?: string;
       isAnonymous?: boolean;
-    }) =>
-      apiRequest<T>('/api/tips', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/tips', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
+      });
+    },
     get: <T>(params?: {
       creatorId?: string;
       status?: 'pending' | 'completed' | 'failed' | 'refunded';
@@ -734,12 +991,14 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    confirmPayment: <T>(tipId: string, data: { paymentIntentId: string }) =>
-      apiRequest<T>(`/api/tips/${tipId}/confirm-payment`, {
+    confirmPayment: async <T>(tipId: string, data: { paymentIntentId: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/tips/${tipId}/confirm-payment`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
+      });
+    },
   },
   earnings: {
     get: <T>(params?: { startDate?: string; endDate?: string; type?: 'tips' | 'subscriptions' | 'all' }) => {
@@ -793,7 +1052,7 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    update: <T>(data: {
+    update: async <T>(data: {
       hideHistory?: boolean;
       anonymousMode?: boolean;
       allowPersonalization?: boolean;
@@ -802,46 +1061,58 @@ export const api = {
       showWatchHistory?: 'public' | 'friends' | 'private';
       showPlaylists?: 'public' | 'friends' | 'private';
       showLikedContent?: 'public' | 'friends' | 'private';
-    }) =>
-      apiRequest<T>('/api/privacy', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/privacy', {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    setHistoryLock: <T>(data: { enabled: boolean; pin?: string }) =>
-      apiRequest<T>('/api/privacy/history-lock', {
+      });
+    },
+    setHistoryLock: async <T>(data: { enabled: boolean; pin?: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/privacy/history-lock', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    verifyHistoryLock: <T>(data: { pin: string }) =>
-      apiRequest<T>('/api/privacy/verify-history-lock', {
+      });
+    },
+    verifyHistoryLock: async <T>(data: { pin: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/privacy/verify-history-lock', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    exportData: <T>(data: {
+      });
+    },
+    exportData: async <T>(data: {
       format?: 'json' | 'csv';
       includeContent?: boolean;
       includeHistory?: boolean;
       includePlaylists?: boolean;
-    }) =>
-      apiRequest<T>('/api/privacy/export-data', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/privacy/export-data', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    requestDeletion: <T>(data: { reason?: string; password: string }) =>
-      apiRequest<T>('/api/privacy/delete-account', {
+      });
+    },
+    requestDeletion: async <T>(data: { reason?: string; password: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/privacy/delete-account', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    cancelDeletion: <T>() =>
-      apiRequest<T>('/api/privacy/cancel-deletion', {
+      });
+    },
+    cancelDeletion: async <T>() => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/privacy/cancel-deletion', {
         method: 'POST',
-        headers: getHeaders(),
-      }),
+        headers,
+      });
+    },
     getDeletionStatus: <T>() =>
       apiRequest<T>('/api/privacy/deletion-status', {
         method: 'GET',
@@ -849,7 +1120,7 @@ export const api = {
       }),
   },
   moderation: {
-    createReport: <T>(data: {
+    createReport: async <T>(data: {
       contentType: 'content' | 'comment' | 'creator';
       targetId?: string;
       contentId?: string;
@@ -857,12 +1128,16 @@ export const api = {
       type: string;
       reason: string;
       description?: string;
-    }) =>
-      apiRequest<T>('/api/moderation/report', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      // Transform contentType to targetType for backend compatibility
+      const { contentType, ...rest } = data;
+      return apiRequest<T>('/api/moderation/report', {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(data),
-      }),
+        headers,
+        body: JSON.stringify({ targetType: contentType, ...rest }),
+      });
+    },
     getQueue: <T>(params?: {
       status?: string;
       contentType?: string;
@@ -1677,18 +1952,20 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    updatePreferences: <T>(data: {
+    updatePreferences: async <T>(data: {
       email?: Record<string, boolean>;
       push?: Record<string, boolean>;
       inApp?: Record<string, boolean>;
       frequency?: 'instant' | 'daily' | 'weekly' | 'never';
       unsubscribedAll?: boolean;
-    }) =>
-      apiRequest<T>('/api/notifications/preferences', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/notifications/preferences', {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
+      });
+    },
   },
   push: {
     getVAPIDKey: <T>() =>
@@ -1696,23 +1973,27 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    subscribe: <T>(data: {
+    subscribe: async <T>(data: {
       endpoint: string;
       keys: { p256dh: string; auth: string };
       userAgent?: string;
       device?: string;
-    }) =>
-      apiRequest<T>('/api/push/subscribe', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/push/subscribe', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    unsubscribe: <T>(data: { endpoint: string }) =>
-      apiRequest<T>('/api/push/unsubscribe', {
+      });
+    },
+    unsubscribe: async <T>(data: { endpoint: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/push/unsubscribe', {
         method: 'DELETE',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
+      });
+    },
     getSubscriptions: <T>() =>
       apiRequest<T>('/api/push/subscriptions', {
         method: 'GET',
@@ -2037,18 +2318,22 @@ export const api = {
   },
   social: {
     // Follow a user
-    follow: <T>(followingId: string, followingType?: 'user' | 'creator') =>
-      apiRequest<T>('/api/social/follow', {
+    follow: async <T>(followingId: string, followingType?: 'user' | 'creator') => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/social/follow', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify({ followingId, followingType }),
-      }),
+      });
+    },
     // Unfollow a user
-    unfollow: <T>(followingId: string) =>
-      apiRequest<T>(`/api/social/follow/${followingId}`, {
+    unfollow: async <T>(followingId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/social/follow/${followingId}`, {
         method: 'DELETE',
-        headers: getHeaders(),
-      }),
+        headers,
+      });
+    },
     // Check if following
     isFollowing: <T>(followingId: string) =>
       apiRequest<T>(`/api/social/follow/${followingId}`, {
@@ -2163,11 +2448,13 @@ export const api = {
         headers: getHeaders(),
       });
     },
-    followCollection: <T>(collectionId: string) =>
-      apiRequest<T>(`/api/social/collections/${collectionId}/follow`, {
+    followCollection: async <T>(collectionId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/social/collections/${collectionId}/follow`, {
         method: 'POST',
-        headers: getHeaders(),
-      }),
+        headers,
+      });
+    },
     addContributor: <T>(collectionId: string, contributorId: string) =>
       apiRequest<T>(`/api/social/collections/${collectionId}/contributors`, {
         method: 'POST',
@@ -2287,45 +2574,55 @@ export const api = {
         method: 'GET',
         headers: getHeaders(),
       }),
-    create: <T>(data: {
+    create: async <T>(data: {
       title: string;
       description?: string;
       coverImage?: string;
       categoryId?: string;
       status?: string;
-    }) =>
-      apiRequest<T>('/api/series', {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/series', {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    update: <T>(id: string, data: {
+      });
+    },
+    update: async <T>(id: string, data: {
       title?: string;
       description?: string;
       coverImage?: string;
       categoryId?: string;
       status?: string;
-    }) =>
-      apiRequest<T>(`/api/series/${id}`, {
+    }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/series/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(data),
-      }),
-    delete: <T>(id: string) =>
-      apiRequest<T>(`/api/series/${id}`, {
+      });
+    },
+    delete: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/series/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
-      }),
-    follow: <T>(id: string) =>
-      apiRequest<T>(`/api/series/${id}/follow`, {
+        headers,
+      });
+    },
+    follow: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/series/${id}/follow`, {
         method: 'POST',
-        headers: getHeaders(),
-      }),
-    unfollow: <T>(id: string) =>
-      apiRequest<T>(`/api/series/${id}/follow`, {
+        headers,
+      });
+    },
+    unfollow: async <T>(id: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/series/${id}/follow`, {
         method: 'DELETE',
-        headers: getHeaders(),
-      }),
+        headers,
+      });
+    },
   },
   seasons: {
     create: <T>(data: {
@@ -2714,5 +3011,86 @@ export const api = {
         headers,
       });
     },
+  },
+  community: {
+    getPosts: <T>(params?: { limit?: number; offset?: number }) =>
+      apiRequest<T>(`/api/community/posts${params ? `?limit=${params.limit || 20}&offset=${params.offset || 0}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getCreatorPosts: <T>(creatorId: string, params?: { limit?: number; offset?: number }) =>
+      apiRequest<T>(`/api/community/posts/creator/${creatorId}${params ? `?limit=${params.limit || 20}&offset=${params.offset || 0}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    getPost: <T>(postId: string) =>
+      apiRequest<T>(`/api/community/posts/${postId}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    createPost: async <T>(data: { content: string; image?: string; isPublic?: boolean }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>('/api/community/posts', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    updatePost: async <T>(postId: string, data: { content?: string; image?: string | null; isPinned?: boolean; isPublic?: boolean }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/community/posts/${postId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    deletePost: async <T>(postId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/community/posts/${postId}`, {
+        method: 'DELETE',
+        headers,
+      });
+    },
+    likePost: async <T>(postId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/community/posts/${postId}/like`, {
+        method: 'POST',
+        headers,
+      });
+    },
+    unlikePost: async <T>(postId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/community/posts/${postId}/like`, {
+        method: 'DELETE',
+        headers,
+      });
+    },
+    getComments: <T>(postId: string, params?: { limit?: number; offset?: number }) =>
+      apiRequest<T>(`/api/community/posts/${postId}/comments${params ? `?limit=${params.limit || 50}&offset=${params.offset || 0}` : ''}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
+    createComment: async <T>(postId: string, data: { content: string }) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/community/posts/${postId}/comments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+    },
+    deleteComment: async <T>(postId: string, commentId: string) => {
+      const headers = await getHeadersWithCsrf();
+      return apiRequest<T>(`/api/community/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers,
+      });
+    },
+  },
+  categories: {
+    getAll: <T>() =>
+      apiRequest<T>('/api/categories', {
+        method: 'GET',
+        headers: getHeaders(),
+      }),
   },
 };

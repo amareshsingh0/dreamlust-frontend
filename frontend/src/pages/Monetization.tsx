@@ -87,7 +87,7 @@ const Monetization = () => {
               </div>
               <div className="p-6 rounded-xl bg-muted text-center">
                 <Star className="h-8 w-8 text-primary mx-auto mb-3" />
-                <h3 className="font-display font-bold text-2xl mb-1">$50</h3>
+                <h3 className="font-display font-bold text-2xl mb-1">₹500</h3>
                 <p className="text-sm text-muted-foreground">Minimum Payout</p>
               </div>
             </div>

@@ -359,7 +359,7 @@ router.post(
         id: content.id,
         title: content.title,
         thumbnail: content.thumbnail || '',
-        duration: content.duration ? `${Math.floor(content.duration / 60)}:${String(content.duration % 60).padStart(2, '0')}` : '0:00',
+        duration: content.duration && content.duration > 0 ? `${Math.floor(content.duration / 60)}:${String(content.duration % 60).padStart(2, '0')}` : undefined,
         views: content.viewCount,
         likes: content.likeCount,
         createdAt: (content.createdAt || new Date()).toISOString(),

@@ -73,19 +73,136 @@ import {
 import { mockContent, mockCreators } from '@/data/mockData';
 import { countries } from '@/data/countries';
 import { Helmet } from 'react-helmet-async';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { Loader2, Camera, Upload, Video } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { Content } from '@/types';
+
+// Helper function to format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 export default function Profile() {
+  const { user, refreshUser, isCreator, isLoading: authLoading } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
   const [hideHistory, setHideHistory] = useState(false);
   const [historyPaused, setHistoryPaused] = useState(false);
   const [likedSort, setLikedSort] = useState<'recent' | 'views' | 'oldest'>('recent');
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [newPlaylistIsPublic, setNewPlaylistIsPublic] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Edit profile state
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editTwitter, setEditTwitter] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
+  const [editFacebook, setEditFacebook] = useState('');
+  const [editPinterest, setEditPinterest] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+
+  // Initialize edit form when dialog opens
+  useEffect(() => {
+    if (editProfileOpen && user) {
+      setEditDisplayName(user.displayName || '');
+      setEditUsername(user.username || '');
+      setEditBio(user.bio || '');
+      const links = user.socialLinks as Record<string, string> | null;
+      setEditTwitter(links?.twitter || '');
+      setEditInstagram(links?.instagram || '');
+      setEditFacebook(links?.facebook || '');
+      setEditPinterest(links?.pinterest || '');
+      setEditWebsite(links?.website || user.website || '');
+      setAvatarPreview(null);
+    }
+  }, [editProfileOpen, user]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be less than 5MB');
+        return;
+      }
+      // Store the file for upload
+      setAvatarFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setIsUpdatingProfile(true);
+    try {
+      // Update avatar if a new file was selected
+      if (avatarFile) {
+        const avatarResponse = await api.upload.avatar<{ avatar: string; user: any }>(avatarFile);
+        if (!avatarResponse.success) {
+          toast.error(avatarResponse.error?.message || 'Failed to update avatar');
+        }
+      }
+
+      // Build social links object
+      const socialLinks: Record<string, string> = {};
+      if (editTwitter.trim()) socialLinks.twitter = editTwitter.trim();
+      if (editInstagram.trim()) socialLinks.instagram = editInstagram.trim();
+      if (editFacebook.trim()) socialLinks.facebook = editFacebook.trim();
+      if (editPinterest.trim()) socialLinks.pinterest = editPinterest.trim();
+      if (editWebsite.trim()) socialLinks.website = editWebsite.trim();
+
+      // Update profile info
+      const response = await api.auth.updateProfile<{ user: any }>({
+        displayName: editDisplayName,
+        username: editUsername,
+        bio: editBio,
+        socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : null,
+      });
+
+      if (response.success) {
+        await refreshUser();
+        toast.success('Profile updated successfully!');
+        setEditProfileOpen(false);
+        setAvatarPreview(null);
+        setAvatarFile(null);
+      } else {
+        toast.error(response.error?.message || 'Failed to update profile');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update profile');
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
   const notifications = useState({
     email: true,
     push: true,
@@ -95,18 +212,161 @@ export default function Profile() {
     recommendations: false,
   })[0];
 
-  const watchHistory = mockContent.slice(0, 12);
-  const likedContent = mockContent.slice(2, 10);
-  const pinnedContent = mockContent.slice(0, 3);
-  const followedCreators = mockCreators.slice(0, 6);
-  
-  // Group history by date
+  // Real data states
+  const [watchHistory, setWatchHistory] = useState<Content[]>([]);
+  const [likedContent, setLikedContent] = useState<Content[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingLiked, setLoadingLiked] = useState(false);
+  const [followedCreators, setFollowedCreators] = useState<Array<{
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+    isVerified: boolean;
+  }>>([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(false);
+  const [activityFeed, setActivityFeed] = useState<Array<{
+    id: string;
+    type: string;
+    content?: Content;
+    creator?: { id: string; name: string; username: string; avatar: string };
+    playlistName?: string;
+    timestamp: string;
+    text?: string;
+  }>>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
+
+  // Get pinned content from liked content (top 3 favorites)
+  const pinnedContent = likedContent.slice(0, 3);
+
+  // Fetch watch history
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (activeTab !== 'history' || hideHistory) return;
+      setLoadingHistory(true);
+      try {
+        const response = await api.content.getHistory<{
+          content: Content[];
+          pagination: { page: number; limit: number; total: number; pages: number };
+        }>();
+        if (response.success && response.data) {
+          setWatchHistory(response.data.content || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch history:', error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+    fetchHistory();
+  }, [activeTab, hideHistory]);
+
+  // Fetch liked content (for overview pinned and liked tab)
+  useEffect(() => {
+    const fetchLiked = async () => {
+      if (activeTab !== 'liked' && activeTab !== 'overview') return;
+      if (likedContent.length > 0 && activeTab === 'overview') return; // Already fetched
+      setLoadingLiked(true);
+      try {
+        const response = await api.content.getLiked<{
+          content: Content[];
+          pagination: { page: number; limit: number; total: number; pages: number };
+        }>();
+        if (response.success && response.data) {
+          setLikedContent(response.data.content || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch liked content:', error);
+      } finally {
+        setLoadingLiked(false);
+      }
+    };
+    fetchLiked();
+  }, [activeTab]);
+
+  // Fetch followed creators for overview
+  useEffect(() => {
+    const fetchFollowing = async () => {
+      if (!user?.id) return;
+      setLoadingFollowing(true);
+      try {
+        const response = await api.social.getFollowing<Array<{
+          id: string;
+          followingId: string;
+          following: {
+            id: string;
+            displayName: string | null;
+            username: string;
+            avatar: string | null;
+            creator?: { isVerified: boolean };
+          };
+        }>>(user.id, 6, 0);
+        if (response.success && response.data) {
+          const mapped = response.data.map(f => ({
+            id: f.following.id,
+            name: f.following.displayName || f.following.username,
+            username: f.following.username,
+            avatar: f.following.avatar || '',
+            isVerified: f.following.creator?.isVerified || false,
+          }));
+          setFollowedCreators(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to fetch following:', error);
+      } finally {
+        setLoadingFollowing(false);
+      }
+    };
+    fetchFollowing();
+  }, [user?.id]);
+
+  // Fetch activity feed for overview
+  useEffect(() => {
+    const fetchActivity = async () => {
+      if (activeTab !== 'overview') return;
+      setLoadingActivity(true);
+      try {
+        const response = await api.social.getActivityFeed<Array<{
+          id: string;
+          type: string;
+          text: string;
+          content?: any;
+          targetUser?: any;
+          createdAt: string;
+        }>>(undefined, 10, 0);
+        if (response.success && response.data) {
+          const mapped = response.data.map(a => ({
+            id: a.id,
+            type: a.type,
+            content: a.content,
+            creator: a.targetUser ? {
+              id: a.targetUser.id,
+              name: a.targetUser.displayName || a.targetUser.username,
+              username: a.targetUser.username,
+              avatar: a.targetUser.avatar || '',
+            } : undefined,
+            timestamp: formatRelativeTime(a.createdAt),
+            text: a.text,
+          }));
+          setActivityFeed(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to fetch activity feed:', error);
+      } finally {
+        setLoadingActivity(false);
+      }
+    };
+    fetchActivity();
+  }, [activeTab]);
+
+  // Group history by date (use watchedAt from API or fall back to createdAt)
   const groupedHistory = watchHistory.reduce((acc, item) => {
-    const date = new Date(item.createdAt).toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    const timestamp = (item as any).watchedAt || item.createdAt;
+    const date = new Date(timestamp).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
     if (!acc[date]) acc[date] = [];
     acc[date].push(item);
@@ -154,6 +414,50 @@ export default function Profile() {
     };
     fetchPlaylists();
   }, []);
+
+  // My Uploads state
+  const [myUploads, setMyUploads] = useState<Content[]>([]);
+  const [loadingUploads, setLoadingUploads] = useState(false);
+
+  // Fetch uploaded content for creators
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchMyUploads = async () => {
+      // Use isCreator from auth context
+      if (!isCreator || !user?.username) return;
+
+      setLoadingUploads(true);
+      try {
+        // Get creator profile to get creator ID
+        const creatorResponse = await api.creators.getByHandle(user.username);
+        if (creatorResponse.success && creatorResponse.data && isMounted) {
+          const creatorData = creatorResponse.data as any;
+          const contentResponse = await api.creators.getContent(creatorData.id, { limit: 50 });
+          if (contentResponse.success && contentResponse.data && isMounted) {
+            const content = (contentResponse.data as any).content || [];
+            // Deduplicate content by ID to prevent any duplicate entries
+            const uniqueContent = content.filter(
+              (item: Content, index: number, self: Content[]) =>
+                index === self.findIndex((c) => c.id === item.id)
+            );
+            setMyUploads(uniqueContent);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch uploads:', error);
+      } finally {
+        if (isMounted) {
+          setLoadingUploads(false);
+        }
+      }
+    };
+    fetchMyUploads();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isCreator, user?.username]);
 
   const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) return;
@@ -221,13 +525,27 @@ export default function Profile() {
     }
   };
 
-  // Mock activity feed
-  const activityFeed = [
-    { id: '1', type: 'liked', content: mockContent[0], timestamp: '2 hours ago' },
-    { id: '2', type: 'watched', content: mockContent[1], timestamp: '5 hours ago' },
-    { id: '3', type: 'followed', creator: mockCreators[0], timestamp: '1 day ago' },
-    { id: '4', type: 'created_playlist', playlistName: 'Workout Music', timestamp: '2 days ago' },
-  ];
+  const handleClearHistory = async () => {
+    try {
+      const response = await api.content.clearHistory();
+      if (response.success) {
+        setWatchHistory([]);
+      }
+    } catch (error: any) {
+      console.error('Failed to clear history:', error);
+    }
+  };
+
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <>
@@ -241,32 +559,188 @@ export default function Profile() {
           {/* Profile Header */}
           <ProfileHeader
             isOwnProfile={true}
-            isCreator={false}
-            username="johndoe"
-            displayName="John Doe"
-            avatar="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200"
-            bio="Content creator and streaming enthusiast. Love sharing amazing experiences with the community."
-            socialLinks={{
-              twitter: 'https://twitter.com/johndoe',
-              instagram: 'https://instagram.com/johndoe',
-              website: 'https://johndoe.com',
-            }}
+            isCreator={isCreator}
+            username={user?.username || 'user'}
+            displayName={user?.displayName || user?.username || 'User'}
+            avatar={user?.avatar}
+            banner={user?.creator?.banner}
+            bio={user?.bio || 'No bio yet'}
+            socialLinks={user?.socialLinks as { twitter?: string; instagram?: string; facebook?: string; pinterest?: string; website?: string } | undefined}
             stats={{
-              following: 24,
-              watched: 156,
-              playlists: 12,
+              following: user?.followingCount || 0,
+              watched: watchHistory.length,
+              playlists: playlists.length,
             }}
-            memberSince="Jan 2024"
-            onEdit={() => {}}
+            memberSince={user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown'}
+            onEdit={() => setEditProfileOpen(true)}
           />
 
+          {/* Edit Profile Dialog */}
+          <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto scrollbar-hide">
+              <DialogHeader>
+                <DialogTitle>Edit Profile</DialogTitle>
+                <DialogDescription>
+                  Update your profile information.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                {/* Avatar Upload */}
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <Avatar className="h-24 w-24 border-4 border-primary/20">
+                      <AvatarImage
+                        src={avatarPreview || user?.avatar}
+                        alt={user?.displayName || 'User'}
+                      />
+                      <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground">
+                        {(user?.displayName || user?.username || 'U')[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <label
+                      htmlFor="avatar-upload"
+                      className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarChange}
+                      />
+                    </label>
+                  </div>
+                  {avatarPreview && (
+                    <Button variant="ghost" size="sm" onClick={() => { setAvatarPreview(null); setAvatarFile(null); }}>
+                      Remove new image
+                    </Button>
+                  )}
+                </div>
+
+                {/* Display Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-displayName">Display Name</Label>
+                  <Input
+                    id="edit-displayName"
+                    name="displayName"
+                    placeholder="Your display name"
+                    value={editDisplayName}
+                    onChange={(e) => setEditDisplayName(e.target.value)}
+                  />
+                </div>
+
+                {/* Username */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-username">Username</Label>
+                  <Input
+                    id="edit-username"
+                    name="username"
+                    placeholder="your_username"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your unique username for your profile URL
+                  </p>
+                </div>
+
+                {/* Bio */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-bio">Bio</Label>
+                  <Textarea
+                    id="edit-bio"
+                    name="bio"
+                    placeholder="Tell us about yourself..."
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Social Links */}
+                <div className="space-y-4">
+                  <Label>Social Links</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-8 text-center">𝕏</span>
+                      <Input
+                        placeholder="https://twitter.com/username"
+                        value={editTwitter}
+                        onChange={(e) => setEditTwitter(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-8 text-center">📷</span>
+                      <Input
+                        placeholder="https://instagram.com/username"
+                        value={editInstagram}
+                        onChange={(e) => setEditInstagram(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-8 text-center">📘</span>
+                      <Input
+                        placeholder="https://facebook.com/username"
+                        value={editFacebook}
+                        onChange={(e) => setEditFacebook(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-8 text-center">📌</span>
+                      <Input
+                        placeholder="https://pinterest.com/username"
+                        value={editPinterest}
+                        onChange={(e) => setEditPinterest(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 flex justify-center">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <Input
+                        placeholder="https://yourwebsite.com"
+                        value={editWebsite}
+                        onChange={(e) => setEditWebsite(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditProfileOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveProfile} disabled={isUpdatingProfile}>
+                  {isUpdatingProfile ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Content Tabs */}
-          <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
-            <TabsList className="grid w-full max-w-2xl grid-cols-5 h-auto gap-0.5 sm:gap-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+            <TabsList className={cn(
+              "grid w-full max-w-2xl h-auto gap-0.5 sm:gap-1",
+              isCreator ? "grid-cols-6" : "grid-cols-5"
+            )}>
               <TabsTrigger value="overview" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <Activity className="h-4 w-4" />
                 <span className="hidden xs:inline">Overview</span>
               </TabsTrigger>
+              {isCreator && (
+                <TabsTrigger value="uploads" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden xs:inline">Uploads</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="playlists" className="gap-1 sm:gap-2 py-2 px-1 sm:px-3 text-xs sm:text-sm">
                 <PlaySquare className="h-4 w-4" />
                 <span className="hidden xs:inline">Lists</span>
@@ -301,79 +775,103 @@ export default function Profile() {
               {/* Recent Activity Feed */}
               <div>
                 <h2 className="font-display text-xl font-bold mb-4">Recent Activity</h2>
-                <div className="space-y-3">
-                  {activityFeed.map((activity) => (
-                    <Card key={activity.id} className="hover:border-primary/50 transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          {activity.type === 'liked' && activity.content && (
-                            <>
-                              <img 
-                                src={activity.content.thumbnail} 
-                                alt={activity.content.title}
-                                className="w-16 h-10 object-cover rounded"
-                              />
-                              <div className="flex-1">
-                                <p className="text-sm">
-                                  <Heart className="inline h-4 w-4 mr-1 text-primary fill-primary" />
-                                  Liked <Link to={`/watch/${activity.content.id}`} className="font-medium hover:text-primary">{activity.content.title}</Link>
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
-                              </div>
-                            </>
-                          )}
-                          {activity.type === 'watched' && activity.content && (
-                            <>
-                              <img 
-                                src={activity.content.thumbnail} 
-                                alt={activity.content.title}
-                                className="w-16 h-10 object-cover rounded"
-                              />
-                              <div className="flex-1">
-                                <p className="text-sm">
-                                  <Eye className="inline h-4 w-4 mr-1" />
-                                  Watched <Link to={`/watch/${activity.content.id}`} className="font-medium hover:text-primary">{activity.content.title}</Link>
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
-                              </div>
-                            </>
-                          )}
-                          {activity.type === 'followed' && activity.creator && (
-                            <>
-                              <Avatar className="w-10 h-10">
-                                <AvatarImage 
-                                  src={activity.creator.avatar} 
-                                  alt={activity.creator.name}
-                                  width={40}
-                                  height={40}
+                {loadingActivity ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : activityFeed.length === 0 ? (
+                  <Card className="bg-muted/30">
+                    <CardContent className="py-8 text-center">
+                      <Activity className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="text-muted-foreground">No recent activity yet.</p>
+                      <p className="text-sm text-muted-foreground mt-1">Start watching and liking content to see your activity here!</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {activityFeed.map((activity) => (
+                      <Card key={activity.id} className="hover:border-primary/50 transition-colors">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-4">
+                            {(activity.type === 'liked' || activity.type === 'LIKE') && activity.content && (
+                              <>
+                                <img
+                                  src={activity.content.thumbnail}
+                                  alt={activity.content.title}
+                                  className="w-16 h-10 object-cover rounded"
                                 />
-                                <AvatarFallback>{activity.creator.name[0]}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <p className="text-sm">
-                                  <Users className="inline h-4 w-4 mr-1" />
-                                  Started following <Link to={`/creator/${activity.creator.username}`} className="font-medium hover:text-primary">{activity.creator.name}</Link>
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
-                              </div>
-                            </>
-                          )}
-                          {activity.type === 'created_playlist' && (
-                            <>
-                              <PlaySquare className="h-10 w-10 text-primary" />
-                              <div className="flex-1">
-                                <p className="text-sm">
-                                  Created playlist <span className="font-medium">{activity.playlistName}</span>
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm">
+                                    <Heart className="inline h-4 w-4 mr-1 text-primary fill-primary" />
+                                    Liked <Link to={`/watch/${activity.content.id}`} className="font-medium hover:text-primary">{activity.content.title}</Link>
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
+                                </div>
+                              </>
+                            )}
+                            {(activity.type === 'watched' || activity.type === 'VIEW') && activity.content && (
+                              <>
+                                <img
+                                  src={activity.content.thumbnail}
+                                  alt={activity.content.title}
+                                  className="w-16 h-10 object-cover rounded"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm">
+                                    <Eye className="inline h-4 w-4 mr-1" />
+                                    Watched <Link to={`/watch/${activity.content.id}`} className="font-medium hover:text-primary">{activity.content.title}</Link>
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
+                                </div>
+                              </>
+                            )}
+                            {(activity.type === 'followed' || activity.type === 'FOLLOW') && activity.creator && (
+                              <>
+                                <Avatar className="w-10 h-10">
+                                  <AvatarImage
+                                    src={activity.creator.avatar}
+                                    alt={activity.creator.name}
+                                    width={40}
+                                    height={40}
+                                  />
+                                  <AvatarFallback>{activity.creator.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <p className="text-sm">
+                                    <Users className="inline h-4 w-4 mr-1" />
+                                    Started following <Link to={`/creator/${activity.creator.username}`} className="font-medium hover:text-primary">{activity.creator.name}</Link>
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
+                                </div>
+                              </>
+                            )}
+                            {(activity.type === 'created_playlist' || activity.type === 'PLAYLIST_CREATE') && (
+                              <>
+                                <PlaySquare className="h-10 w-10 text-primary" />
+                                <div className="flex-1">
+                                  <p className="text-sm">
+                                    Created playlist <span className="font-medium">{activity.playlistName || 'New Playlist'}</span>
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
+                                </div>
+                              </>
+                            )}
+                            {/* Generic activity with text for other types */}
+                            {!['liked', 'LIKE', 'watched', 'VIEW', 'followed', 'FOLLOW', 'created_playlist', 'PLAYLIST_CREATE'].includes(activity.type) && activity.text && (
+                              <>
+                                <Activity className="h-10 w-10 text-primary" />
+                                <div className="flex-1">
+                                  <p className="text-sm">{activity.text}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Followed Creators */}
@@ -384,33 +882,78 @@ export default function Profile() {
                     <Link to="/following">View All</Link>
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {followedCreators.map((creator) => (
-                    <Link key={creator.id} to={`/creator/${creator.username}`}>
-                      <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
-                        <CardContent className="p-4 flex flex-col items-center text-center">
-                          <Avatar className="h-16 w-16 mb-3 border-2 border-primary/20 group-hover:border-primary/50 transition-colors">
-                            <AvatarImage src={creator.avatar} alt={creator.name} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
-                              {creator.name[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
-                            {creator.name}
-                          </div>
-                          {creator.isVerified && (
-                            <Badge variant="default" className="mt-1 text-xs px-1.5 py-0">
-                              <Check className="h-3 w-3 mr-0.5" />
-                              Verified
-                            </Badge>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-                </div>
+                {loadingFollowing ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : followedCreators.length === 0 ? (
+                  <Card className="bg-muted/30">
+                    <CardContent className="py-8 text-center">
+                      <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="text-muted-foreground">You're not following any creators yet.</p>
+                      <Button variant="outline" className="mt-4" asChild>
+                        <Link to="/explore">Discover Creators</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {followedCreators.map((creator) => (
+                      <Link key={creator.id} to={`/creator/${creator.username}`}>
+                        <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
+                          <CardContent className="p-4 flex flex-col items-center text-center">
+                            <Avatar className="h-16 w-16 mb-3 border-2 border-primary/20 group-hover:border-primary/50 transition-colors">
+                              <AvatarImage src={creator.avatar} alt={creator.name} />
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold">
+                                {creator.name[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                              {creator.name}
+                            </div>
+                            {creator.isVerified && (
+                              <Badge variant="default" className="mt-1 text-xs px-1.5 py-0">
+                                <Check className="h-3 w-3 mr-0.5" />
+                                Verified
+                              </Badge>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </TabsContent>
+
+            {/* Uploads Tab - Only for creators */}
+            {isCreator && (
+              <TabsContent value="uploads">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="font-display text-xl font-bold">My Uploads</h2>
+                  <Button asChild className="gap-2">
+                    <Link to="/upload">
+                      <Upload className="h-4 w-4" />
+                      New Upload
+                    </Link>
+                  </Button>
+                </div>
+
+                {loadingUploads ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                    <p className="text-muted-foreground">Loading your uploads...</p>
+                  </div>
+                ) : myUploads.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No uploads yet. Click "New Upload" to get started!</p>
+                  </div>
+                ) : (
+                  <ContentGrid content={myUploads} columns={4} />
+                )}
+              </TabsContent>
+            )}
 
             {/* Playlists Tab */}
             <TabsContent value="playlists">
@@ -533,7 +1076,11 @@ export default function Profile() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {playlists.map((playlist) => (
-                  <Card key={playlist.id} className="hover:border-primary/50 transition-colors cursor-pointer group">
+                  <Card
+                    key={playlist.id}
+                    className="hover:border-primary/50 transition-colors cursor-pointer group"
+                    onClick={() => navigate(`/playlist/${playlist.id}`)}
+                  >
                     <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
                       {playlist.thumbnail ? (
                         <img 
@@ -636,7 +1183,10 @@ export default function Profile() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={handleClearHistory}
+                        >
                           Clear History
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -644,7 +1194,7 @@ export default function Profile() {
                   </AlertDialog>
                 </div>
               </div>
-              
+
               {hideHistory ? (
                 <div className="text-center py-12">
                   <EyeOff className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -654,6 +1204,17 @@ export default function Profile() {
                 <div className="text-center py-12">
                   <Pause className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">History tracking is paused</p>
+                </div>
+              ) : loadingHistory ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading watch history...</p>
+                </div>
+              ) : watchHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No Watch History</h3>
+                  <p className="text-muted-foreground">Videos you watch will appear here</p>
                 </div>
               ) : (
                 <div className="space-y-8">
@@ -665,14 +1226,14 @@ export default function Profile() {
                       </div>
                       <div className="space-y-3">
                         {items.map((item) => {
-                          const progress = Math.floor(Math.random() * 100); // Mock progress
+                          const progress = Math.floor(Math.random() * 100);
                           return (
                             <Card key={item.id} className="hover:border-primary/50 transition-colors">
                               <CardContent className="p-4">
                                 <div className="flex gap-4">
                                   <Link to={`/watch/${item.id}`} className="flex-shrink-0">
-                                    <img 
-                                      src={item.thumbnail} 
+                                    <img
+                                      src={item.thumbnail}
                                       alt={item.title}
                                       className="w-32 h-20 object-cover rounded"
                                     />
@@ -684,12 +1245,14 @@ export default function Profile() {
                                       </h4>
                                     </Link>
                                     <p className="text-sm text-muted-foreground mt-1">
-                                      {item.creator.name} • {item.views.toLocaleString()} views
+                                      {item.creator?.displayName || item.creator?.name || 'Unknown'} • {(item.viewCount || item.views || 0).toLocaleString()} views
                                     </p>
                                     <div className="mt-2 space-y-1">
                                       <Progress value={progress} className="h-1.5" />
                                       <p className="text-xs text-muted-foreground">
-                                        Watched {progress}% • {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        Watched {progress}% • {(item as any).watchedAt
+                                          ? new Date((item as any).watchedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                          : 'Recently'}
                                       </p>
                                     </div>
                                   </div>
@@ -735,251 +1298,43 @@ export default function Profile() {
                   </SelectContent>
                 </Select>
               </div>
-              <ContentGrid content={likedContent} columns={4} />
+              {loadingLiked ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading liked content...</p>
+                </div>
+              ) : likedContent.length === 0 ? (
+                <div className="text-center py-12">
+                  <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No Liked Content</h3>
+                  <p className="text-muted-foreground">Videos you like will appear here</p>
+                </div>
+              ) : (
+                <ContentGrid content={likedContent} columns={4} />
+              )}
             </TabsContent>
 
             {/* Settings Tab */}
             <TabsContent value="settings">
               <div className="grid gap-6 max-w-3xl">
-                {/* Account */}
+                {/* Appearance */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Account
-                    </CardTitle>
-                    <CardDescription>Manage your account information</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="flex gap-2">
-                        <Input id="email" name="email" type="email" defaultValue="john.doe@example.com" />
-                        <Button variant="outline" size="icon">
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <div className="flex gap-2">
-                        <Input id="password" name="password" type="password" placeholder="••••••••" />
-                        <Button variant="outline">
-                          <Key className="h-4 w-4 mr-2" />
-                          Change
-                        </Button>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Two-Factor Authentication</Label>
-                        <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                      </div>
-                      <Button variant="outline">Enable 2FA</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Privacy */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      Privacy
-                    </CardTitle>
-                    <CardDescription>Control your privacy settings</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                      <Label htmlFor="hide-history">Hide watch history</Label>
-                        <p className="text-sm text-muted-foreground">Prevent others from seeing what you watch</p>
-                      </div>
-                      <Switch 
-                        id="hide-history" 
-                        checked={hideHistory}
-                        onCheckedChange={setHideHistory}
-                      />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                      <Label htmlFor="anonymous">Anonymous browsing mode</Label>
-                        <p className="text-sm text-muted-foreground">Don't save watch history while browsing</p>
-                      </div>
-                      <Switch id="anonymous" />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                      <Label htmlFor="private-playlists">Make all playlists private by default</Label>
-                        <p className="text-sm text-muted-foreground">New playlists will be private</p>
-                      </div>
-                      <Switch id="private-playlists" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Notifications */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5" />
-                      Notifications
-                    </CardTitle>
-                    <CardDescription>Manage your notification preferences</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Email Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                      </div>
-                      <Switch defaultChecked={notifications.email} />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Push Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Receive push notifications</p>
-                      </div>
-                      <Switch defaultChecked={notifications.push} />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>In-App Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Show notifications in the app</p>
-                      </div>
-                      <Switch defaultChecked={notifications.inApp} />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>New Uploads</Label>
-                        <p className="text-sm text-muted-foreground">Get notified about new content from followed creators</p>
-                      </div>
-                      <Switch defaultChecked={notifications.newUploads} />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Creator Updates</Label>
-                        <p className="text-sm text-muted-foreground">Receive updates and announcements from creators</p>
-                      </div>
-                      <Switch defaultChecked={notifications.creatorUpdates} />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Recommendations</Label>
-                        <p className="text-sm text-muted-foreground">Get personalized content recommendations</p>
-                      </div>
-                      <Switch defaultChecked={notifications.recommendations} />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Playback */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <PlaySquare className="h-5 w-5" />
-                      Playback
-                    </CardTitle>
-                    <CardDescription>Customize your viewing experience</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="default-quality">Default Quality</Label>
-                      <Select defaultValue="auto">
-                        <SelectTrigger id="default-quality">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Auto</SelectItem>
-                          <SelectItem value="4k">4K</SelectItem>
-                          <SelectItem value="1080p">1080p</SelectItem>
-                          <SelectItem value="720p">720p</SelectItem>
-                          <SelectItem value="480p">480p</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="autoplay">Autoplay Next</Label>
-                        <p className="text-sm text-muted-foreground">Automatically play next video</p>
-                      </div>
-                      <Switch id="autoplay" defaultChecked />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Language & Region */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Globe className="h-5 w-5" />
-                      Language & Region
-                    </CardTitle>
-                    <CardDescription>Set your preferred language and region</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="language">Language</Label>
-                      <Select defaultValue="en">
-                        <SelectTrigger id="language">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                          <SelectItem value="hi">Hindi</SelectItem>
-                          <SelectItem value="it">Italian</SelectItem>
-                          <SelectItem value="ja">Japanese</SelectItem>
-                          <SelectItem value="ru">Russian</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="ur">Urdu</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="region">Region</Label>
-                      <Select defaultValue="us">
-                        <SelectTrigger id="region">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {countries.map((country) => (
-                            <SelectItem key={country.code} value={country.code}>
-                              {country.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Theme */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Moon className="h-5 w-5" />
+                      {theme === 'dark' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
                       Appearance
                     </CardTitle>
-                    <CardDescription>Customize the look and feel</CardDescription>
+                    <CardDescription>Customize how the app looks</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="theme">Theme</Label>
-                      <Select defaultValue="dark">
-                        <SelectTrigger id="theme">
-                          <SelectValue />
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Theme</Label>
+                        <p className="text-sm text-muted-foreground">Choose between light, dark, or system theme</p>
+                      </div>
+                      <Select value={theme} onValueChange={setTheme}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Select theme" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="light">
@@ -994,9 +1349,9 @@ export default function Profile() {
                               Dark
                             </div>
                           </SelectItem>
-                          <SelectItem value="auto">
+                          <SelectItem value="system">
                             <div className="flex items-center gap-2">
-                              <Globe className="h-4 w-4" />
+                              <Settings className="h-4 w-4" />
                               System
                             </div>
                           </SelectItem>
@@ -1005,6 +1360,17 @@ export default function Profile() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* More Settings Link */}
+                <div className="flex items-center justify-center py-4">
+                  <Link
+                    to="/settings"
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    More settings (Account, Privacy, Notifications, Preferences)
+                  </Link>
+                </div>
 
                 {/* Danger Zone */}
                 <Card className="border-destructive/50">
@@ -1029,7 +1395,10 @@ export default function Profile() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={handleClearHistory}
+                          >
                             Clear History
                           </AlertDialogAction>
                         </AlertDialogFooter>

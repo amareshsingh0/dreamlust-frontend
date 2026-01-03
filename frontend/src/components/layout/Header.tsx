@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut, History } from 'lucide-react';
+import { Search, Bell, Menu, X, User, Settings, Moon, Sun, LogOut, History, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,7 +34,7 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showCommandDialog, setShowCommandDialog] = useState(false);
-  const _isCreator = user?.role === 'CREATOR' || user?.role === 'MODERATOR' || user?.role === 'ADMIN';
+  const isCreator = user?.isCreator || user?.role === 'CREATOR' || user?.role === 'MODERATOR' || user?.role === 'ADMIN';
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -201,10 +201,10 @@ export function Header({ onMenuToggle, isMenuOpen }: HeaderProps) {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative"
             asChild
             aria-label="Notifications"
           >

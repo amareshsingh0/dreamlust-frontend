@@ -8,7 +8,7 @@ import { CURRENCY_SYMBOLS } from './constants';
 /**
  * Format price with currency symbol
  */
-export function formatPrice(amount: number, currency: string = 'USD'): string {
+export function formatPrice(amount: number, currency: string = 'INR'): string {
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
   
   // Format number based on currency
@@ -38,7 +38,7 @@ export function formatPrice(amount: number, currency: string = 'USD'): string {
 /**
  * Format price for display (with locale-aware formatting)
  */
-export function formatPriceLocalized(amount: number, currency: string = 'USD', locale: string = 'en'): string {
+export function formatPriceLocalized(amount: number, currency: string = 'INR', locale: string = 'en'): string {
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',

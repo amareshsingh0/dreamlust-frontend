@@ -5,6 +5,7 @@ import { userRateLimiter, tipRateLimiter } from '../middleware/rateLimit';
 import { validateBody, validateQuery, validateParams } from '../middleware/validation';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../lib/errors';
 import { createTipSchema, tipQuerySchema, confirmPaymentSchema } from '../schemas/tip';
+import { asyncHandler } from '../middleware/asyncHandler';
 import { z } from 'zod';
 import {
   razorpay,
@@ -24,7 +25,7 @@ router.post(
   authenticate,
   tipRateLimiter,
   validateBody(createTipSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { toCreatorId, amount, currency, message, isAnonymous } = req.body;
 
@@ -52,7 +53,7 @@ router.post(
         currency: currency || 'INR', // Use INR for Razorpay
         message: message || null,
         isAnonymous: isAnonymous || false,
-        status: 'PENDING',
+        status: 'pending',
       },
       include: {
         fromUser: {
@@ -74,22 +75,91 @@ router.post(
       },
     });
 
+    // In development mode without Razorpay, auto-complete the tip
     if (!razorpay) {
+      if (process.env.NODE_ENV === 'development') {
+        // Auto-complete tip in development mode
+        const completedTip = await prisma.tip.update({
+          where: { id: tip.id },
+          data: {
+            status: 'completed',
+            transactionId: `dev_tip_${Date.now()}`,
+          },
+          include: {
+            fromUser: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatar: true,
+              },
+            },
+            toCreator: {
+              select: {
+                id: true,
+                displayName: true,
+                handle: true,
+                avatar: true,
+              },
+            },
+          },
+        });
+
+        return res.status(201).json({
+          success: true,
+          data: {
+            tip: completedTip,
+            paymentOrder: null,
+          },
+          message: 'Tip completed (development mode - no payment required).',
+        });
+      }
       throw new ValidationError('Razorpay is not configured');
     }
 
     // Create Razorpay payment order
-    const order = await createPaymentOrder(
-      amount,
-      currency || 'INR', // Use INR for Razorpay
-      `tip_${tip.id}_${Date.now()}`,
-      {
-        tipId: tip.id,
-        fromUserId: userId,
-        toCreatorId: toCreatorId,
-        type: 'tip',
-      }
-    );
+    let order;
+    try {
+      console.log('[Tips] Creating Razorpay order for amount:', amount, 'INR');
+      console.log('[Tips] Razorpay Key ID:', env.RAZORPAY_KEY_ID?.substring(0, 15) + '...');
+
+      // Create short receipt (max 40 chars for Razorpay)
+      // tip.id is a UUID (36 chars), so we take first 8 chars without dashes
+      const shortTipId = tip.id.replace(/-/g, '').substring(0, 8);
+      const shortTimestamp = String(Date.now()).slice(-8);
+      const receipt = `tip_${shortTipId}_${shortTimestamp}`; // ~21 chars
+
+      order = await createPaymentOrder(
+        amount,
+        currency || 'INR', // Use INR for Razorpay
+        receipt,
+        {
+          tipId: tip.id,
+          fromUserId: userId,
+          toCreatorId: toCreatorId,
+          type: 'tip',
+        }
+      );
+
+      console.log('[Tips] Razorpay order created successfully:', order.id);
+    } catch (razorpayError: any) {
+      console.error('[Tips] Razorpay order creation failed:', {
+        message: razorpayError?.message,
+        error: razorpayError?.error,
+        statusCode: razorpayError?.statusCode,
+        description: razorpayError?.error?.description,
+      });
+
+      // Delete the pending tip
+      await prisma.tip.delete({ where: { id: tip.id } });
+
+      // Return actual error message so user knows what went wrong
+      const errorMessage = razorpayError?.error?.description ||
+        razorpayError?.message ||
+        'Payment service error. Please check Razorpay credentials.';
+
+      throw new ValidationError(`Razorpay Error: ${errorMessage}`);
+    }
 
     // Update tip with Razorpay order ID
     const updatedTip = await prisma.tip.update({
@@ -133,7 +203,7 @@ router.post(
       },
       message: 'Tip created. Please complete payment.',
     });
-  }
+  })
 );
 
 /**
@@ -145,7 +215,7 @@ router.get(
   authenticate,
   userRateLimiter,
   validateQuery(tipQuerySchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { creatorId, status, page, limit } = req.query as unknown as {
       creatorId?: string;
@@ -213,7 +283,7 @@ router.get(
         },
       },
     });
-  }
+  })
 );
 
 /**
@@ -229,7 +299,7 @@ router.get(
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
   })),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { creatorId } = req.params;
     const { page, limit } = req.query as unknown as { page: number; limit: number };
 
@@ -250,7 +320,7 @@ router.get(
       prisma.tip.findMany({
         where: {
           toCreatorId: creatorId,
-          status: 'COMPLETED',
+          status: 'completed',
         },
         include: {
           fromUser: {
@@ -271,7 +341,7 @@ router.get(
       prisma.tip.count({
         where: {
           toCreatorId: creatorId,
-          status: 'COMPLETED',
+          status: 'completed',
         },
       }),
     ]);
@@ -294,7 +364,7 @@ router.get(
         },
       },
     });
-  }
+  })
 );
 
 /**
@@ -306,7 +376,7 @@ router.get(
   authenticate,
   userRateLimiter,
   validateParams(z.object({ id: z.string() })),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.userId;
 
@@ -350,7 +420,7 @@ router.get(
       success: true,
       data: tip,
     });
-  }
+  })
 );
 
 /**
@@ -363,7 +433,7 @@ router.post(
   tipRateLimiter,
   validateParams(z.object({ id: z.string() })),
   validateBody(confirmPaymentSchema),
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { id: tipId } = req.params;
     const { paymentIntentId } = req.body;
     const userId = req.user!.userId;
@@ -404,7 +474,7 @@ router.post(
       if (payment.status !== 'captured') {
         await prisma.tip.update({
           where: { id: tipId },
-          data: { status: 'FAILED' },
+          data: { status: 'failed' },
         });
         throw new ValidationError('Payment not captured');
       }
@@ -413,7 +483,7 @@ router.post(
       const updatedTip = await prisma.tip.update({
         where: { id: tipId },
         data: {
-          status: 'COMPLETED',
+          status: 'completed',
           transactionId: payment.id,
         },
       });
@@ -465,11 +535,11 @@ router.post(
       // Update tip status to failed
       await prisma.tip.update({
         where: { id: tipId },
-        data: { status: 'FAILED' },
+        data: { status: 'failed' },
       });
       throw new ValidationError(error.message || 'Payment confirmation failed');
     }
-  }
+  })
 );
 
 export default router;

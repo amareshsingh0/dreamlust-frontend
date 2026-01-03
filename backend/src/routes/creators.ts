@@ -2,11 +2,21 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { userRateLimiter } from '../middleware/rateLimit';
-import { NotFoundError, ValidationError } from '../lib/errors';
+import { NotFoundError, ValidationError, ForbiddenError } from '../lib/errors';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { z } from 'zod';
-import { validateQuery } from '../middleware/validation';
+import { validateQuery, validateBody } from '../middleware/validation';
 import { awardPoints } from '../lib/loyalty/points';
+
+// Schema for updating creator profile
+const updateCreatorSchema = z.object({
+  displayName: z.string().min(2).max(50).optional(),
+  bio: z.string().max(500).optional(),
+  location: z.string().max(100).optional(),
+  website: z.string().url().optional().or(z.literal('')),
+  avatar: z.string().optional(),
+  banner: z.string().optional(),
+});
 
 const router = Router();
 
@@ -165,6 +175,15 @@ router.get(
         totalViews: true,
         totalLikes: true,
         status: true,
+        userId: true,
+        user: {
+          select: {
+            avatar: true,
+            bio: true,
+            socialLinks: true,
+            displayName: true,
+          },
+        },
       },
     });
 
@@ -172,24 +191,50 @@ router.get(
       throw new NotFoundError('Creator');
     }
 
-    // Check if user is following this creator
-    let isFollowing = false;
-    if (userId) {
-      const subscription = await prisma.subscription.findFirst({
+    // Compute actual stats from Content table (more accurate than cached counters)
+    const [contentStats, isFollowingResult] = await Promise.all([
+      // Aggregate content stats
+      prisma.content.aggregate({
         where: {
-          subscriberId: userId,
           creatorId: creator.id,
+          status: 'PUBLISHED',
+          isPublic: true,
+          deletedAt: null,
         },
-      });
-      isFollowing = !!subscription && subscription.status === 'ACTIVE';
-    }
+        _count: { id: true },
+        _sum: { viewCount: true, likeCount: true },
+      }),
+      // Check if user is following this creator
+      userId
+        ? prisma.subscription.findFirst({
+            where: {
+              subscriberId: userId,
+              creatorId: creator.id,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
 
+    const isFollowing = !!isFollowingResult && isFollowingResult.status === 'ACTIVE';
+    const computedContentCount = contentStats._count.id || 0;
+    const computedTotalViews = contentStats._sum.viewCount || 0;
+    const computedTotalLikes = contentStats._sum.likeCount || 0;
+
+    // Merge user data with creator data (user data takes precedence for avatar/bio if creator's are null)
     res.json({
       success: true,
       data: {
         ...creator,
-        // Convert BigInt to string for JSON serialization
-        totalViews: creator.totalViews ? String(creator.totalViews) : null,
+        // Use creator avatar/bio if set, otherwise fall back to user's
+        avatar: creator.avatar || creator.user?.avatar,
+        banner: creator.banner, // Banner is only on Creator model
+        bio: creator.bio || creator.user?.bio,
+        displayName: creator.displayName || creator.user?.displayName,
+        socialLinks: creator.user?.socialLinks,
+        // Use computed stats (more accurate than cached counters which may not be updated)
+        contentCount: computedContentCount,
+        totalViews: String(computedTotalViews),
+        totalLikes: computedTotalLikes,
         isFollowing,
       },
     });
@@ -307,16 +352,15 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
 
-    // Get follows for creators (not users)
-    const [follows, total] = await Promise.all([
-      prisma.follow.findMany({
+    // Get subscriptions (follows are stored as subscriptions with amount=0)
+    const [subscriptions, total] = await Promise.all([
+      prisma.subscription.findMany({
         where: {
-          followerId: userId,
-          followingType: 'creator',
-          followingCreatorId: { not: null },
+          subscriberId: userId,
+          status: 'ACTIVE',
         },
         include: {
-          followingCreator: {
+          creator: {
             select: {
               id: true,
               handle: true,
@@ -335,11 +379,10 @@ router.get(
         skip,
         take: limit,
       }),
-      prisma.follow.count({
+      prisma.subscription.count({
         where: {
-          followerId: userId,
-          followingType: 'creator',
-          followingCreatorId: { not: null },
+          subscriberId: userId,
+          status: 'ACTIVE',
         },
       }),
     ]);
@@ -347,13 +390,138 @@ router.get(
     res.json({
       success: true,
       data: {
-        creators: follows.map(follow => follow.followingCreator).filter(c => c !== null),
+        creators: subscriptions.map(sub => sub.creator),
         pagination: {
           page,
           limit,
           total,
           pages: Math.ceil(total / limit),
         },
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/creators/me
+ * Get current user's creator profile
+ */
+router.get(
+  '/me',
+  authenticate,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+
+    const creator = await prisma.creator.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        handle: true,
+        displayName: true,
+        avatar: true,
+        banner: true,
+        bio: true,
+        location: true,
+        website: true,
+        isVerified: true,
+        followerCount: true,
+        followingCount: true,
+        contentCount: true,
+        totalViews: true,
+        totalLikes: true,
+        status: true,
+        userId: true,
+      },
+    });
+
+    if (!creator) {
+      throw new NotFoundError('Creator profile not found. You may need to become a creator first.');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...creator,
+        totalViews: creator.totalViews ? String(creator.totalViews) : null,
+      },
+    });
+  })
+);
+
+/**
+ * PUT /api/creators/me
+ * Update current user's creator profile
+ */
+router.put(
+  '/me',
+  authenticate,
+  userRateLimiter,
+  validateBody(updateCreatorSchema),
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    const { displayName, bio, location, website, avatar, banner } = req.body;
+
+    // Check if user has a creator profile
+    const existingCreator = await prisma.creator.findUnique({
+      where: { userId },
+    });
+
+    if (!existingCreator) {
+      throw new NotFoundError('Creator profile not found. You may need to become a creator first.');
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (bio !== undefined) updateData.bio = bio;
+    if (location !== undefined) updateData.location = location;
+    if (website !== undefined) updateData.website = website || null;
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (banner !== undefined) updateData.banner = banner;
+
+    // Update creator profile
+    const updatedCreator = await prisma.creator.update({
+      where: { userId },
+      data: updateData,
+      select: {
+        id: true,
+        handle: true,
+        displayName: true,
+        avatar: true,
+        banner: true,
+        bio: true,
+        location: true,
+        website: true,
+        isVerified: true,
+        followerCount: true,
+        followingCount: true,
+        contentCount: true,
+        totalViews: true,
+        totalLikes: true,
+        status: true,
+      },
+    });
+
+    // Also update user's displayName and avatar if changed
+    if (displayName !== undefined || avatar !== undefined || bio !== undefined) {
+      const userUpdateData: any = {};
+      if (displayName !== undefined) userUpdateData.displayName = displayName;
+      if (avatar !== undefined) userUpdateData.avatar = avatar;
+      if (bio !== undefined) userUpdateData.bio = bio;
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: userUpdateData,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Creator profile updated successfully',
+      data: {
+        ...updatedCreator,
+        totalViews: updatedCreator.totalViews ? String(updatedCreator.totalViews) : null,
       },
     });
   })
@@ -415,6 +583,138 @@ router.get(
         // Convert BigInt to string for JSON serialization
         totalViews: creator.totalViews ? String(creator.totalViews) : null,
         isFollowing,
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/creators/:id/content
+ * Get content by a specific creator (paginated)
+ * If the requesting user is the creator, show all content (including unpublished)
+ */
+router.get(
+  '/:id/content',
+  optionalAuth,
+  userRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id: creatorId } = req.params;
+    const userId = req.user?.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const type = req.query.type as string | undefined;
+    const skip = (page - 1) * limit;
+
+    // Verify creator exists and get userId
+    const creator = await prisma.creator.findUnique({
+      where: { id: creatorId },
+      select: { id: true, userId: true },
+    });
+
+    if (!creator) {
+      throw new NotFoundError('Creator');
+    }
+
+    // Check if requesting user is the creator (owner)
+    const isOwner = userId && creator.userId === userId;
+
+    // Build where clause
+    // If owner, show all content; otherwise only published and public
+    const where: any = {
+      creatorId,
+    };
+
+    if (!isOwner) {
+      where.status = 'PUBLISHED';
+      where.isPublic = true;
+    }
+
+    if (type) {
+      where.type = type.toUpperCase();
+    }
+
+    const [content, total] = await Promise.all([
+      prisma.content.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          type: true,
+          thumbnail: true,
+          mediaUrl: true,
+          duration: true,
+          viewCount: true,
+          likeCount: true,
+          commentCount: true,
+          isNSFW: true,
+          ageRestricted: true,
+          isPremium: true,
+          isPublic: true,
+          status: true,
+          resolution: true,
+          publishedAt: true,
+          createdAt: true,
+          creator: {
+            select: {
+              id: true,
+              userId: true,
+              handle: true,
+              displayName: true,
+              avatar: true,
+              isVerified: true,
+            },
+          },
+        },
+        orderBy: isOwner ? { createdAt: 'desc' } : { publishedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.content.count({ where }),
+    ]);
+
+    // Transform content to match frontend Content type
+    const transformedContent = content.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      type: item.type.toLowerCase(),
+      thumbnail: item.thumbnail || '',
+      mediaUrl: item.mediaUrl,
+      duration: item.duration ? Number(item.duration) : 0,
+      views: item.viewCount || 0,
+      likes: item.likeCount || 0,
+      commentCount: item.commentCount || 0,
+      createdAt: item.createdAt?.toISOString() || new Date().toISOString(),
+      publishedAt: item.publishedAt?.toISOString(),
+      isNSFW: item.isNSFW,
+      ageRestricted: item.ageRestricted,
+      isPremium: item.isPremium || false,
+      isPublic: item.isPublic,
+      status: item.status,
+      quality: item.resolution ? [item.resolution] : [],
+      tags: [],
+      category: '',
+      creator: {
+        id: item.creator.id,
+        userId: item.creator.userId,
+        name: item.creator.displayName || item.creator.handle,
+        username: item.creator.handle,
+        avatar: item.creator.avatar || '',
+        isVerified: item.creator.isVerified || false,
+      },
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        content: transformedContent,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       },
     });
   })

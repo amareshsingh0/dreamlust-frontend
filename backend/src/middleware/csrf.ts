@@ -113,17 +113,25 @@ export async function generateCsrfToken(req: Request): Promise<string> {
  * Verify CSRF token
  */
 export async function verifyCsrfToken(req: Request, token: string): Promise<boolean> {
-  // Check if token exists in Redis (one-time use tokens)
+  // Check if token exists in Redis (allow reuse within 15 min window)
   const tokenKey = `csrf:token:${crypto.createHash('sha256').update(token).digest('hex')}`;
   if (isRedisAvailable() && redis) {
     const exists = await redis.get(tokenKey);
     if (!exists) {
-      return false; // Token not found or expired
+      // Token not in Redis - verify against secret anyway (for non-Redis flow)
+      // This allows tokens generated before Redis connection to still work
+      const secret = await getCsrfSecret(req);
+      const isValid = tokens.verify(secret, token);
+      if (isValid) {
+        // Store valid token in Redis for future use
+        await redis.setex(tokenKey, 900, '1'); // 15 minutes
+      }
+      return isValid;
     }
-    // Delete token after use (one-time use)
-    await redis.del(tokenKey);
+    // Token exists in Redis - extend TTL but don't delete (allow reuse)
+    await redis.expire(tokenKey, 900);
   }
-  
+
   const secret = await getCsrfSecret(req);
   return tokens.verify(secret, token);
 }
@@ -133,36 +141,44 @@ export async function verifyCsrfToken(req: Request, token: string): Promise<bool
  * Skips CSRF for GET, HEAD, OPTIONS requests
  * Requires CSRF token in header or body for state-changing requests
  */
-export function csrfProtect(req: Request, res: Response, next: NextFunction): void {
-  // Skip CSRF for safe methods
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    return next();
-  }
+export async function csrfProtect(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // Skip CSRF in development mode for easier testing
+    if (process.env.NODE_ENV === 'development') {
+      return next();
+    }
 
-  // Skip CSRF for webhook endpoints (they use their own verification)
-  if (req.path.startsWith('/api/webhooks')) {
-    return next();
-  }
+    // Skip CSRF for safe methods
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      return next();
+    }
 
-  // Get CSRF token from header or body
-  const token = req.headers['x-csrf-token'] || 
-                req.headers['csrf-token'] || 
-                req.body?.csrfToken ||
-                req.query?.csrfToken;
+    // Skip CSRF for webhook endpoints (they use their own verification)
+    if (req.path.startsWith('/api/webhooks')) {
+      return next();
+    }
 
-  if (!token || typeof token !== 'string') {
-    throw new UnauthorizedError('CSRF token is required. Please include X-CSRF-Token header.');
-  }
+    // Get CSRF token from header or body
+    const token = req.headers['x-csrf-token'] ||
+                  req.headers['csrf-token'] ||
+                  req.body?.csrfToken ||
+                  req.query?.csrfToken;
 
-  // Verify token (async)
-  verifyCsrfToken(req, token).then((isValid) => {
+    if (!token || typeof token !== 'string') {
+      throw new UnauthorizedError('CSRF token is required. Please include X-CSRF-Token header.');
+    }
+
+    // Verify token (async - now using await)
+    const isValid = await verifyCsrfToken(req, token as string);
+
     if (!isValid) {
       throw new UnauthorizedError('Invalid CSRF token. Please refresh the page and try again.');
     }
+
     next();
-  }).catch((error) => {
+  } catch (error) {
     next(error);
-  });
+  }
 }
 
 /**

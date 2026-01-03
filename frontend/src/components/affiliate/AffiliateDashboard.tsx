@@ -299,7 +299,7 @@ export function AffiliateDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.totalEarnings.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{stats.totalEarnings.toFixed(0)}</div>
               <p className="text-xs text-muted-foreground">All time earnings</p>
             </CardContent>
           </Card>
@@ -310,7 +310,7 @@ export function AffiliateDashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.pendingPayout.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{stats.pendingPayout.toFixed(0)}</div>
               <p className="text-xs text-muted-foreground">Awaiting payment</p>
             </CardContent>
           </Card>
@@ -383,7 +383,7 @@ export function AffiliateDashboard() {
                   <div className="text-right">
                     {referral.commissionAmount ? (
                       <p className="font-semibold text-green-600">
-                        ${Number(referral.commissionAmount).toFixed(2)}
+                        ₹{Number(referral.commissionAmount).toFixed(0)}
                       </p>
                     ) : (
                       <span className="text-muted-foreground">-</span>

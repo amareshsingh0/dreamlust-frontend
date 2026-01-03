@@ -4,60 +4,85 @@ import { env } from '../config/env';
 /**
  * Redis Client Singleton
  * Provides caching layer for frequently accessed data
+ *
+ * Redis is OPTIONAL - the server works fine without it.
+ * If Redis isn't available, caching is simply disabled.
  */
 
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined;
+  redisDisabled: boolean;
 };
 
+// Track if Redis has been disabled due to connection failures
+let redisDisabled = globalForRedis.redisDisabled || false;
+let connectionAttempted = false;
+
 // Create Redis client if REDIS_URL is provided, otherwise return null
-export const redis: Redis | null = env.REDIS_URL
-  ? (globalForRedis.redis ??
-    new Redis(env.REDIS_URL, {
+function createRedisClient(): Redis | null {
+  // Skip if already disabled or no URL configured
+  if (redisDisabled || !env.REDIS_URL) {
+    return null;
+  }
+
+  // Return existing client if available
+  if (globalForRedis.redis) {
+    return globalForRedis.redis;
+  }
+
+  try {
+    const client = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: null, // Disable automatic retries to prevent unhandled rejections
       lazyConnect: true, // Don't connect immediately
       enableOfflineQueue: false, // Don't queue commands when disconnected
+      connectTimeout: 5000, // 5 second timeout
       retryStrategy: (times) => {
-        // Stop retrying after 3 attempts
-        if (times > 3) {
-          console.warn('⚠️  Redis connection failed after 3 attempts. Running without Redis cache.');
+        // Stop retrying after 2 attempts to fail fast
+        if (times > 2) {
+          redisDisabled = true;
+          globalForRedis.redisDisabled = true;
           return null; // Return null to stop retrying
         }
-        const delay = Math.min(times * 50, 2000);
-        return delay;
+        return Math.min(times * 100, 1000);
       },
-      reconnectOnError: (err) => {
-        const targetError = 'READONLY';
-        if (err.message.includes(targetError)) {
-          return true; // Reconnect on READONLY error
-        }
-        return false; // Don't reconnect on other errors
-      },
-    }))
-  : null;
+      reconnectOnError: () => false, // Don't auto-reconnect on errors
+    });
 
-if (env.REDIS_URL && process.env.NODE_ENV !== 'production') {
-  globalForRedis.redis = redis as Redis;
+    return client;
+  } catch {
+    redisDisabled = true;
+    globalForRedis.redisDisabled = true;
+    return null;
+  }
+}
+
+export const redis: Redis | null = createRedisClient();
+
+if (redis && process.env.NODE_ENV !== 'production') {
+  globalForRedis.redis = redis;
 }
 
 // Graceful shutdown and connection handling
-if (redis) {
+if (redis && !connectionAttempted) {
+  connectionAttempted = true;
   let errorLogged = false;
-  
+
   // Suppress error logging to avoid spam
-  redis.on('error', (err) => {
+  redis.on('error', () => {
     // Only log once, not repeatedly
     if (!errorLogged) {
       errorLogged = true;
-      console.warn('⚠️  Redis connection error. Running without cache.');
-      console.warn('   To use Redis caching, ensure Redis is running on the configured URL.');
+      // Disable Redis to prevent further connection attempts
+      redisDisabled = true;
+      globalForRedis.redisDisabled = true;
     }
-    // Prevent error from crashing the process
     // Errors are handled gracefully - server continues without Redis
   });
 
   redis.on('connect', () => {
-    errorLogged = false; // Reset on successful connection
+    errorLogged = false;
+    redisDisabled = false;
+    globalForRedis.redisDisabled = false;
     console.log('✅ Redis connected');
   });
 
@@ -65,26 +90,18 @@ if (redis) {
     console.log('✅ Redis ready');
   });
 
-  redis.on('close', () => {
-    // Connection closed - this is normal, don't log as error
-  });
-
-  redis.on('end', () => {
-    // Connection ended - this is normal, don't log as error
-  });
-
-  // Attempt to connect, but don't crash if it fails
-  redis.connect().catch((err) => {
-    // Error already handled by 'error' event handler
-    // This catch is just to prevent unhandled promise rejection
+  // Attempt to connect silently - don't crash if it fails
+  redis.connect().catch(() => {
+    // Silently disable Redis - it's optional
+    redisDisabled = true;
+    globalForRedis.redisDisabled = true;
   });
 
   process.on('SIGINT', async () => {
     if (redis && redis.status === 'ready') {
       try {
         await redis.quit();
-        console.log('Redis connection closed');
-      } catch (err) {
+      } catch {
         // Ignore errors during shutdown
       }
     }
@@ -125,7 +142,11 @@ export class CacheService {
     if (!isRedisAvailable()) return false;
 
     try {
-      await redis!.setex(key, ttlSeconds, JSON.stringify(value));
+      // Use replacer to handle BigInt serialization
+      const jsonString = JSON.stringify(value, (_, val) =>
+        typeof val === 'bigint' ? Number(val) : val
+      );
+      await redis!.setex(key, ttlSeconds, jsonString);
       return true;
     } catch (error) {
       console.error(`Cache set error for key ${key}:`, error);
