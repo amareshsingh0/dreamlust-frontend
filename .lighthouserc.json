@@ -1,0 +1,50 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "npm run preview",
+      "startServerReadyPattern": "Local:|ready in|vite preview|http://localhost:3000|http://127.0.0.1:3000|http://localhost:5173|http://127.0.0.1:5173|VITE.*ready",
+      "startServerReadyTimeout": 120000,
+      "wait": 5000,
+      "url": [
+        "http://localhost:3000/",
+        "http://localhost:3000/search",
+        "http://localhost:3000/explore",
+        "http://localhost:3000/trending"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "cpuSlowdownMultiplier": 1
+        },
+        "screenEmulation": {
+          "mobile": false,
+          "width": 1350,
+          "height": 940,
+          "deviceScaleFactor": 1
+        }
+      },
+      "chromeFlags": "--disable-gpu --no-sandbox"
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.9 }],
+        "categories:accessibility": ["error", { "minScore": 0.95 }],
+        "categories:best-practices": ["error", { "minScore": 0.9 }],
+        "categories:seo": ["error", { "minScore": 0.9 }],
+        "first-contentful-paint": ["error", { "maxNumericValue": 2000 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 2500 }],
+        "interactive": ["error", { "maxNumericValue": 3500 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 300 }],
+        "cumulative-layout-shift": ["warn", { "maxNumericValue": 0.1 }],
+        "speed-index": ["warn", { "maxNumericValue": 3000 }],
+        "total-byte-weight": ["error", { "maxNumericValue": 1000000 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

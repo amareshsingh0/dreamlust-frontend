@@ -1,0 +1,847 @@
+/* Fonts are loaded via link tag in index.html for better performance */
+/* Removed @import to prevent render blocking */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Smooth focus ring for accessibility */
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+/* PassionFantasia Design System - Romantic & Sensual Aesthetic */
+/* Colors: Hot Pink, Deep Purple, Warm Rose, Passionate Red */
+
+@layer base {
+  :root {
+    /* Light mode - Warm romantic palette */
+    --background: 340 20% 98%;
+    --foreground: 300 30% 10%;
+
+    --card: 340 25% 97%;
+    --card-foreground: 300 30% 10%;
+
+    --popover: 340 25% 97%;
+    --popover-foreground: 300 30% 10%;
+
+    /* Primary - Hot Pink (passion & romance) */
+    --primary: 330 90% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Deep Purple (elegance) */
+    --secondary: 280 50% 94%;
+    --secondary-foreground: 280 50% 25%;
+
+    --muted: 300 20% 94%;
+    --muted-foreground: 300 20% 40%;
+
+    /* Accent - Vibrant Rose-Purple */
+    --accent: 300 70% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 300 20% 88%;
+    --input: 300 20% 90%;
+    --ring: 330 90% 55%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 340 25% 97%;
+    --sidebar-foreground: 300 30% 10%;
+    --sidebar-primary: 330 90% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 50% 94%;
+    --sidebar-accent-foreground: 280 50% 25%;
+    --sidebar-border: 300 20% 88%;
+    --sidebar-ring: 330 90% 55%;
+
+    /* Custom gradient tokens - Romantic Pink to Purple */
+    --gradient-primary: linear-gradient(135deg, #ff69b4 0%, #ee5a6f 30%, #c44569 60%, #764ba2 100%);
+    --gradient-secondary: linear-gradient(135deg, #ff6b6b 0%, #ff69b4 50%, #f093fb 100%);
+    --gradient-radial: radial-gradient(circle at center, rgba(255, 50, 100, 0.3), rgba(138, 43, 226, 0.3), transparent);
+    --gradient-dark-overlay: linear-gradient(to bottom, rgba(20, 10, 30, 0.95), rgba(40, 20, 50, 0.9));
+    --glow-primary: 0 0 40px rgba(255, 105, 180, 0.4);
+    --glow-accent: 0 0 40px rgba(138, 43, 226, 0.4);
+    --glow-neon: 0 0 10px rgba(255, 105, 180, 0.8), 0 0 20px rgba(255, 105, 180, 0.6), 0 0 30px rgba(138, 43, 226, 0.4);
+  }
+
+  .dark {
+    /* Dark mode - Deep sensual palette */
+    --background: 300 50% 4%;
+    --foreground: 340 20% 95%;
+
+    --card: 295 45% 7%;
+    --card-foreground: 340 20% 95%;
+
+    --popover: 295 45% 8%;
+    --popover-foreground: 340 20% 95%;
+
+    /* Primary - Hot Pink (passion flame) */
+    --primary: 330 85% 60%;
+    --primary-foreground: 340 20% 98%;
+
+    /* Secondary - Deep Purple tones */
+    --secondary: 285 40% 15%;
+    --secondary-foreground: 340 20% 95%;
+
+    --muted: 290 35% 12%;
+    --muted-foreground: 300 20% 65%;
+
+    /* Accent - Vibrant Purple-Pink (flowing sensuality) */
+    --accent: 290 75% 60%;
+    --accent-foreground: 340 20% 98%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 340 20% 98%;
+
+    --border: 290 30% 18%;
+    --input: 290 35% 14%;
+    --ring: 330 85% 65%;
+
+    --sidebar-background: 300 50% 5%;
+    --sidebar-foreground: 340 20% 95%;
+    --sidebar-primary: 330 85% 60%;
+    --sidebar-primary-foreground: 340 20% 98%;
+    --sidebar-accent: 285 40% 15%;
+    --sidebar-accent-foreground: 340 20% 95%;
+    --sidebar-border: 290 30% 18%;
+    --sidebar-ring: 330 85% 65%;
+
+    /* Enhanced dark mode gradient tokens - Romantic & Sensual */
+    --gradient-primary: linear-gradient(135deg, #ff69b4 0%, #ee5a6f 30%, #c44569 60%, #764ba2 100%);
+    --gradient-secondary: linear-gradient(135deg, #ff6b6b 0%, #ff69b4 50%, #f093fb 100%);
+    --gradient-radial: radial-gradient(circle at center, rgba(255, 50, 100, 0.25), rgba(138, 43, 226, 0.25), transparent);
+    --gradient-dark-overlay: linear-gradient(to bottom, rgba(20, 10, 30, 0.98), rgba(40, 20, 50, 0.95));
+    --glow-primary: 0 0 50px rgba(255, 105, 180, 0.5);
+    --glow-accent: 0 0 50px rgba(138, 43, 226, 0.5);
+    --glow-neon: 0 0 10px rgba(255, 105, 180, 0.9), 0 0 25px rgba(255, 105, 180, 0.7), 0 0 40px rgba(138, 43, 226, 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    overflow-x: hidden;
+  }
+
+  html {
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+@layer components {
+  /* ========================================
+     GRADIENT TEXT EFFECTS - Romantic Theme
+     ======================================== */
+
+  /* Primary gradient text - Hot pink to deep purple */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #ff69b4 0%, #ee5a6f 30%, #c44569 60%, #764ba2 100%);
+  }
+
+  /* Horizontal pink gradient */
+  .gradient-text-horizontal {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(90deg, #ff69b4 0%, #f093fb 50%, #667eea 100%);
+  }
+
+  /* Vertical passion gradient */
+  .gradient-text-vertical {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  }
+
+  /* Romantic rose gradient */
+  .gradient-text-passion {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #ff6b6b 0%, #ff69b4 50%, #c44569 100%);
+  }
+
+  /* Sensual purple-pink flow */
+  .gradient-text-sensual {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  }
+
+  /* Hot pink accent */
+  .gradient-text-hot {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #ff1493 0%, #ff69b4 50%, #ff85a2 100%);
+  }
+
+  /* ========================================
+     GRADIENT BACKGROUNDS - Romantic Theme
+     ======================================== */
+
+  /* Primary romantic gradient */
+  .gradient-bg {
+    background-image: linear-gradient(135deg, #ff69b4 0%, #ee5a6f 30%, #c44569 60%, #764ba2 100%);
+  }
+
+  /* Horizontal passion gradient */
+  .gradient-bg-horizontal {
+    background-image: linear-gradient(90deg, #ff69b4 0%, #f093fb 50%, #667eea 100%);
+  }
+
+  /* Vertical sensual gradient */
+  .gradient-bg-vertical {
+    background-image: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  }
+
+  /* Rose passion gradient */
+  .gradient-bg-passion {
+    background-image: linear-gradient(135deg, #ff6b6b 0%, #ff69b4 50%, #c44569 100%);
+  }
+
+  /* Sensual purple gradient */
+  .gradient-bg-sensual {
+    background-image: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  }
+
+  /* Hot pink gradient */
+  .gradient-bg-hot {
+    background-image: linear-gradient(135deg, #ff1493 0%, #ff69b4 50%, #ff85a2 100%);
+  }
+
+  /* ========================================
+     RADIAL GRADIENT OVERLAYS - Depth & Glow
+     ======================================== */
+
+  /* Romantic radial overlay */
+  .gradient-radial-overlay {
+    background: radial-gradient(circle at center,
+      rgba(255, 50, 100, 0.3),
+      rgba(138, 43, 226, 0.3),
+      transparent);
+  }
+
+  /* Soft romantic glow */
+  .gradient-radial-soft {
+    background: radial-gradient(ellipse at top,
+      rgba(255, 105, 180, 0.2),
+      rgba(138, 43, 226, 0.15),
+      transparent 70%);
+  }
+
+  /* Passionate center glow */
+  .gradient-radial-passion {
+    background: radial-gradient(circle at center,
+      rgba(255, 20, 147, 0.25),
+      rgba(196, 69, 105, 0.2),
+      transparent 60%);
+  }
+
+  /* Purple mystique glow */
+  .gradient-radial-mystique {
+    background: radial-gradient(ellipse at bottom,
+      rgba(118, 75, 162, 0.3),
+      rgba(102, 126, 234, 0.2),
+      transparent 70%);
+  }
+
+  /* ========================================
+     DARK OVERLAYS - Sophisticated Sensuality
+     ======================================== */
+
+  /* Primary dark overlay */
+  .dark-overlay {
+    background: linear-gradient(to bottom,
+      rgba(20, 10, 30, 0.95),
+      rgba(40, 20, 50, 0.9));
+  }
+
+  /* Soft dark overlay */
+  .dark-overlay-soft {
+    background: linear-gradient(to bottom,
+      rgba(20, 10, 30, 0.8),
+      rgba(40, 20, 50, 0.7));
+  }
+
+  /* Romantic dark with pink tint */
+  .dark-overlay-romantic {
+    background: linear-gradient(to bottom,
+      rgba(30, 10, 25, 0.95),
+      rgba(50, 20, 40, 0.9));
+  }
+
+  /* Purple mystique overlay */
+  .dark-overlay-mystique {
+    background: linear-gradient(135deg,
+      rgba(20, 10, 40, 0.95),
+      rgba(40, 20, 60, 0.9));
+  }
+
+  /* ========================================
+     GLOW EFFECTS - Neon Romance
+     ======================================== */
+
+  /* Primary hot pink glow */
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  /* Accent purple glow */
+  .glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+
+  /* Full neon glow */
+  .glow-neon {
+    box-shadow: var(--glow-neon);
+  }
+
+  /* Hot pink neon glow */
+  .glow-hot-pink {
+    box-shadow:
+      0 0 10px rgba(255, 20, 147, 0.5),
+      0 0 20px rgba(255, 105, 180, 0.4),
+      0 0 40px rgba(255, 20, 147, 0.2);
+  }
+
+  /* Rose glow */
+  .glow-rose {
+    box-shadow:
+      0 0 15px rgba(255, 107, 107, 0.5),
+      0 0 30px rgba(238, 90, 111, 0.3);
+  }
+
+  /* Purple mystique glow */
+  .glow-mystique {
+    box-shadow:
+      0 0 15px rgba(138, 43, 226, 0.5),
+      0 0 30px rgba(118, 75, 162, 0.4),
+      0 0 50px rgba(102, 126, 234, 0.2);
+  }
+
+  /* ========================================
+     NEON TEXT GLOW - Romantic Atmosphere
+     ======================================== */
+
+  /* Hot pink text glow */
+  .neon-text-glow {
+    text-shadow:
+      0 0 10px rgba(255, 105, 180, 0.8),
+      0 0 20px rgba(255, 105, 180, 0.6),
+      0 0 30px rgba(255, 105, 180, 0.4);
+  }
+
+  /* Purple accent text glow */
+  .neon-text-glow-accent {
+    text-shadow:
+      0 0 10px rgba(138, 43, 226, 0.8),
+      0 0 20px rgba(138, 43, 226, 0.6),
+      0 0 30px rgba(102, 126, 234, 0.4);
+  }
+
+  /* Soft romantic text glow */
+  .neon-text-glow-soft {
+    text-shadow:
+      0 0 5px rgba(255, 105, 180, 0.5),
+      0 0 15px rgba(255, 105, 180, 0.3);
+  }
+
+  /* Rose text glow */
+  .neon-text-glow-rose {
+    text-shadow:
+      0 0 10px rgba(255, 107, 107, 0.8),
+      0 0 20px rgba(238, 90, 111, 0.6),
+      0 0 30px rgba(196, 69, 105, 0.4);
+  }
+
+  /* ========================================
+     NEON BOX GLOW - Sensual Containers
+     ======================================== */
+
+  /* Primary neon glow */
+  .neon-glow {
+    box-shadow:
+      0 0 10px rgba(255, 105, 180, 0.5),
+      0 0 20px rgba(255, 105, 180, 0.4),
+      0 0 40px rgba(138, 43, 226, 0.2),
+      0 0 60px rgba(102, 126, 234, 0.1);
+  }
+
+  /* Accent purple neon */
+  .neon-glow-accent {
+    box-shadow:
+      0 0 10px rgba(138, 43, 226, 0.5),
+      0 0 20px rgba(138, 43, 226, 0.4),
+      0 0 40px rgba(102, 126, 234, 0.2),
+      0 0 60px rgba(102, 126, 234, 0.1);
+  }
+
+  /* Strong passion neon */
+  .neon-glow-strong {
+    box-shadow:
+      0 0 15px rgba(255, 105, 180, 0.6),
+      0 0 30px rgba(255, 105, 180, 0.5),
+      0 0 60px rgba(138, 43, 226, 0.3),
+      0 0 90px rgba(102, 126, 234, 0.2);
+  }
+
+  /* Soft romantic neon */
+  .neon-glow-soft {
+    box-shadow:
+      0 0 5px rgba(255, 105, 180, 0.3),
+      0 0 15px rgba(255, 105, 180, 0.2),
+      0 0 30px rgba(138, 43, 226, 0.1);
+  }
+
+  /* ========================================
+     ANIMATED GRADIENT BORDERS - Movement
+     ======================================== */
+
+  /* Static gradient border */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(45deg, #ff69b4, #ee5a6f, #c44569, #764ba2) border-box;
+    border: 2px solid transparent;
+  }
+
+  /* Animated rotating gradient border */
+  .gradient-border-animated {
+    position: relative;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(var(--gradient-angle, 45deg), #ff69b4, #ee5a6f, #c44569, #764ba2, #ff69b4) border-box;
+    border: 2px solid transparent;
+    animation: gradient-border-shift 3s ease infinite;
+  }
+
+  /* Passion pulse border */
+  .gradient-border-pulse {
+    position: relative;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(45deg, #ff6b6b, #ee5a6f, #c44569) border-box;
+    border: 2px solid transparent;
+    animation: border-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes gradient-border-shift {
+    0% { --gradient-angle: 0deg; }
+    100% { --gradient-angle: 360deg; }
+  }
+
+  @keyframes border-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  @property --gradient-angle {
+    syntax: '<angle>';
+    initial-value: 45deg;
+    inherits: false;
+  }
+
+  /* ========================================
+     CARD HOVER EFFECTS - Sensual Interactions
+     ======================================== */
+
+  /* Basic card hover */
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02];
+    &:hover {
+      box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(255, 105, 180, 0.15);
+    }
+  }
+
+  /* Glowing card hover */
+  .card-hover-glow {
+    @apply transition-all duration-300 hover:scale-[1.02];
+    &:hover {
+      box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.3),
+        0 0 30px rgba(255, 105, 180, 0.25),
+        0 0 60px rgba(138, 43, 226, 0.15);
+    }
+  }
+
+  /* Passionate card hover */
+  .card-hover-passion {
+    @apply transition-all duration-300 hover:scale-[1.02];
+    &:hover {
+      box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.3),
+        0 0 25px rgba(255, 20, 147, 0.3),
+        0 0 50px rgba(196, 69, 105, 0.2);
+    }
+  }
+
+  /* ========================================
+     GLASS EFFECTS - Elegant Transparency
+     ======================================== */
+
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  .glass-strong {
+    @apply bg-card/90 backdrop-blur-2xl border border-border/60;
+  }
+
+  .glass-soft {
+    @apply bg-card/60 backdrop-blur-lg border border-border/40;
+  }
+
+  .glass-primary {
+    @apply bg-primary/10 backdrop-blur-xl border border-primary/20;
+  }
+
+  .glass-accent {
+    @apply bg-accent/10 backdrop-blur-xl border border-accent/20;
+  }
+
+  .glass-muted {
+    @apply bg-muted/50 backdrop-blur-lg border border-border/30;
+  }
+
+  /* Dark romantic glass */
+  .glass-dark {
+    background: rgba(20, 10, 30, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 105, 180, 0.1);
+  }
+
+  /* Pink tinted glass */
+  .glass-romantic {
+    background: rgba(255, 105, 180, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 105, 180, 0.15);
+  }
+
+  /* ========================================
+     SHIMMER EFFECTS - Premium Feel
+     ======================================== */
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 105, 180, 0.1),
+        transparent
+      );
+      animation: shimmer 2s infinite;
+    }
+  }
+
+  /* Romantic shimmer */
+  .shimmer-romantic {
+    position: relative;
+    overflow: hidden;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 20, 147, 0.15),
+        rgba(138, 43, 226, 0.1),
+        transparent
+      );
+      animation: shimmer 3s infinite;
+    }
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  /* ========================================
+     PULSE GLOW ANIMATIONS
+     ======================================== */
+
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(255, 105, 180, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(255, 105, 180, 0.6), 0 0 60px rgba(138, 43, 226, 0.3);
+    }
+  }
+
+  /* Heartbeat pulse */
+  .pulse-heartbeat {
+    animation: pulse-heartbeat 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-heartbeat {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 15px rgba(255, 20, 147, 0.3);
+    }
+    14% {
+      transform: scale(1.05);
+      box-shadow: 0 0 25px rgba(255, 20, 147, 0.5);
+    }
+    28% {
+      transform: scale(1);
+    }
+    42% {
+      transform: scale(1.03);
+      box-shadow: 0 0 20px rgba(255, 20, 147, 0.4);
+    }
+  }
+
+  /* ========================================
+     COLOR UTILITIES - Romantic Palette
+     ======================================== */
+
+  /* Hot Pink */
+  .text-hot-pink {
+    color: #ff69b4;
+  }
+  .bg-hot-pink {
+    background-color: #ff69b4;
+  }
+  .border-hot-pink {
+    border-color: #ff69b4;
+  }
+
+  /* Deep Pink */
+  .text-deep-pink {
+    color: #ff1493;
+  }
+  .bg-deep-pink {
+    background-color: #ff1493;
+  }
+  .border-deep-pink {
+    border-color: #ff1493;
+  }
+
+  /* Passion Purple */
+  .text-passion-purple {
+    color: #764ba2;
+  }
+  .bg-passion-purple {
+    background-color: #764ba2;
+  }
+  .border-passion-purple {
+    border-color: #764ba2;
+  }
+
+  /* Rose */
+  .text-rose {
+    color: #ee5a6f;
+  }
+  .bg-rose {
+    background-color: #ee5a6f;
+  }
+  .border-rose {
+    border-color: #ee5a6f;
+  }
+
+  /* Mystique Purple */
+  .text-mystique {
+    color: #667eea;
+  }
+  .bg-mystique {
+    background-color: #667eea;
+  }
+  .border-mystique {
+    border-color: #667eea;
+  }
+
+  /* Orchid */
+  .text-orchid {
+    color: #f093fb;
+  }
+  .bg-orchid {
+    background-color: #f093fb;
+  }
+  .border-orchid {
+    border-color: #f093fb;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Gradient animation - smooth color shifting */
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Glow pulse animation */
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 5px rgba(255, 105, 180, 0.5));
+    }
+    50% {
+      filter: drop-shadow(0 0 20px rgba(255, 105, 180, 0.8));
+    }
+  }
+
+  /* Breathing effect for subtle animations */
+  .animate-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.02);
+    }
+  }
+
+  /* Border glow animation - Romantic pink */
+  .animate-border-glow {
+    animation: border-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes border-glow {
+    0%, 100% {
+      border-color: rgba(255, 105, 180, 0.3);
+      box-shadow: 0 0 5px rgba(255, 105, 180, 0.2);
+    }
+    50% {
+      border-color: rgba(255, 105, 180, 0.6);
+      box-shadow: 0 0 15px rgba(138, 43, 226, 0.4);
+    }
+  }
+
+  /* Romantic fade in */
+  .animate-fade-in-romantic {
+    animation: fade-in-romantic 1s ease-out;
+  }
+
+  @keyframes fade-in-romantic {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+      filter: blur(5px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  /* Hide scrollbars */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom styled scrollbar - Romantic pink to purple */
+  .scrollbar-styled {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 105, 180, 0.3) transparent;
+  }
+
+  .scrollbar-styled::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-styled::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-styled::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(255, 105, 180, 0.4), rgba(138, 43, 226, 0.4));
+    border-radius: 3px;
+  }
+
+  .scrollbar-styled::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(255, 105, 180, 0.6), rgba(138, 43, 226, 0.6));
+  }
+}
