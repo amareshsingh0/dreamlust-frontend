@@ -14,19 +14,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '18'
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Install dependencies (legacy peer deps)
+        run: npm ci --legacy-peer-deps
 
       - name: Lint
-        run: bun run lint
+        run: npm run lint
 
       - name: Check TypeScript
-        run: bunx tsc --noEmit
+        run: npx tsc --noEmit
 
   test:
     name: Frontend Tests
@@ -35,19 +35,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '18'
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Install dependencies (legacy peer deps)
+        run: npm ci --legacy-peer-deps
 
       - name: Run unit tests
-        run: bun run test --run
+        run: npm run test -- --run
 
       - name: Generate coverage report
-        run: bun run test:coverage
+        run: npm run test:coverage
         continue-on-error: true
 
       - name: Upload coverage to Codecov
@@ -65,16 +65,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '18'
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Install dependencies (legacy peer deps)
+        run: npm ci --legacy-peer-deps
 
       - name: Build frontend
-        run: bun run build
+        run: npm run build
         env:
           VITE_API_URL: https://api.example.com
           VITE_CDN_URL: https://cdn.example.com
@@ -97,24 +97,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '18'
 
       - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Install dependencies (legacy peer deps)
+        run: npm ci --legacy-peer-deps
 
       - name: Build frontend
-        run: bun run build
+        run: npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.example.com' }}
 
       - name: Run E2E tests
-        run: bun run test:e2e
+        run: npm run test:e2e
         env:
           PLAYWRIGHT_TEST_BASE_URL: http://localhost:4173
 
